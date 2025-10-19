@@ -1,3 +1,5 @@
+using System.IO;
+using System.Linq;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +11,8 @@ using ProjectService.Dtos;
 using ProjectService.Messaging;
 using ProjectService.Services;
 using ProjectService.Validators;
+
+LoadDotEnv();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,3 +109,40 @@ app.MapControllers();
 app.MapHealthChecks("/healthz").AllowAnonymous();
 
 app.Run();
+
+static void LoadDotEnv()
+{
+    var possiblePaths = new[]
+    {
+        Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+        Path.Combine(AppContext.BaseDirectory, ".env")
+    };
+
+    var envFile = possiblePaths.FirstOrDefault(File.Exists);
+    if (envFile is null)
+    {
+        return;
+    }
+
+    foreach (var rawLine in File.ReadAllLines(envFile))
+    {
+        var line = rawLine.Trim();
+        if (string.IsNullOrEmpty(line) || line.StartsWith("#", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        var parts = line.Split('=', 2);
+        if (parts.Length != 2)
+        {
+            continue;
+        }
+
+        var key = parts[0].Trim();
+        var value = parts[1].Trim().Trim('"');
+        if (!string.IsNullOrEmpty(key))
+        {
+            Environment.SetEnvironmentVariable(key, value);
+        }
+    }
+}

@@ -6,8 +6,6 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    volumes:
-      - ./db-init:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
 
@@ -36,9 +34,9 @@ services:
 
   project-service:
     build:
-      context: ../services/project-service-dotnet/ProjectService
+      context: ../services/project-service
     environment:
-      ConnectionStrings__Postgres: Host=postgres;Database=autonova;Username=project_user;Password=project_pass
+      ConnectionStrings__Postgres: ${PROJECT_SERVICE_POSTGRES:-Host=postgres;Database=autonova;Username=project_user;Password=project_pass}
       Auth__Authority: http://auth-service:8082
       Rabbit__HostName: rabbitmq
       Rabbit__UserName: guest
