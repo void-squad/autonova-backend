@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "quote.approved",
+  "type": "object",
+  "properties": {
+    "quoteId": {"type": "string", "format": "uuid"},
+    "projectId": {"type": "string", "format": "uuid"},
+    "approvedAt": {"type": "string", "format": "date-time"},
+    "approvedBy": {"type": "string", "format": "uuid"},
+    "status": {"type": "string"},
+    "total": {"type": "number"}
+  },
+  "required": ["quoteId", "projectId", "approvedAt", "approvedBy", "status", "total"]
+}
