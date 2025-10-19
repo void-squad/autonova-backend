@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "project.created",
+  "type": "object",
+  "properties": {
+    "projectId": {"type": "string", "format": "uuid"},
+    "customerId": {"type": "string", "format": "uuid"},
+    "title": {"type": "string"},
+    "status": {"type": "string"},
+    "occurredAt": {"type": "string", "format": "date-time"}
+  },
+  "required": ["projectId", "customerId", "title", "status", "occurredAt"]
+}
