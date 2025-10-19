@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  auth-service:
+    build:
+      context: ../auth-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+
+  gateway-service:
+    build:
+      context: ../gateway-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - project-service
+
+  project-service:
+    build:
+      context: ../services/project-service-dotnet/ProjectService
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Database=autonova;Username=project_user;Password=project_pass
+      Auth__Authority: http://auth-service:8082
+      Rabbit__HostName: rabbitmq
+      Rabbit__UserName: guest
+      Rabbit__Password: guest
+      Rabbit__Exchange: autonova.events
+      ASPNETCORE_URLS: http://+:8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - rabbitmq
