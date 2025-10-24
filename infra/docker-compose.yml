@@ -7,6 +7,8 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
+      PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -16,12 +18,36 @@ services:
       interval: 5s
       retries: 5
 
+  postgres-init:
+    image: postgres:18
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
+      PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
+    volumes:
+      - ./init-scripts:/scripts:ro
+    entrypoint: >
+      bash -c " 
+        until pg_isready -h postgres -U \$POSTGRES_USER; do
+          sleep 2;
+        done;
+        echo 'Starting database initialization via db-init.sh';
+        bash /scripts/db-init.sh
+      "
+    restart: "no"
   rabbitmq:
     container_name: autonova-rabbitmq
     image: rabbitmq:4.1.4-management
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      retries: 5
 
   # auth-service:
   #   container_name: autonova-auth-service
@@ -32,7 +58,7 @@ services:
   #   environment:
   #     ConnectionStrings__Postgres: ${AUTH_SERVICE_POSTGRES:-Host=postgres;Database=auth_db;Username=auth_user;Password=auth_pass}
   #   depends_on:
-  #     - postgres
+  #     - postgres-init
 
   # gateway-service:
   #   container_name: autonova-gateway-service
@@ -44,23 +70,24 @@ services:
   #     - auth-service
   #     - project-service
 
-  # project-service:
-  #   container_name: autonova-project-service
-  #   build:
-  #     context: ../services/project-service
-  #   environment:
-  #     ConnectionStrings__Postgres: ${PROJECT_SERVICE_POSTGRES:-Host=postgres;Database=autonova;Username=project_user;Password=project_pass}
-  #     Auth__Authority: http://auth-service:8082
-  #     Rabbit__HostName: rabbitmq
-  #     Rabbit__UserName: guest
-  #     Rabbit__Password: guest
-  #     Rabbit__Exchange: autonova.events
-  #     ASPNETCORE_URLS: http://+:8081
-  #   ports:
-  #     - "8081:8081"
-  #   depends_on:
-  #     - postgres
-  #     - rabbitmq
+  project-service:
+    container_name: autonova-project-service
+    build:
+      context: ../services/project-service
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD}
+      Auth__Authority: http://auth-service:8082
+      Rabbit__HostName: rabbitmq
+      Rabbit__UserName: guest
+      Rabbit__Password: guest
+      Rabbit__Exchange: autonova.events
+      ASPNETCORE_URLS: http://+:8081
+    ports:
+      - "8081:8081"
+    depends_on:
+    - postgres
+    - postgres-init
+    - rabbitmq
 
 volumes:
   postgres_data:
