@@ -1,0 +1,94 @@
+#!/bin/bash
+set -e
+
+# ========================
+# Configuration
+# ========================
+PGHOST=${PGHOST:-postgres}
+PGPORT=${PGPORT:-5432}
+POSTGRES_USER=${POSTGRES_USER:-postgres}
+PGPASSWORD=${PGPASSWORD:-$POSTGRES_PASSWORD}  # needed for TCP authentication
+
+export PGPASSWORD
+
+echo "========================================="
+echo "Starting database initialization..."
+echo "========================================="
+
+# ========================
+# Define services
+# Format: database:user:password_env_var
+# ========================
+SERVICES=(
+    "projects_db:project_service:PROJECTS_DB_PASSWORD"
+    "progress_monitoring_db:progress_monitoring_service:PROGRESS_MONITORING_DB_PASSWORD"
+    # Add more here if needed
+)
+
+# ========================
+# Loop through services
+# ========================
+for service in "${SERVICES[@]}"; do
+    IFS=':' read -r db user pwd_var <<< "$service"
+    password="${!pwd_var}"
+    
+    echo ""
+    echo "----------------------------------------"
+    echo "Processing: $db / $user"
+    echo "----------------------------------------"
+    
+    # Check if database exists
+    DB_EXISTS=$(psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname='$db'")
+    
+    if [ "$DB_EXISTS" = "1" ]; then
+        echo "→ Database already exists: $db"
+    else
+        echo "✓ Creating database: $db"
+        psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $db;"
+    fi
+    
+    # Check if user exists
+    USER_EXISTS=$(psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_roles WHERE rolname='$user'")
+    
+    if [ "$USER_EXISTS" = "1" ]; then
+        echo "→ User already exists: $user"
+    else
+        echo "✓ Creating user: $user"
+        psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -c "CREATE USER $user WITH ENCRYPTED PASSWORD '$password';"
+    fi
+    
+    # Grant privileges and set ownership
+    echo "✓ Ensuring privileges for: $user"
+    psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 <<-EOSQL
+        GRANT ALL PRIVILEGES ON DATABASE $db TO $user;
+        ALTER DATABASE $db OWNER TO $user;
+EOSQL
+    
+    echo "✓ Completed: $db / $user"
+done
+
+# ========================
+# Final summary
+# ========================
+echo ""
+echo "========================================"
+echo "Database initialization completed!"
+echo "========================================"
+
+psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 <<-EOSQL
+    \echo ''
+    \echo 'Listing all databases:'
+    \l
+    
+    \echo ''
+    \echo 'Listing all users/roles:'
+    \du
+    
+    \echo ''
+    \echo 'Database ownership summary:'
+    SELECT datname, pg_catalog.pg_get_userbyid(datdba) as owner 
+    FROM pg_database;
+EOSQL
+
+echo ""
+echo "✓ All done!"
