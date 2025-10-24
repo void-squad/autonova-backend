@@ -97,6 +97,17 @@ builder.Services.AddHostedService<OutboxDispatcher>();
 
 var app = builder.Build();
 
+// log that we are going to apply migrations
+app.Logger.LogInformation("Applying database migrations...");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDb>();
+    db.Database.Migrate(); // applies all pending migrations
+}
+
+app.Logger.LogInformation("Database migrations applied successfully.");
+
 app.UseExceptionHandler();
 
 app.UseSwagger();
@@ -107,7 +118,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/healthz").AllowAnonymous();
-
 app.Run();
 
 static void LoadDotEnv()
