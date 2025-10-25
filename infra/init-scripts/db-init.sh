@@ -4,10 +4,12 @@ set -e
 # ========================
 # Configuration
 # ========================
-PGHOST=${PGHOST:-postgres}
-PGPORT=${PGPORT:-5432}
-POSTGRES_USER=${POSTGRES_USER:-postgres}
+PGHOST=${PGHOST}
+PGPORT=${PGPORT}
+POSTGRES_USER=${POSTGRES_USER}
 PGPASSWORD=${PGPASSWORD:-$POSTGRES_PASSWORD}  # needed for TCP authentication
+# Optional: if using Neon, connect initially to the default DB they provide (usually `neondb`)
+PGDATABASE=${PGDATABASE:-postgres}  # fallback to postgres if not set
 
 export PGPASSWORD
 
@@ -16,13 +18,24 @@ echo "Starting database initialization..."
 echo "========================================="
 
 # ========================
+# SSL detection (Neon vs local)
+# ========================
+if [[ "$PGHOST" == "localhost" || "$PGHOST" == "127.0.0.1" || "$PGHOST" == "postgres" ]]; then
+  SSLMODE_OPTS=""
+  echo "Local Postgres detected — no SSL."
+else
+  SSLMODE_OPTS="sslmode=require"
+  echo "Remote Postgres (Neon) detected — using SSL."
+fi
+
+# ========================
 # Define services
 # Format: database:user:password_env_var
 # ========================
 SERVICES=(
     "projects_db:project_service:PROJECTS_DB_PASSWORD"
     "progress_monitoring_db:progress_monitoring_service:PROGRESS_MONITORING_DB_PASSWORD"
-    # Add more here if needed
+    # Add dbs for serivices as needed
 )
 
 # ========================
@@ -38,33 +51,44 @@ for service in "${SERVICES[@]}"; do
     echo "----------------------------------------"
     
     # Check if database exists
-    DB_EXISTS=$(psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname='$db'")
+    DB_EXISTS=$(psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname='$db'")
     
     if [ "$DB_EXISTS" = "1" ]; then
         echo "→ Database already exists: $db"
     else
         echo "✓ Creating database: $db"
-        psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $db;"
+        psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $db;"
     fi
     
     # Check if user exists
-    USER_EXISTS=$(psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_roles WHERE rolname='$user'")
+    USER_EXISTS=$(psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_roles WHERE rolname='$user'")
     
     if [ "$USER_EXISTS" = "1" ]; then
         echo "→ User already exists: $user"
     else
         echo "✓ Creating user: $user"
-        psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 -c "CREATE USER $user WITH ENCRYPTED PASSWORD '$password';"
+        psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 -c "CREATE USER $user WITH ENCRYPTED PASSWORD '$password';"
     fi
     
-    # Grant privileges and set ownership
-    echo "✓ Ensuring privileges for: $user"
-    psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 <<-EOSQL
-        GRANT ALL PRIVILEGES ON DATABASE $db TO $user;
-        ALTER DATABASE $db OWNER TO $user;
+# Grant privileges and set ownership
+echo "✓ Ensuring privileges for: $user"
+
+if [[ "$PGHOST" == "localhost" || "$PGHOST" == "127.0.0.1" ]]; then
+    # Local Postgres — full ownership allowed
+    psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 <<EOSQL
+GRANT ALL PRIVILEGES ON DATABASE $db TO $user;
+ALTER DATABASE $db OWNER TO $user;
+
 EOSQL
-    
-    echo "✓ Completed: $db / $user"
+else
+    # Neon — only grant privileges, skip changing owner
+    psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 <<EOSQL
+GRANT ALL PRIVILEGES ON DATABASE $db TO $user;
+EOSQL
+fi
+
+echo "✓ Completed: $db / $user"
+
 done
 
 # ========================
@@ -75,7 +99,7 @@ echo "========================================"
 echo "Database initialization completed!"
 echo "========================================"
 
-psql -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER" -v ON_ERROR_STOP=1 <<-EOSQL
+psql "host=$PGHOST port=$PGPORT user=$POSTGRES_USER password=$PGPASSWORD dbname=$PGDATABASE $SSLMODE_OPTS" -v ON_ERROR_STOP=1 <<-EOSQL
     \echo ''
     \echo 'Listing all databases:'
     \l
