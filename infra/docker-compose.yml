@@ -1,7 +1,4 @@
-version: "3.9"
-
 services:
-  
   # Local DB commented out as we are using Neon/Postgres Cloud
   # postgres:
   #   container_name: autonova-postgres
@@ -22,8 +19,8 @@ services:
 
   postgres-init:
     image: postgres:17
-    depends_on:
-      - postgres
+    # depends_on:
+    #   - postgres  # Commented out since we're using cloud Postgres
     environment:
       PGHOST: ${POSTGRES_HOST}
       PGPORT: ${POSTGRES_PORT}
@@ -32,6 +29,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
       PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
+      EMPLOYEE_DASHBOARD_DB_PASSWORD: ${EMPLOYEE_DASHBOARD_DB_PASSWORD}
     volumes:
       - ./init-scripts:/scripts:ro
     entrypoint: >
@@ -92,7 +90,7 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - postgres
+      # - postgres  # Commented out since we're using cloud Postgres
       - postgres-init
       - rabbitmq
 
