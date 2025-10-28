@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Component;
 public class DomainEventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(DomainEventPublisher.class);
+    private static final int MAX_PUBLISH_ATTEMPTS = 3;
+    private static final long BASE_RETRY_BACKOFF_MS = 100L;
 
     private final RabbitTemplate rabbitTemplate;
     private final MessagingProperties properties;
@@ -65,7 +68,8 @@ public class DomainEventPublisher {
             "invoice_id", invoice.getId(),
             "project_id", invoice.getProjectId(),
             "amount", payment.getAmount(),
-            "currency", payment.getCurrency()
+            "currency", payment.getCurrency(),
+            "provider", payment.getProvider().name()
         ));
 
         send(properties.getOutbound().getPaymentExchange(), "payment.succeeded", payload);
@@ -85,12 +89,39 @@ public class DomainEventPublisher {
     }
 
     private void send(String exchange, String routingKey, Map<String, Object> payload) {
+        String body;
         try {
-            String body = objectMapper.writeValueAsString(payload);
-            rabbitTemplate.convertAndSend(exchange, routingKey, body);
-            log.debug("Published event {} to exchange {}", payload.get("type"), exchange);
+            body = objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Unable to serialize event payload", e);
         }
+
+        AmqpException lastException = null;
+        for (int attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt++) {
+            try {
+                rabbitTemplate.convertAndSend(exchange, routingKey, body);
+                log.debug("Published event {} to exchange {}", payload.get("type"), exchange);
+                return;
+            } catch (AmqpException ex) {
+                lastException = ex;
+                log.warn(
+                    "Attempt {}/{} to publish event {} failed: {}",
+                    attempt,
+                    MAX_PUBLISH_ATTEMPTS,
+                    payload.get("type"),
+                    ex.getMessage()
+                );
+                if (attempt < MAX_PUBLISH_ATTEMPTS) {
+                    try {
+                        Thread.sleep((long) Math.pow(2, attempt - 1) * BASE_RETRY_BACKOFF_MS);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+
+        throw new IllegalStateException("Failed to publish event " + payload.get("type"), lastException);
     }
 }

@@ -19,14 +19,11 @@ public class AuthProperties {
     private String issuer;
 
     /**
-     * Expected JWT audience. We perform a lightweight equality check.
+     * Expected JWT audience.
      */
     @NotBlank(message = "JWT audience must be provided via AUTH_JWT_AUDIENCE")
     private String audience;
 
-    /**
-     * Shared HS256 secret. For the assignment we only support symmetric signing.
-     */
     @NotBlank(message = "JWT HMAC secret must be provided via AUTH_JWT_HS256_SECRET")
     private String hs256Secret;
 }

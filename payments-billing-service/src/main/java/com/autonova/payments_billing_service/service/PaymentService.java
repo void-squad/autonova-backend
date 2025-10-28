@@ -132,6 +132,41 @@ public class PaymentService {
         });
     }
 
+    @Transactional
+    public void recordOfflinePayment(InvoiceEntity invoice, AuthenticatedUser user) {
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            throw new IllegalStateException("Invoice already paid");
+        }
+        if (invoice.getStatus() == InvoiceStatus.VOID) {
+            throw new IllegalStateException("Invoice has been voided");
+        }
+        if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+            throw new IllegalStateException("Invoice must be finalized before recording payment");
+        }
+
+        paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(invoice.getId(), PaymentStatus.SUCCEEDED)
+            .ifPresent(existing -> {
+                throw new IllegalStateException("Invoice already has a successful payment recorded");
+            });
+
+        PaymentEntity paymentEntity = new PaymentEntity();
+        paymentEntity.setId(UUID.randomUUID());
+        paymentEntity.setInvoice(invoice);
+        paymentEntity.setAmount(invoice.getAmountTotal());
+        paymentEntity.setCurrency(invoice.getCurrency());
+        paymentEntity.setProvider(PaymentProvider.OFFLINE);
+        paymentEntity.setStatus(PaymentStatus.SUCCEEDED);
+        paymentEntity.setStripePaymentIntentId(null);
+        paymentEntity.setFailureCode(null);
+        paymentEntity.setFailureMessage(null);
+        paymentEntity.setReceiptUrl(null);
+        paymentRepository.save(paymentEntity);
+
+        invoiceService.markInvoicePaid(invoice);
+        eventPublisher.publishPaymentSucceeded(invoice, paymentEntity);
+        log.info("Invoice {} marked as paid offline by {}", invoice.getId(), user.getUserId());
+    }
+
     private PaymentIntent createStripePaymentIntent(InvoiceEntity invoice) {
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
             .setAmount(invoice.getAmountTotal())

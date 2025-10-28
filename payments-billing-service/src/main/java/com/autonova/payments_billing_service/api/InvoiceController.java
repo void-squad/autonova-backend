@@ -104,6 +104,17 @@ public class InvoiceController {
         return ResponseEntity.status(201).body(response);
     }
 
+    @PostMapping("/{id}/mark-paid")
+    @PreAuthorize("hasAnyRole('EMPLOYEE','MANAGER')")
+    public ResponseEntity<InvoiceResponse> markInvoicePaid(
+        @PathVariable("id") UUID invoiceId,
+        @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        InvoiceEntity invoice = invoiceService.getInvoiceForUser(invoiceId, user);
+        paymentService.recordOfflinePayment(invoice, user);
+        return ResponseEntity.ok(InvoiceResponse.fromEntity(invoice));
+    }
+
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','MANAGER')")
     public ResponseEntity<byte[]> getInvoicePdf(

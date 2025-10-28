@@ -8,7 +8,7 @@
   * Listens to project completion and **marks the invoice due**.
   * Uses **Stripe Elements** to embed the card form in our UI; PBS creates/reuses **Stripe PaymentIntents** for processing (no raw card data handled by PBS).
   * Processes **Stripe webhooks** to finalize payments.
-  * Exposes minimal REST APIs for listing/viewing invoices and starting a checkout.
+  * Exposes minimal REST APIs for listing/viewing invoices, starting a checkout, and recording offline payments.
   * Enforces auth using **Project Service roles**.
   * Provides a **downloadable PDF** for any invoice the caller is authorized to view.
 
@@ -46,7 +46,7 @@
   * **Inbound**
 
     * Message consumer for `quote.approved`, `project.updated`.
-    * REST: `/api/invoices`, `/api/invoices/{id}`, `/api/invoices/{id}/payment-intent`, `/api/invoices/{id}/pdf`.
+    * REST: `/api/invoices`, `/api/invoices/{id}`, `/api/invoices/{id}/payment-intent`, `/api/invoices/{id}/mark-paid`, `/api/invoices/{id}/pdf`.
     * Webhook: `/webhooks/stripe`.
   * **Outbound**
 
@@ -123,7 +123,7 @@ CREATE TABLE consumed_events (
 **Transitions**
 
 * OPEN ΓåÆ DUE (project completed).
-* OPEN/DUE ΓåÆ PAID (payment succeeded).
+* OPEN/DUE ΓåÆ PAID (payment succeeded via Stripe or recorded offline).
 * (Admin) OPEN/DUE ΓåÆ VOID.
 
 ### Payment.status
@@ -199,7 +199,7 @@ CREATE TABLE consumed_events (
 #### `payment.succeeded`
 
 ```json
-{ "type":"payment.succeeded", "version":1, "data": { "payment_id":"uuid", "invoice_id":"uuid", "project_id":"uuid", "amount":1500000, "currency":"LKR" } }
+{ "type":"payment.succeeded", "version":1, "data": { "payment_id":"uuid", "invoice_id":"uuid", "project_id":"uuid", "amount":1500000, "currency":"LKR", "provider":"STRIPE" } }
 ```
 
 #### `payment.failed`
@@ -259,6 +259,29 @@ Base URL: `/api` (behind gateway if present)
 
   * If a prior **active** PaymentIntent exists for the invoice and it is not succeeded/canceled, return its `client_secret`.
   * Otherwise, create a new PaymentIntent (`amount`, `currency`, `metadata={invoiceId, projectId, customerId}`), persist a `payments` row with `status=INITIATED` and `stripe_payment_intent_id`, and return its `client_secret`.
+
+**POST** `/api/invoices/{id}/mark-paid`
+
+* Purpose: allow an employee/manager to record an **offline payment** (bank transfer, POS, etc.) without card processing.
+* **Auth**: `employee|manager` only.
+* **Body** (optional):
+
+```json
+{}
+```
+
+* **200**:
+
+```json
+{ "id":"uuid","project_id":"uuid","customer_id":"uuid","amount_total":1500000,"currency":"LKR","status":"PAID","due_at":null,"created_at":"..." }
+```
+
+* **Behavior**:
+
+  * Rejects invoices that are `PAID`, `VOID`, or still `DRAFT`.
+  * Persists a `payments` row with `provider=OFFLINE`, `status=SUCCEEDED`, and the invoice amount.
+  * Marks the invoice `PAID` and publishes `invoice.updated` and `payment.succeeded`.
+* **Notes**: assumes funds cover the full invoice amount; partial payments remain unsupported.
 
 **GET** `/api/invoices/{id}/pdf`
 
