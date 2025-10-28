@@ -52,6 +52,12 @@ stripe:
   publishable-key: ${STRIPE_PUBLISHABLE_KEY:pk_test_change_me}
   webhook-endpoint-secret: ${STRIPE_WEBHOOK_ENDPOINT_SECRET:}
 
+auth:
+  jwt:
+    issuer: ${AUTH_JWT_ISSUER:local-autonova}
+    audience: ${AUTH_JWT_AUDIENCE:autonova-api}
+    hs256-secret: ${AUTH_JWT_HS256_SECRET:dev-secret-please-change}
+
 springdoc:
   api-docs:
     enabled: true
