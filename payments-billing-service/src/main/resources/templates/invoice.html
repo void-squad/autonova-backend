@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice</title>
+    <style>
+        body { font-family: "Helvetica", Arial, sans-serif; margin: 2rem; color: #212121; }
+        h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+        .section { margin-top: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.5rem; border-bottom: 1px solid #dddddd; text-align: left; }
+        .totals { text-align: right; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Invoice</h1>
+        <p>Invoice ID: <span th:text="${invoiceId}">00000000-0000-0000-0000-000000000000</span></p>
+        <p>Project ID: <span th:text="${projectId}">00000000-0000-0000-0000-000000000000</span></p>
+        <p>Status: <span th:text="${status}">OPEN</span></p>
+    </header>
+
+    <section class="section">
+        <h2>Customer</h2>
+        <p>Name: <span th:text="${customerName}">Customer Name</span></p>
+        <p>Email: <span th:text="${customerEmail}">customer@example.com</span></p>
+    </section>
+
+    <section class="section">
+        <h2>Summary</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="item : ${lineItems}">
+                <td th:text="${item.description}">Project Work</td>
+                <td th:text="${item.amountFormatted}" class="totals">LKR 0.00</td>
+            </tr>
+            </tbody>
+            <tfoot>
+            <tr>
+                <td class="totals">Total</td>
+                <td th:text="${totalFormatted}" class="totals">LKR 0.00</td>
+            </tr>
+            </tfoot>
+        </table>
+    </section>
+</body>
+</html>
