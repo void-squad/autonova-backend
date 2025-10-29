@@ -74,7 +74,7 @@ class DomainEventPublisherTest {
         invoice.setCustomerId(UUID.randomUUID());
         invoice.setAmountTotal(42_500L);
         invoice.setCurrency("LKR");
-        invoice.setStatus(InvoiceStatus.DUE);
+        invoice.setStatus(InvoiceStatus.OPEN);
 
         AtomicInteger attempts = new AtomicInteger();
         doAnswer(invocation -> {

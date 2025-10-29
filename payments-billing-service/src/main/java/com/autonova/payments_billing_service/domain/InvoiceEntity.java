@@ -45,9 +45,6 @@ public class InvoiceEntity {
     @Column(name = "status", nullable = false, length = 16)
     private InvoiceStatus status = InvoiceStatus.OPEN;
 
-    @Column(name = "due_at")
-    private OffsetDateTime dueAt;
-
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

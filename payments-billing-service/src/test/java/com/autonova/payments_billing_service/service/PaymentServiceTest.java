@@ -53,7 +53,7 @@ class PaymentServiceTest {
 
     @Test
     void recordOfflinePayment_persistsPaymentAndMarksInvoicePaid() {
-        InvoiceEntity invoice = buildInvoice(InvoiceStatus.DUE);
+        InvoiceEntity invoice = buildInvoice(InvoiceStatus.OPEN);
         when(paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(invoice.getId(), PaymentStatus.SUCCEEDED))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(PaymentEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));

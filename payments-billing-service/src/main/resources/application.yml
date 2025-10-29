@@ -41,7 +41,6 @@ payments:
   messaging:
     inbound:
       quote-approved-queue: ${PBS_QUOTE_APPROVED_QUEUE:payments.quote-approved}
-      project-updated-queue: ${PBS_PROJECT_UPDATED_QUEUE:payments.project-updated}
     outbound:
       invoice-exchange: ${PBS_INVOICE_EXCHANGE:billing.invoice}
       payment-exchange: ${PBS_PAYMENT_EXCHANGE:billing.payment}

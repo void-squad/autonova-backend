@@ -12,7 +12,6 @@ import com.autonova.payments_billing_service.auth.AuthenticatedUser;
 import com.autonova.payments_billing_service.domain.ConsumedEventEntity;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
-import com.autonova.payments_billing_service.events.ProjectUpdatedEvent;
 import com.autonova.payments_billing_service.events.QuoteApprovedEvent;
 import com.autonova.payments_billing_service.messaging.DomainEventPublisher;
 import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
@@ -94,36 +93,6 @@ class InvoiceServiceTest {
         verify(invoiceRepository, never()).findByProjectId(any());
         verify(invoiceRepository, never()).save(any());
         verify(eventPublisher, never()).publishInvoiceCreated(any());
-    }
-
-    @Test
-    void handleProjectUpdatedMarksInvoiceDueWhenCompleted() {
-        UUID projectId = UUID.randomUUID();
-        InvoiceEntity invoice = new InvoiceEntity();
-        invoice.setId(UUID.randomUUID());
-        invoice.setProjectId(projectId);
-        invoice.setCustomerId(UUID.randomUUID());
-        invoice.setAmountTotal(5_000L);
-        invoice.setCurrency("LKR");
-        invoice.setStatus(InvoiceStatus.OPEN);
-
-        ProjectUpdatedEvent event = new ProjectUpdatedEvent(
-            UUID.randomUUID(),
-            "project.updated",
-            OffsetDateTime.now(),
-            1,
-            new ProjectUpdatedEvent.ProjectUpdatedData(projectId, "Completed")
-        );
-
-        when(consumedEventRepository.save(any(ConsumedEventEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(invoiceRepository.findByProjectId(projectId)).thenReturn(Optional.of(invoice));
-        when(invoiceRepository.save(any(InvoiceEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        invoiceService.handleProjectUpdated(event);
-
-        assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.DUE);
-        assertThat(invoice.getDueAt()).isNotNull();
-        verify(eventPublisher).publishInvoiceUpdated(invoice);
     }
 
     @Test

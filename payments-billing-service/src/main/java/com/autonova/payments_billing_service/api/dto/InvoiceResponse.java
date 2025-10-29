@@ -13,7 +13,6 @@ public record InvoiceResponse(
     String currency,
     long amountTotal,
     InvoiceStatus status,
-    OffsetDateTime dueAt,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {
@@ -27,7 +26,6 @@ public record InvoiceResponse(
             entity.getCurrency(),
             entity.getAmountTotal(),
             entity.getStatus(),
-            entity.getDueAt(),
             entity.getCreatedAt(),
             entity.getUpdatedAt()
         );

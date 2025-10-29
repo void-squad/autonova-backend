@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.autonova.payments_billing_service.domain.ConsumedEventEntity;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
-import com.autonova.payments_billing_service.events.ProjectUpdatedEvent;
 import com.autonova.payments_billing_service.events.QuoteApprovedEvent;
 import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
 import com.autonova.payments_billing_service.repository.InvoiceRepository;
@@ -90,19 +89,10 @@ class PaymentsBillingServiceIntegrationTest {
         assertThat(invoiceRepository.count()).isEqualTo(1);
         assertThat(refreshed.getAmountTotal()).isEqualTo(55_000L);
 
-        ProjectUpdatedEvent completionEvent = new ProjectUpdatedEvent(
-            UUID.randomUUID(),
-            "project.updated",
-            OffsetDateTime.now(),
-            1,
-            new ProjectUpdatedEvent.ProjectUpdatedData(projectId, "Completed")
-        );
+        invoiceService.markInvoicePaid(refreshed);
 
-        invoiceService.handleProjectUpdated(completionEvent);
-
-        InvoiceEntity dueInvoice = invoiceRepository.findByProjectId(projectId).orElseThrow();
-        assertThat(dueInvoice.getStatus()).isEqualTo(InvoiceStatus.DUE);
-        assertThat(dueInvoice.getDueAt()).isNotNull();
+        InvoiceEntity paidInvoice = invoiceRepository.findByProjectId(projectId).orElseThrow();
+        assertThat(paidInvoice.getStatus()).isEqualTo(InvoiceStatus.PAID);
 
         ConsumedEventEntity eventEntity = new ConsumedEventEntity(UUID.randomUUID(), "test.event", OffsetDateTime.now());
         consumedEventRepository.save(eventEntity);

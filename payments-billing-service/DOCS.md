@@ -1,11 +1,10 @@
-## 0) Scope (what we will and wonΓÇÖt build)
+## 0) Scope (what we will and won't build)
 
 **We will build**
 
-* One **Payments & Billing** microservice (ΓÇ£PBSΓÇ¥) that:
+* One **Payments & Billing** microservice ("PBS") that:
 
   * Listens to `quote.approved` events and **creates/updates one invoice per project**.
-  * Listens to project completion and **marks the invoice due**.
   * Uses **Stripe Elements** to embed the card form in our UI; PBS creates/reuses **Stripe PaymentIntents** for processing (no raw card data handled by PBS).
   * Processes **Stripe webhooks** to finalize payments.
   * Exposes minimal REST APIs for listing/viewing invoices, starting a checkout, and recording offline payments.
@@ -15,26 +14,26 @@
 **We will not build**
 
 * Refunds / partial refunds.
-* Outbox pattern (any distributed TX guarantees beyond ΓÇ£best effortΓÇ¥).
+* Outbox pattern (any distributed TX guarantees beyond "best effort").
 * Eureka / service discovery.
-* Advanced accounting (tax, discounts, FX), multiple invoices per project, or complex lineΓÇæitems.
+* Advanced accounting (tax, discounts, FX), multiple invoices per project, or complex line-items.
 
 ---
 
 ## 1) Ground rules & assumptions
 
-1. **IDs**: All serviceΓÇætoΓÇæservice and DB identifiers are **UUID** (Auth will update to UUID; JWT `sub` is a UUID).
+1. **IDs**: All service-to-service and DB identifiers are **UUID** (Auth will update to UUID; JWT `sub` is a UUID).
 2. **Auth/JWT**: Owned by Auth team. PBS only **validates JWT** and reads **roles** (we adopt Project Service roles).
 3. **Roles** (effective in JWT): `customer`, `employee`, `manager`.
 4. **Events**:
 
-   * **Consume**: `quote.approved` (publisher will be fixed to include needed fields), `project.updated` (to detect completion).
+   * **Consume**: `quote.approved` (publisher will be fixed to include needed fields).
    * **Publish** (minimal): `invoice.created`, `invoice.updated`, `payment.succeeded`, `payment.failed`.
 5. **Invoice cardinality**: **One invoice per project**, updated as needed. (Unique by `project_id`.)
 6. **Currency**: **LKR** only.
-7. **Billing policy**: Create invoice on **approval**, mark as **DUE** when project is **completed**; payment can be made any time, but is required once due.
+7. **Billing policy**: Create invoice on **approval**, require **payment before project completion**, and transition invoices directly from `OPEN` (or `DRAFT`) to `PAID`.
 8. **Payment UI**: **Embedded card form** using Stripe Elements; rely on **webhooks** for truth. PBS never receives raw PAN/CVV.
-9. **Messaging**: Use the existing broker (assume RabbitMQ/KafkaΓÇöwire via env vars). **No outbox**; synchronous publish with lightweight retry.
+9. **Messaging**: Use the existing broker (assume RabbitMQ/Kafka-wire via env vars). **No outbox**; synchronous publish with lightweight retry.
 10. **Environment**: Postgres for persistence; containerized deployment.
 
 ---
@@ -45,7 +44,7 @@
 
   * **Inbound**
 
-    * Message consumer for `quote.approved`, `project.updated`.
+    * Message consumer for `quote.approved`.
     * REST: `/api/invoices`, `/api/invoices/{id}`, `/api/invoices/{id}/payment-intent`, `/api/invoices/{id}/mark-paid`, `/api/invoices/{id}/pdf`.
     * Webhook: `/webhooks/stripe`.
   * **Outbound**
@@ -71,8 +70,7 @@ CREATE TABLE invoices (
   quote_id          UUID,                    -- optional if provided by event
   currency          CHAR(3) NOT NULL DEFAULT 'LKR',
   amount_total      BIGINT NOT NULL,         -- in minor units (LKR cents)
-  status            TEXT NOT NULL,           -- DRAFT | OPEN | DUE | PAID | VOID
-  due_at            TIMESTAMPTZ,             -- set when project completes
+  status            TEXT NOT NULL,           -- DRAFT | OPEN | PAID | VOID
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -106,7 +104,7 @@ CREATE TABLE consumed_events (
 );
 ```
 
-**Why minor units?** Stripe uses the smallest currency unit; this spares you floatingΓÇæpoint pain.
+**Why minor units?** Stripe uses the smallest currency unit; this spares you floating-point pain.
 
 ---
 
@@ -114,24 +112,23 @@ CREATE TABLE consumed_events (
 
 ### Invoice.status
 
-* `DRAFT` ΓåÆ initial (rarely used; weΓÇÖll jump to `OPEN` directly on approval).
-* `OPEN` ΓåÆ created on `quote.approved`.
-* `DUE` ΓåÆ when `project.updated` indicates completion.
-* `PAID` ΓåÆ when Stripe webhook signals success.
-* `VOID` ΓåÆ admin only (not required for MVP; stub allowed).
+* `DRAFT` - initial placeholder (rarely used; we usually jump to `OPEN` directly on approval).
+* `OPEN` - created on `quote.approved` and represents an invoice that is ready to pay.
+* `PAID` - reached when Stripe webhooks or an offline payment succeed.
+* `VOID` - admin only (not required for MVP; stub allowed).
 
 **Transitions**
 
-* OPEN ΓåÆ DUE (project completed).
-* OPEN/DUE ΓåÆ PAID (payment succeeded via Stripe or recorded offline).
-* (Admin) OPEN/DUE ΓåÆ VOID.
+* DRAFT -> OPEN (quote approved or manual finalization).
+* DRAFT/OPEN -> PAID (payment succeeded via Stripe or recorded offline).
+* (Admin) DRAFT/OPEN -> VOID.
 
 ### Payment.status
 
-* `INITIATED` ΓåÆ when a Stripe **PaymentIntent** is created.
-* `SUCCEEDED` ΓåÆ on webhook `payment_intent.succeeded`.
-* `FAILED` ΓåÆ on `payment_intent.payment_failed`.
-* `CANCELED` ΓåÆ if the PaymentIntent is canceled.
+* `INITIATED` -> when a Stripe **PaymentIntent** is created.
+* `SUCCEEDED` -> on webhook `payment_intent.succeeded`.
+* `FAILED` -> on `payment_intent.payment_failed`.
+* `CANCELED` -> if the PaymentIntent is canceled.
 
 ---
 
@@ -160,27 +157,8 @@ CREATE TABLE consumed_events (
 
 **Handler logic**
 
-* If an invoice for `project_id` **does not exist** ΓåÆ create `OPEN` invoice with `amount_total = total`.
-* If it **exists** and is not `PAID`/`VOID` ΓåÆ update `amount_total` (idempotent: ignore duplicate events via `consumed_events`).
-
-#### `project.updated` (from Project)
-
-```json
-{
-  "id": "event-uuid",
-  "type": "project.updated",
-  "occurred_at": "2025-10-21T12:00:00Z",
-  "version": 1,
-  "data": {
-    "project_id": "uuid",
-    "status": "Completed"         // case-sensitive per publisher
-  }
-}
-```
-
-**Handler logic**
-
-* If invoice exists and `status` is `OPEN`, set `status = DUE` and `due_at = now()`.
+* If an invoice for `project_id` **does not exist** -> create an `OPEN` invoice with `amount_total = total`.
+* If it **exists** and is not `PAID`/`VOID` -> update `amount_total` (idempotent: ignore duplicate events via `consumed_events`).
 
 ### Published (minimal)
 
@@ -193,7 +171,7 @@ CREATE TABLE consumed_events (
 #### `invoice.updated`
 
 ```json
-{ "type":"invoice.updated", "version":1, "data": { "invoice_id":"uuid", "status":"DUE" } }
+{ "type":"invoice.updated", "version":1, "data": { "invoice_id":"uuid", "status":"PAID" } }
 ```
 
 #### `payment.succeeded`
@@ -208,7 +186,8 @@ CREATE TABLE consumed_events (
 { "type":"payment.failed", "version":1, "data": { "payment_id":"uuid", "invoice_id":"uuid", "error_code":"card_declined" } }
 ```
 
-> **Publishing simplicity**: publish **after DB commit**; on publish failure, log and enqueue a **bestΓÇæeffort retry** (e.g., transient inΓÇæmemory/backoff worker). ThatΓÇÖs itΓÇöno outbox.
+> **Publishing simplicity**: publish **after DB commit**; on publish failure, log and enqueue a **best-effort retry** (e.g., transient in-memory/backoff worker). That's it-no outbox.
+> **Publishing simplicity**: publish **after DB commit**; on publish failure, log and enqueue a **best-effort retry** (e.g., transient in-memory/backoff worker). That's it - no outbox.
 
 ---
 
@@ -218,7 +197,7 @@ Base URL: `/api` (behind gateway if present)
 
 ### Invoices
 
-**GET** `/api/invoices?status=OPEN|DUE|PAID&projectId=uuid&limit=50&offset=0`
+**GET** `/api/invoices?status=DRAFT|OPEN|PAID|VOID&projectId=uuid&limit=50&offset=0`
 
 * **Auth**:
 
@@ -227,7 +206,7 @@ Base URL: `/api` (behind gateway if present)
 * **200**:
 
 ```json
-{ "items": [ { "id":"uuid","project_id":"uuid","customer_id":"uuid","amount_total":1500000,"currency":"LKR","status":"OPEN","due_at":null,"created_at":"..."} ],
+{ "items": [ { "id":"uuid","project_id":"uuid","customer_id":"uuid","amount_total":1500000,"currency":"LKR","status":"OPEN","created_at":"..."} ],
   "total": 1, "limit": 50, "offset": 0 }
 ```
 
@@ -273,7 +252,7 @@ Base URL: `/api` (behind gateway if present)
 * **200**:
 
 ```json
-{ "id":"uuid","project_id":"uuid","customer_id":"uuid","amount_total":1500000,"currency":"LKR","status":"PAID","due_at":null,"created_at":"..." }
+{ "id":"uuid","project_id":"uuid","customer_id":"uuid","amount_total":1500000,"currency":"LKR","status":"PAID","created_at":"..." }
 ```
 
 * **Behavior**:
@@ -308,23 +287,23 @@ Base URL: `/api` (behind gateway if present)
 * Verify **Stripe signature** header.
 * Handle:
 
-  * `payment_intent.succeeded` ΓåÆ mark payment `SUCCEEDED` and invoice `PAID`, persist `receipt_url` from the latest charge if available, publish `payment.succeeded`.
-  * `payment_intent.payment_failed` ΓåÆ mark `FAILED`, store `failure_code/message`, publish `payment.failed`.
-  * (Optional) `payment_intent.canceled` ΓåÆ mark `CANCELED`.
+  * `payment_intent.succeeded` -> mark payment `SUCCEEDED` and invoice `PAID`, persist `receipt_url` from the latest charge if available, publish `payment.succeeded`.
+  * `payment_intent.payment_failed` -> mark `FAILED`, store `failure_code/message`, publish `payment.failed`.
+  * (Optional) `payment_intent.canceled` -> mark `CANCELED`.
 * **Idempotency**: enforce **unique** `stripe_payment_intent_id`.
 
 ---
 
 ## 7) Security & authorization
 
-* **JWT** validated using AuthΓÇÖs configuration (HS256 or OIDCΓÇöowned by Auth team).
+* **JWT** validated using Auth's configuration (HS256 or OIDC-owned by Auth team).
 * Roles used by PBS: `customer`, `employee`, `manager`.
 * **Access rules**
 
   * `GET /api/invoices` and `GET /api/invoices/{id}`:
 
-    * `customer` ΓåÆ filter to `customer_id == sub`.
-    * `employee|manager` ΓåÆ full access.
+    * `customer` -> filter to `customer_id == sub`.
+    * `employee|manager` -> full access.
   * `POST /api/invoices/{id}/payment-intent`:
 
     * `customer` (owner) or `employee|manager`.
@@ -340,7 +319,7 @@ Base URL: `/api` (behind gateway if present)
 
 ## 8) Idempotency & consistency (without outbox)
 
-* **Event consumption**: record `event_id` in `consumed_events`. If seen, **noΓÇæop**.
+* **Event consumption**: record `event_id` in `consumed_events`. If seen, **no-op**.
 * **Invoice creation**: `UNIQUE(project_id)` guarantees **one invoice per project**. Use UPSERT on `quote.approved`.
 * **PaymentIntent**: if an unpaid invoice already has an active PaymentIntent, **reuse** it.
 * **Webhook**: dedupe by **unique** `stripe_payment_intent_id`.
@@ -363,7 +342,6 @@ AUTH_JWT_JWKS_URL=...      # or AUTH_JWT_HS256_SECRET=...
 MSG_BROKER_HOST=...
 MSG_BROKER_EXCHANGE=platform.events
 MSG_QUEUE_QUOTE_APPROVED=quote.approved.pbs
-MSG_QUEUE_PROJECT_UPDATED=project.updated.pbs
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
@@ -378,32 +356,32 @@ PORT=8080
 
 ---
 
-## 10) HappyΓÇæpath flows (step by step)
+## 10) Happy-path flows (step by step)
 
-**A) Quote approved ΓåÆ invoice created (OPEN)**
+**A) Quote approved -> invoice created (OPEN)**
 
 1. Project publishes `quote.approved`.
-2. PBS consumes ΓåÆ UPSERT invoice `(project_id, customer_id, amount_total, currency)`, `status=OPEN`.
+2. PBS consumes -> upserts invoice `(project_id, customer_id, amount_total, currency)` with `status=OPEN`.
 3. PBS publishes `invoice.created`.
 
 **B) Customer pays in-app (Stripe Elements)**
 
 1. Client calls `POST /api/invoices/{id}/payment-intent` to get a `client_secret`.
 2. Frontend renders Stripe Elements, collects card details, and calls `stripe.confirmCardPayment(client_secret, {payment_method: {card, billing_details}})`.
-3. On success, the UI shows a confirmation; source of truth remains the webhook.
-4. **Webhook** `payment_intent.succeeded` ΓåÆ PBS sets `payments.status=SUCCEEDED`, `invoices.status=PAID`, stores `payment_intent_id`, `receipt_url`, publishes `payment.succeeded`.
+3. On success, the UI shows a confirmation; the webhook remains the source of truth.
+4. Webhook `payment_intent.succeeded` -> PBS sets `payments.status=SUCCEEDED`, `invoices.status=PAID`, stores `payment_intent_id` and `receipt_url`, then publishes `payment.succeeded`.
+
+**C) Offline payment recorded**
+
+1. Employee calls `POST /api/invoices/{id}/mark-paid` with offline payment metadata.
+2. PBS validates the invoice is not `PAID`/`VOID`, persists an offline payment record, and sets `invoices.status=PAID`.
+3. PBS publishes `payment.succeeded` and `invoice.updated` with the `PAID` status.
 
 **D) User downloads invoice PDF**
 
 1. Client calls `GET /api/invoices/{id}/pdf`.
 2. PBS authorizes the caller using the same rules as `GET /api/invoices/{id}`.
-3. PBS renders HTML ΓåÆ PDF using the chosen library and streams bytes with `Content-Type: application/pdf`.
-
-**C) Project completed ΓåÆ invoice becomes DUE**
-
-1. Project publishes `project.updated` with `status=Completed`.
-2. PBS sets invoice to `DUE` (unless already `PAID`) and `due_at=now()`.
-3. PBS publishes `invoice.updated` with new status.
+3. PBS renders HTML -> PDF using the chosen library and streams bytes with `Content-Type: application/pdf`.
 
 ---
 
@@ -414,7 +392,7 @@ PORT=8080
 3. **GET invoices** endpoints with auth filters.
 4. **Stripe PaymentIntents** integration + `POST /invoices/{id}/payment-intent`.
 5. **Webhook** endpoint with signature verification + status updates.
-6. **Event consumer** for `project.updated` ΓåÆ mark invoice `DUE`.
+6. **Offline payment** endpoint (`POST /invoices/{id}/mark-paid`) with invoice transition to `PAID`.
 7. **Publish** events (`invoice.created`, `invoice.updated`, `payment.succeeded`, `payment.failed`).
 8. **Basic retries/logging** for publish failures.
 9. **Tests** (see next).
@@ -428,13 +406,13 @@ PORT=8080
 
 * Invoice UPSERT logic on `quote.approved`.
 * Role filtering on GET endpoints.
-* Mapping of webhook events ΓåÆ payment/invoice states.
+* Mapping of webhook events -> payment/invoice states.
 
 **Integration (Testcontainers)**
 
 * Postgres: migrations, unique constraints, idempotency of `consumed_events`.
-* Messaging: consume sample `quote.approved` / `project.updated` payloads.
-* Stripe: mock webhook requests with valid signature (use StripeΓÇÖs test helper or library util).
+* Messaging: consume sample `quote.approved` payloads.
+* Stripe: mock webhook requests with valid signature (use Stripe's test helper or library util).
 
 **Contract**
 
@@ -442,8 +420,8 @@ PORT=8080
 
 **Manual**
 
-* Full happy path in test mode: approve quote ΓåÆ list invoice (OPEN) ΓåÆ checkout ΓåÆ webhook ΓåÆ invoice (PAID).
-* Completion path: complete project ΓåÆ invoice flips to DUE if unpaid.
+* Full happy path in test mode: approve quote -> list invoice (OPEN) -> checkout -> webhook -> invoice (PAID).
+* Offline path: record manual payment -> invoice transitions to PAID and events publish.
 * PDF: download as authorized customer and employee; verify headers, filename, and that content renders totals and IDs correctly.
 
 ---
@@ -489,11 +467,11 @@ Authorization: Bearer <jwt>
 
 ---
 
-## 15) Risks & how weΓÇÖre accepting them (since this is a module project)
+## 15) Risks & how we're accepting them (since this is a module project)
 
-* **No outbox** ΓåÆ small chance of ΓÇ£DB wrote, publish failedΓÇ¥. WeΓÇÖll accept it; log + bestΓÇæeffort retry.
-* **One invoice per project** ΓåÆ no deposits/change orders. *By design.*
-* **Stripe currency/test mode** ΓåÆ if LKR isnΓÇÖt supported in your test account, dev uses USD; prod keeps LKR.
+* **No outbox** -> small chance of "DB wrote, publish failed". We'll accept it; log + best-effort retry.
+* **One invoice per project** -> no deposits/change orders. *By design.*
+* **Stripe currency/test mode** -> if LKR is not supported in your test account, dev uses USD; prod keeps LKR.
 
 ---
 
@@ -501,8 +479,8 @@ Authorization: Bearer <jwt>
 
 * Migrations applied; service starts; health passes.
 * Consumes `quote.approved` and creates `OPEN` invoice.
-* Consumes project completion and marks invoice `DUE`.
-* `GET /api/invoices*` works with roleΓÇæbased filtering.
+* Supports offline payment flow that marks invoice `PAID`.
+* `GET /api/invoices*` works with role-based filtering.
 * `POST /api/invoices/{id}/payment-intent` returns a **Stripe client_secret** for the frontend to confirm via Stripe Elements.
 * Webhook drives invoice to `PAID` and records payment.
 * Publishes `invoice.created|updated` and `payment.succeeded|failed`.

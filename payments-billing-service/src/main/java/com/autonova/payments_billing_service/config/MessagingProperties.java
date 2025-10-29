@@ -23,12 +23,6 @@ public class MessagingProperties {
          */
         @NotBlank
         private String quoteApprovedQueue = "payments.quote-approved";
-
-        /**
-         * Queue name for project.updated events to detect completion.
-         */
-        @NotBlank
-        private String projectUpdatedQueue = "payments.project-updated";
     }
 
     @Getter

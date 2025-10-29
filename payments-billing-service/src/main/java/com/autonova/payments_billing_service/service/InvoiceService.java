@@ -4,7 +4,6 @@ import com.autonova.payments_billing_service.auth.AuthenticatedUser;
 import com.autonova.payments_billing_service.domain.ConsumedEventEntity;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
-import com.autonova.payments_billing_service.events.ProjectUpdatedEvent;
 import com.autonova.payments_billing_service.events.QuoteApprovedEvent;
 import com.autonova.payments_billing_service.messaging.DomainEventPublisher;
 import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
@@ -123,44 +122,6 @@ public class InvoiceService {
 
         if (previousAmount != data.total()) {
             eventPublisher.publishInvoiceUpdated(invoice);
-        }
-    }
-
-    @Transactional
-    public void handleProjectUpdated(ProjectUpdatedEvent event) {
-        if (!claimEvent(event.id(), event.type())) {
-            return;
-        }
-
-        ProjectUpdatedEvent.ProjectUpdatedData data = event.data();
-        if (data == null) {
-            log.warn("project.updated event without data payload");
-            return;
-        }
-
-        if (!"Completed".equals(data.status())) {
-            log.debug("Ignoring project.updated status {} for project {}", data.status(), data.projectId());
-            return;
-        }
-
-        Optional<InvoiceEntity> optionalInvoice = invoiceRepository.findByProjectId(data.projectId());
-        if (optionalInvoice.isEmpty()) {
-            log.warn("Received project completion for project {} but no invoice exists", data.projectId());
-            return;
-        }
-
-        InvoiceEntity invoice = optionalInvoice.get();
-        if (invoice.getStatus() == InvoiceStatus.PAID || invoice.getStatus() == InvoiceStatus.VOID) {
-            log.debug("Invoice {} already {}. Skipping due transition.", invoice.getId(), invoice.getStatus());
-            return;
-        }
-
-        if (invoice.getStatus() != InvoiceStatus.DUE) {
-            invoice.setStatus(InvoiceStatus.DUE);
-            invoice.setDueAt(OffsetDateTime.now());
-            invoiceRepository.save(invoice);
-            eventPublisher.publishInvoiceUpdated(invoice);
-            log.info("Invoice {} marked DUE", invoice.getId());
         }
     }
 
