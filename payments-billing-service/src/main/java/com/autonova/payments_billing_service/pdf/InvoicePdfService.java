@@ -18,6 +18,7 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 @Service
 public class InvoicePdfService {
 
+    private static final Currency DEFAULT_CURRENCY = Currency.getInstance("LKR");
     private final SpringTemplateEngine templateEngine;
     private static final DateTimeFormatter INVOICE_DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH);
     private static final ZoneId INVOICE_ZONE = ZoneId.systemDefault();
@@ -35,9 +36,9 @@ public class InvoicePdfService {
         context.setVariable("customerName", "Customer");
         context.setVariable("customerEmail", "customer@example.com");
 
-        String amountFormatted = formatCurrency(invoice.getAmountTotal(), invoice.getCurrency());
-        context.setVariable("amountDueFormatted", amountFormatted);
-        context.setVariable("currencyCode", invoice.getCurrency());
+        Currency currency = resolveCurrency(invoice.getCurrency());
+        context.setVariable("amountDueFormatted", formatCurrency(invoice.getAmountTotal(), currency));
+        context.setVariable("currencyCode", currency.getCurrencyCode());
 
         String html = templateEngine.process("invoice", context);
 
@@ -67,9 +68,9 @@ public class InvoicePdfService {
         }
     }
 
-    private String formatCurrency(long amountMinorUnits, String currencyCode) {
+    private String formatCurrency(long amountMinorUnits, Currency currency) {
         NumberFormat format = NumberFormat.getCurrencyInstance(Locale.ENGLISH);
-        format.setCurrency(Currency.getInstance(currencyCode));
+        format.setCurrency(currency);
         return format.format(amountMinorUnits / 100.0);
     }
 
@@ -78,5 +79,17 @@ public class InvoicePdfService {
             return "—";
         }
         return timestamp.atZoneSameInstant(INVOICE_ZONE).format(INVOICE_DATE_FORMATTER);
+    }
+
+    private Currency resolveCurrency(String currencyCode) {
+        if (currencyCode == null || currencyCode.isBlank()) {
+            return DEFAULT_CURRENCY;
+        }
+        String normalized = currencyCode.trim().toUpperCase(Locale.ROOT);
+        try {
+            return Currency.getInstance(normalized);
+        } catch (IllegalArgumentException ex) {
+            return DEFAULT_CURRENCY;
+        }
     }
 }

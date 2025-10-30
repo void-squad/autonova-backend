@@ -18,28 +18,35 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(EntityNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "Resource not found"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody(ex.getMessage(), "Access denied"));
     }
 
     @ExceptionHandler({IllegalStateException.class, IllegalArgumentException.class})
     public ResponseEntity<Map<String, String>> handleBadRequest(RuntimeException ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.badRequest().body(errorBody(ex.getMessage(), "Bad request"));
     }
 
     @ExceptionHandler(StripeIntegrationException.class)
     public ResponseEntity<Map<String, String>> handleStripeError(StripeIntegrationException ex) {
         log.error("Stripe integration failure", ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorBody(ex.getMessage(), "Payment processing failed"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleUnexpected(Exception ex) {
         log.error("Unexpected error processing request", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
+    }
+
+    private Map<String, String> errorBody(String message, String fallback) {
+        if (message == null || message.isBlank()) {
+            return Map.of("error", fallback);
+        }
+        return Map.of("error", message);
     }
 }
