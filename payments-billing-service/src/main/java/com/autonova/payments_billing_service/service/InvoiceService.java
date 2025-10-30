@@ -95,7 +95,7 @@ public class InvoiceService {
             invoice.setProjectId(data.projectId());
             invoice.setCustomerId(data.customerId());
             invoice.setQuoteId(data.quoteId());
-            invoice.setCurrency(data.currency() == null ? "LKR" : data.currency().toUpperCase());
+            invoice.setCurrency(normalizeCurrency(data.currency()));
             invoice.setAmountTotal(data.total());
             invoice.setStatus(InvoiceStatus.OPEN);
             invoiceRepository.save(invoice);
@@ -113,7 +113,7 @@ public class InvoiceService {
         long previousAmount = invoice.getAmountTotal();
         invoice.setAmountTotal(data.total());
         if (data.currency() != null) {
-            invoice.setCurrency(data.currency().toUpperCase());
+            invoice.setCurrency(normalizeCurrency(data.currency()));
         }
         if (invoice.getStatus() == InvoiceStatus.DRAFT) {
             invoice.setStatus(InvoiceStatus.OPEN);
@@ -142,5 +142,12 @@ public class InvoiceService {
             log.debug("Event {} already processed", eventId);
             return false;
         }
+    }
+
+    private String normalizeCurrency(String currency) {
+        if (currency == null) {
+            return "lkr";
+        }
+        return "LKR".equalsIgnoreCase(currency) ? "lkr" : currency.toUpperCase();
     }
 }

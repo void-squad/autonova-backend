@@ -36,7 +36,7 @@ public class InvoiceEntity {
     private UUID quoteId;
 
     @Column(name = "currency", nullable = false, length = 3)
-    private String currency = "LKR";
+    private String currency = "lkr";
 
     @Column(name = "amount_total", nullable = false)
     private long amountTotal;

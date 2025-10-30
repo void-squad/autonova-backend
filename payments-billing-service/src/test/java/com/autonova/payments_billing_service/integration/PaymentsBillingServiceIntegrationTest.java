@@ -74,6 +74,7 @@ class PaymentsBillingServiceIntegrationTest {
         InvoiceEntity stored = invoiceRepository.findByProjectId(projectId).orElseThrow();
         assertThat(stored.getAmountTotal()).isEqualTo(50_000L);
         assertThat(stored.getStatus()).isEqualTo(InvoiceStatus.OPEN);
+        assertThat(stored.getCurrency()).isEqualTo("lkr");
 
         QuoteApprovedEvent updatedQuoteEvent = new QuoteApprovedEvent(
             UUID.randomUUID(),
@@ -88,6 +89,7 @@ class PaymentsBillingServiceIntegrationTest {
         InvoiceEntity refreshed = invoiceRepository.findByProjectId(projectId).orElseThrow();
         assertThat(invoiceRepository.count()).isEqualTo(1);
         assertThat(refreshed.getAmountTotal()).isEqualTo(55_000L);
+        assertThat(refreshed.getCurrency()).isEqualTo("lkr");
 
         invoiceService.markInvoicePaid(refreshed);
 

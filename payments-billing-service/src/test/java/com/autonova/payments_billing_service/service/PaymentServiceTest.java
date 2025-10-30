@@ -130,7 +130,7 @@ class PaymentServiceTest {
         invoice.setProjectId(UUID.randomUUID());
         invoice.setCustomerId(UUID.randomUUID());
         invoice.setAmountTotal(5_000L);
-        invoice.setCurrency("LKR");
+        invoice.setCurrency("lkr");
         invoice.setStatus(status);
         return invoice;
     }

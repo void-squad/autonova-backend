@@ -47,7 +47,7 @@ class DomainEventPublisherTest {
         invoice.setProjectId(UUID.randomUUID());
         invoice.setCustomerId(UUID.randomUUID());
         invoice.setAmountTotal(42_500L);
-        invoice.setCurrency("LKR");
+        invoice.setCurrency("lkr");
         invoice.setStatus(InvoiceStatus.OPEN);
 
         publisher.publishInvoiceCreated(invoice);
@@ -73,7 +73,7 @@ class DomainEventPublisherTest {
         invoice.setProjectId(UUID.randomUUID());
         invoice.setCustomerId(UUID.randomUUID());
         invoice.setAmountTotal(42_500L);
-        invoice.setCurrency("LKR");
+        invoice.setCurrency("lkr");
         invoice.setStatus(InvoiceStatus.OPEN);
 
         AtomicInteger attempts = new AtomicInteger();

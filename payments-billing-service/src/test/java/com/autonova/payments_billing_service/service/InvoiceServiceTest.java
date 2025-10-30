@@ -55,7 +55,7 @@ class InvoiceServiceTest {
             "quote.approved",
             OffsetDateTime.now(),
             1,
-            new QuoteApprovedEvent.QuoteApprovedData(projectId, customerId, UUID.randomUUID(), 12_500L, "lkr", "APPROVED")
+            new QuoteApprovedEvent.QuoteApprovedData(projectId, customerId, UUID.randomUUID(), 12_500L, "LKR", "APPROVED")
         );
 
         when(consumedEventRepository.save(any(ConsumedEventEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -68,7 +68,7 @@ class InvoiceServiceTest {
             assertThat(invoice.getProjectId()).isEqualTo(projectId);
             assertThat(invoice.getCustomerId()).isEqualTo(customerId);
             assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.OPEN);
-            assertThat(invoice.getCurrency()).isEqualTo("LKR");
+            assertThat(invoice.getCurrency()).isEqualTo("lkr");
             assertThat(invoice.getAmountTotal()).isEqualTo(12_500L);
             return true;
         }));

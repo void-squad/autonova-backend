@@ -37,7 +37,7 @@ public class PaymentEntity {
     private long amount;
 
     @Column(name = "currency", nullable = false, length = 3)
-    private String currency = "LKR";
+    private String currency = "lkr";
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false, length = 24)
