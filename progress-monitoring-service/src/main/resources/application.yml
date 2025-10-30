@@ -1,0 +1,21 @@
+app:
+  rabbit:
+    exchange: autonova.events
+    queue: progress.project.queue
+    routing-key: project.*
+
+# Rabbit connection (override in container or env in prod)
+spring:
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+
+# Security / SSO: configure oauth2 resource server in production
+# spring:
+#   security:
+#     oauth2:
+#       resourceserver:
+#         jwt:
+#           issuer-uri: https://your-issuer/.well-known/openid-configuration
