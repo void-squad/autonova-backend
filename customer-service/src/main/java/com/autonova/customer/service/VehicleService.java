@@ -9,6 +9,7 @@ import com.autonova.customer.repository.CustomerRepository;
 import com.autonova.customer.repository.VehicleRepository;
 import java.util.Comparator;
 import java.util.List;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,15 +33,27 @@ public class VehicleService {
     public VehicleResponse addVehicle(Long customerId, VehicleRequest request) {
         Customer customer = findCustomer(customerId);
         String normalizedPlate = normalizeLicensePlate(request.licensePlate());
+        String normalizedVin = normalizeVin(request.vin());
+
+        if (vehicleRepository.existsByVinIgnoreCase(normalizedVin)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A vehicle with this VIN already exists");
+        }
+
         if (vehicleRepository.existsByCustomerIdAndLicensePlateIgnoreCase(customerId, normalizedPlate)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This license plate is already registered for the customer");
         }
 
         Vehicle vehicle = CustomerMapper.toVehicle(request);
         vehicle.setLicensePlate(normalizedPlate);
+        vehicle.setVin(normalizedVin);
         customer.addVehicle(vehicle);
-        Vehicle saved = vehicleRepository.save(vehicle);
-        return CustomerMapper.toVehicleResponse(saved);
+
+        try {
+            Vehicle saved = vehicleRepository.saveAndFlush(vehicle);
+            return CustomerMapper.toVehicleResponse(saved);
+        } catch (DataIntegrityViolationException ex) {
+            throw translateIntegrityViolation(ex);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -64,13 +77,26 @@ public class VehicleService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
 
         String normalizedPlate = normalizeLicensePlate(request.licensePlate());
+        String normalizedVin = normalizeVin(request.vin());
+
+        if (vehicleRepository.existsByVinIgnoreCaseAndIdNot(normalizedVin, vehicleId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Another vehicle already uses this VIN");
+        }
+
         if (vehicleRepository.existsByCustomerIdAndLicensePlateIgnoreCaseAndIdNot(customerId, normalizedPlate, vehicleId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Another vehicle for this customer already uses this license plate");
         }
 
         CustomerMapper.updateVehicle(vehicle, request);
         vehicle.setLicensePlate(normalizedPlate);
-        return CustomerMapper.toVehicleResponse(vehicle);
+        vehicle.setVin(normalizedVin);
+
+        try {
+            Vehicle updated = vehicleRepository.saveAndFlush(vehicle);
+            return CustomerMapper.toVehicleResponse(updated);
+        } catch (DataIntegrityViolationException ex) {
+            throw translateIntegrityViolation(ex);
+        }
     }
 
     public void deleteVehicle(Long customerId, Long vehicleId) {
@@ -96,5 +122,25 @@ public class VehicleService {
 
     private String normalizeLicensePlate(String licensePlate) {
         return licensePlate == null ? null : licensePlate.trim().toUpperCase();
+    }
+
+    private String normalizeVin(String vin) {
+        return vin == null ? null : vin.trim().toUpperCase();
+    }
+
+    private ResponseStatusException translateIntegrityViolation(DataIntegrityViolationException ex) {
+        String detail = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+        if (detail != null) {
+            String normalizedDetail = detail.toLowerCase();
+            if (normalizedDetail.contains("uk_vehicle_vin")) {
+                return new ResponseStatusException(HttpStatus.CONFLICT, "A vehicle with this VIN already exists", ex);
+            }
+            if (normalizedDetail.contains("uk_vehicle_customer_license")) {
+                return new ResponseStatusException(HttpStatus.CONFLICT, "This license plate is already registered for the customer", ex);
+            }
+        }
+        return new ResponseStatusException(HttpStatus.CONFLICT, "Duplicate vehicle detected", ex);
     }
 }
