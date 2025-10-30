@@ -1,65 +1,282 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-    <meta charset="UTF-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <!-- For mobile scaling while staying XHTML-friendly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Invoice</title>
-    <style>
+    <style type="text/css">
+    /* <![CDATA[ */
+        /* -------- Typography & Base -------- */
         @font-face {
             font-family: "Lato";
             src: url("classpath:fonts/Lato-Regular.ttf") format("truetype");
             font-weight: 400;
             font-style: normal;
+            font-display: swap;
         }
         @font-face {
             font-family: "Lato";
             src: url("classpath:fonts/Lato-Bold.ttf") format("truetype");
             font-weight: 700;
             font-style: normal;
+            font-display: swap;
         }
-        body { font-family: "Lato", Arial, sans-serif; margin: 2rem; color: #212121; }
-        h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-        .section { margin-top: 1.5rem; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { padding: 0.5rem; border-bottom: 1px solid #dddddd; text-align: left; }
-        .totals { text-align: right; font-weight: bold; }
+        :root{
+            --bg: #f6f8fb;
+            --panel: #ffffff;
+            --border: #e3e8ef;
+            --ink: #1e293b;
+            --ink-strong:#0f172a;
+            --ink-muted:#64748b;
+            --rule:#e2e8f0;
+            --badge-bg:#e0f2fe;
+            --badge-ink:#0369a1;
+            --radius:14px;
+            --shadow:0 14px 42px rgba(15,23,42,.08);
+            --space:2.25rem;
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Lato", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: var(--bg);
+            color: var(--ink);
+            line-height: 1.55;
+        }
+
+        /* -------- Card -------- */
+        .invoice {
+            max-width: 720px;
+            margin: var(--space) auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: calc(var(--space) * .9) calc(var(--space) * 1.1);
+            box-shadow: var(--shadow);
+        }
+
+        /* -------- Header -------- */
+        .invoice-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem 2rem;
+            align-items: start;
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.75rem;
+        }
+        .brand {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .brand-mark {
+            font-size: 0.75rem;
+            letter-spacing: 0.35rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+        }
+        .brand-name {
+            font-weight: 700;
+            font-size: 1.4rem;
+            color: var(--ink-strong);
+        }
+        .brand-subtitle {
+            font-size: 0.94rem;
+            color: var(--ink-muted);
+        }
+        .invoice-meta {
+            text-align: right;
+        }
+        .invoice-meta h1 {
+            margin: 0 0 0.5rem;
+            font-size: 2rem;
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+            color: var(--ink-strong);
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: max-content auto;
+            gap: 0.35rem 1.25rem;
+            font-size: 0.96rem;
+            color: #334155;
+        }
+        .meta-label {
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.12rem;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.4rem 0.9rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+            background: var(--badge-bg);
+            color: var(--badge-ink);
+            white-space: nowrap;
+        }
+
+        /* -------- Sections -------- */
+        .section-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: var(--ink-strong);
+            margin-bottom: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06rem;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.1rem;
+        }
+        .summary-card {
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+            padding: 1.15rem 1.3rem;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            min-height: 140px;
+        }
+        .summary-card p {
+            margin: 0.35rem 0;
+            font-size: 0.95rem;
+            color: #334155;
+        }
+
+        /* -------- Total -------- */
+        .total-callout {
+            margin-top: 1.9rem;
+            padding: 1.3rem 1.5rem;
+            border: 1px solid var(--ink-strong);
+            border-radius: 12px;
+            background: linear-gradient(120deg, rgba(15,23,42,.08), rgba(30,41,59,.02));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .total-callout label {
+            font-size: 0.78rem;
+            letter-spacing: 0.18rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #475569;
+        }
+        .total-amount {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--ink-strong);
+            letter-spacing: 0.02rem;
+        }
+
+        /* -------- Footer -------- */
+        .footer-note {
+            margin-top: 1.9rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid var(--rule);
+            font-size: 0.84rem;
+            color: #64748b;
+            text-align: center;
+        }
+
+        /* -------- Responsiveness -------- */
+        @media (max-width: 640px){
+            .invoice {
+                margin: 1rem auto;
+                padding: 1.25rem 1rem;
+                border-radius: 12px;
+            }
+            .invoice-header {
+                grid-template-columns: 1fr;
+                text-align: left;
+            }
+            .invoice-meta { text-align: left; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .total-amount { font-size: 1.7rem; }
+        }
+
+        /* -------- Print -------- */
+        @media print {
+            body { background: #fff; }
+            .invoice {
+                box-shadow: none;
+                border: 1px solid #dbe0e6;
+                margin: 0;
+                padding: 1.25in 1in;
+                max-width: none;
+                page-break-inside: avoid;
+            }
+            .total-callout {
+                background: none !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .status-badge {
+                border: 1px solid #93c5fd;
+            }
+            a, .brand-subtitle { color: #374151 !important; text-decoration: none; }
+        }
+    /* ]]> */
     </style>
 </head>
 <body>
-    <header>
-        <h1>Invoice</h1>
-        <p>Invoice ID: <span th:text="${invoiceId}">00000000-0000-0000-0000-000000000000</span></p>
-        <p>Project ID: <span th:text="${projectId}">00000000-0000-0000-0000-000000000000</span></p>
-        <p>Status: <span th:text="${status}">OPEN</span></p>
-    </header>
+<div class="invoice">
+    <div class="invoice-header">
+        <div class="brand">
+            <span class="brand-mark">Autonova</span>
+            <span class="brand-name">Payments &amp; Billing</span>
+            <span class="brand-subtitle">www.autonova.com</span>
+        </div>
+        <div class="invoice-meta">
+            <h1>Invoice</h1>
+            <div class="meta-grid">
+                <span class="meta-label">Invoice ID</span>
+                <span th:text="${invoiceId}">00000000-0000-0000-0000-000000000000</span>
+                <span class="meta-label">Project</span>
+                <span th:text="${projectId}">00000000-0000-0000-0000-000000000000</span>
+                <span class="meta-label">Issued</span>
+                <span th:text="${issueDate}">Jan 1, 2024</span>
+                <span class="meta-label">Status</span>
+                <span class="status-badge" th:text="${status}">Open</span>
+            </div>
+        </div>
+    </div>
 
-    <section class="section">
-        <h2>Customer</h2>
-        <p>Name: <span th:text="${customerName}">Customer Name</span></p>
-        <p>Email: <span th:text="${customerEmail}">customer@example.com</span></p>
-    </section>
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="section-title">Bill To</div>
+            <p><strong th:text="${customerName}">Customer Name</strong></p>
+            <p th:text="${customerEmail}">customer@example.com</p>
+        </div>
+        <div class="summary-card">
+            <div class="section-title">Details</div>
+            <p><strong>Currency</strong>: <span th:text="${currencyCode}">LKR</span></p>
+            <p><strong>Status</strong>: <span th:text="${status}">OPEN</span></p>
+            <p><strong>Project</strong>: <span th:text="${projectId}">00000000-0000-0000-0000-000000000000</span></p>
+        </div>
+    </div>
 
-    <section class="section">
-        <h2>Summary</h2>
-        <table>
-            <thead>
-            <tr>
-                <th>Description</th>
-                <th>Amount</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="item : ${lineItems}">
-                <td th:text="${item.description}">Project Work</td>
-                <td th:text="${item.amountFormatted}" class="totals">LKR 0.00</td>
-            </tr>
-            </tbody>
-            <tfoot>
-            <tr>
-                <td class="totals">Total</td>
-                <td th:text="${totalFormatted}" class="totals">LKR 0.00</td>
-            </tr>
-            </tfoot>
-        </table>
-    </section>
+    <div class="total-callout">
+        <div>
+            <label>Total Due</label>
+        </div>
+        <div class="total-amount" th:text="${amountDueFormatted}">LKR 0.00</div>
+    </div>
+
+    <p class="footer-note">Thank you for partnering with Autonova. Please reach out to billing@autonova.com for any questions regarding this invoice.</p>
+</div>
 </body>
 </html>

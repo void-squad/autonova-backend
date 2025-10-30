@@ -63,7 +63,7 @@ auth:
   jwt:
     issuer: ${AUTH_JWT_ISSUER:?Missing AUTH_JWT_ISSUER}
     audience: ${AUTH_JWT_AUDIENCE:?Missing AUTH_JWT_AUDIENCE}
-    hs256Secret: ${AUTH_JWT_HS256_SECRET:?Missing AUTH_JWT_HS256_SECRET}
+    hs256-secret: ${AUTH_JWT_HS256_SECRET:?Missing AUTH_JWT_HS256_SECRET}
 
 springdoc:
   api-docs:
@@ -74,6 +74,4 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.autonova.payments_billing_service: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
+    com.autonova.payments_billing_service: INFO
