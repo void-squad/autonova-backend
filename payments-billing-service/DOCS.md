@@ -20,6 +20,8 @@
 
 ---
 
+> **Local development:** Run the service with `spring.profiles.active=local` to boot against an in-memory H2 database and stubbed secrets. The default profile expects the Postgres/RabbitMQ/Stripe credentials from `.env`.
+
 ## 1) Ground rules & assumptions
 
 1. **IDs**: All service-to-service and DB identifiers are **UUID** (Auth will update to UUID; JWT `sub` is a UUID).

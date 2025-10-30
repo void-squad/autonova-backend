@@ -1,77 +1,79 @@
 spring:
-    config:
-        import: optional:env[.env]
+  config:
+    import: optional:file:.env[.properties]
 
-    application:
-        name: payments-billing-service
+  application:
+    name: payments-billing-service
 
-    datasource:
-        url: ${PBS_DB_URL:?Missing PBS_DB_URL}
-        username: ${PBS_DB_USERNAME:?Missing PBS_DB_USERNAME}
-        password: ${PBS_DB_PASSWORD:?Missing PBS_DB_PASSWORD}
-        driver-class-name: org.postgresql.Driver
+  datasource:
+    url: ${PBS_DB_URL:?Missing PBS_DB_URL}
+    username: ${PBS_DB_USERNAME:?Missing PBS_DB_USERNAME}
+    password: ${PBS_DB_PASSWORD:?Missing PBS_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
-    jpa:
-        hibernate:
-            ddl-auto: validate
-        properties:
-            hibernate:
-                format_sql: true
-        open-in-view: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
 
-    flyway:
-        enabled: true
-        locations: classpath:db/migration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
-    rabbitmq:
-        host: ${RABBITMQ_HOST:?Missing RABBITMQ_HOST}
-        port: ${RABBITMQ_PORT:?Missing RABBITMQ_PORT}
-        username: ${RABBITMQ_USERNAME:?Missing RABBITMQ_USERNAME}
-        password: ${RABBITMQ_PASSWORD:?Missing RABBITMQ_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:?Missing RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:?Missing RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME:?Missing RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD:?Missing RABBITMQ_PASSWORD}
 
-    jackson:
-        default-property-inclusion: non_null
+  jackson:
+    default-property-inclusion: non_null
 
 server:
-    port: ${SERVER_PORT:?Missing SERVER_PORT}
+  port: ${SERVER_PORT:?Missing SERVER_PORT}
 
 management:
-    endpoints:
-        web:
-            exposure:
-                include: health,info,prometheus
-    endpoint:
-        health:
-            probes:
-                enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 payments:
-    messaging:
-        inbound:
-            quote-approved-queue: ${PBS_QUOTE_APPROVED_QUEUE:?Missing PBS_QUOTE_APPROVED_QUEUE}
-        outbound:
-            invoice-exchange: ${PBS_INVOICE_EXCHANGE:?Missing PBS_INVOICE_EXCHANGE}
-            payment-exchange: ${PBS_PAYMENT_EXCHANGE:?Missing PBS_PAYMENT_EXCHANGE}
+  messaging:
+    inbound:
+      quote-approved-queue: ${PBS_QUOTE_APPROVED_QUEUE:?Missing PBS_QUOTE_APPROVED_QUEUE}
+    outbound:
+      invoice-exchange: ${PBS_INVOICE_EXCHANGE:?Missing PBS_INVOICE_EXCHANGE}
+      payment-exchange: ${PBS_PAYMENT_EXCHANGE:?Missing PBS_PAYMENT_EXCHANGE}
 
 stripe:
-    api-key: ${STRIPE_API_KEY:?Missing STRIPE_API_KEY}
-    webhook-secret: ${STRIPE_WEBHOOK_SECRET:?Missing STRIPE_WEBHOOK_SECRET}
-    publishable-key: ${STRIPE_PUBLISHABLE_KEY:?Missing STRIPE_PUBLISHABLE_KEY}
-    webhook-endpoint-secret: ${STRIPE_WEBHOOK_ENDPOINT_SECRET:?Missing STRIPE_WEBHOOK_ENDPOINT_SECRET}
+  api-key: ${STRIPE_API_KEY:?Missing STRIPE_API_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:?Missing STRIPE_WEBHOOK_SECRET}
+  publishable-key: ${STRIPE_PUBLISHABLE_KEY:?Missing STRIPE_PUBLISHABLE_KEY}
+  webhook-endpoint-secret: ${STRIPE_WEBHOOK_ENDPOINT_SECRET:?Missing STRIPE_WEBHOOK_ENDPOINT_SECRET}
 
 auth:
-    jwt:
-        issuer: ${AUTH_JWT_ISSUER:?Missing AUTH_JWT_ISSUER}
-        audience: ${AUTH_JWT_AUDIENCE:?Missing AUTH_JWT_AUDIENCE}
-        hs256-secret: ${AUTH_JWT_HS256_SECRET:?Missing AUTH_JWT_HS256_SECRET}
+  jwt:
+    issuer: ${AUTH_JWT_ISSUER:?Missing AUTH_JWT_ISSUER}
+    audience: ${AUTH_JWT_AUDIENCE:?Missing AUTH_JWT_AUDIENCE}
+    hs256Secret: ${AUTH_JWT_HS256_SECRET:?Missing AUTH_JWT_HS256_SECRET}
 
 springdoc:
-    api-docs:
-        enabled: true
-    swagger-ui:
-        enabled: true
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
 
 logging:
-    level:
-        root: INFO
-        com.autonova.payments_billing_service: DEBUG
+  level:
+    root: INFO
+    com.autonova.payments_billing_service: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"

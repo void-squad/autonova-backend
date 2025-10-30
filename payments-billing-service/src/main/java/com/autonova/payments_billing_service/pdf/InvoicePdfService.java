@@ -1,6 +1,7 @@
 package com.autonova.payments_billing_service.pdf;
 
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
+import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,6 +42,20 @@ public class InvoicePdfService {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
+            builder.useFont(
+                () -> InvoicePdfService.class.getResourceAsStream("/fonts/Lato-Regular.ttf"),
+                "Lato",
+                400,
+                BaseRendererBuilder.FontStyle.NORMAL,
+                true
+            );
+            builder.useFont(
+                () -> InvoicePdfService.class.getResourceAsStream("/fonts/Lato-Bold.ttf"),
+                "Lato",
+                700,
+                BaseRendererBuilder.FontStyle.NORMAL,
+                true
+            );
             builder.withHtmlContent(html, null);
             builder.toStream(outputStream);
             builder.run();

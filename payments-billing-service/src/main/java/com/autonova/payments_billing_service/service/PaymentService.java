@@ -13,11 +13,11 @@ import com.autonova.payments_billing_service.repository.PaymentRepository;
 import com.autonova.payments_billing_service.stripe.StripeIntegrationException;
 import com.stripe.StripeClient;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Charge;
 import com.stripe.model.PaymentIntent;
-import com.stripe.model.PaymentIntent.PaymentIntentStatus;
+import com.stripe.param.PaymentIntentCancelParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentRetrieveParams;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -69,8 +69,15 @@ public class PaymentService {
             PaymentEntity payment = existing.get();
             PaymentIntent intent = retrievePaymentIntent(payment.getStripePaymentIntentId());
             if (intent != null && isReusable(intent)) {
-                log.debug("Reusing active PaymentIntent {} for invoice {}", intent.getId(), invoice.getId());
-                return new PaymentIntentResponse(intent.getId(), intent.getClientSecret(), stripeProperties.getPublishableKey());
+                if (matchesInvoiceAmountAndCurrency(intent, invoice)) {
+                    log.debug("Reusing active PaymentIntent {} for invoice {}", intent.getId(), invoice.getId());
+                    return new PaymentIntentResponse(intent.getId(), intent.getClientSecret(), stripeProperties.getPublishableKey());
+                }
+
+                log.debug("Canceling PaymentIntent {} due to amount/currency mismatch for invoice {}", intent.getId(), invoice.getId());
+                cancelPaymentIntent(intent.getId());
+                payment.setStatus(PaymentStatus.CANCELED);
+                paymentRepository.save(payment);
             }
         }
 
@@ -193,9 +200,28 @@ public class PaymentService {
         }
     }
 
+    private void cancelPaymentIntent(String paymentIntentId) {
+        try {
+            stripeClient.paymentIntents().cancel(paymentIntentId, PaymentIntentCancelParams.builder().build(), null);
+        } catch (StripeException e) {
+            throw new StripeIntegrationException("Failed to cancel PaymentIntent " + paymentIntentId, e);
+        }
+    }
+
     private boolean isReusable(PaymentIntent paymentIntent) {
-        PaymentIntentStatus status = paymentIntent.getStatus();
-        return status != PaymentIntentStatus.SUCCEEDED && status != PaymentIntentStatus.CANCELED;
+        String status = paymentIntent.getStatus();
+        if (status == null) {
+            return true;
+        }
+        return !status.equalsIgnoreCase("succeeded") && !status.equalsIgnoreCase("canceled");
+    }
+
+    private boolean matchesInvoiceAmountAndCurrency(PaymentIntent paymentIntent, InvoiceEntity invoice) {
+        Long intentAmount = paymentIntent.getAmount();
+        String intentCurrency = paymentIntent.getCurrency();
+        boolean amountsMatch = intentAmount != null && intentAmount.equals(invoice.getAmountTotal());
+        boolean currenciesMatch = intentCurrency != null && intentCurrency.equalsIgnoreCase(invoice.getCurrency());
+        return amountsMatch && currenciesMatch;
     }
 
     private PaymentEntity createDetachedPaymentRecord(PaymentIntent paymentIntent) {
@@ -219,14 +245,30 @@ public class PaymentService {
     }
 
     private String resolveReceiptUrl(PaymentIntent paymentIntent) {
-        if (paymentIntent.getCharges() == null || paymentIntent.getCharges().getData() == null) {
+        Charge charge = paymentIntent.getLatestChargeObject();
+        if (charge != null) {
+            String receiptUrl = charge.getReceiptUrl();
+            if (receiptUrl != null && !receiptUrl.isBlank()) {
+                return receiptUrl;
+            }
+        }
+
+        String chargeId = paymentIntent.getLatestCharge();
+        if (chargeId == null || chargeId.isBlank()) {
             return null;
         }
-        return paymentIntent.getCharges().getData().stream()
-            .filter(Objects::nonNull)
-            .map(charge -> charge.getReceiptUrl())
-            .filter(url -> url != null && !url.isBlank())
-            .findFirst()
-            .orElse(null);
+
+        try {
+            Charge retrieved = stripeClient.charges().retrieve(chargeId);
+            return retrieved != null ? retrieved.getReceiptUrl() : null;
+        } catch (StripeException e) {
+            log.warn(
+                "Unable to load receipt for charge {} on PaymentIntent {}: {}",
+                chargeId,
+                paymentIntent.getId(),
+                e.getMessage()
+            );
+            return null;
+        }
     }
 }

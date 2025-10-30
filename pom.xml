@@ -48,6 +48,7 @@
         <module>gateway-service</module>
         <module>discovery-service</module>
         <module>employee-dashboard-service</module>
+        <module>payments-billing-service</module>
     </modules>
 
     <properties>
