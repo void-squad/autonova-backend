@@ -10,9 +10,9 @@
     </parent>
 
     <groupId>com.autonova</groupId>
-    <artifactId>progressmonitoring</artifactId>
+    <artifactId>progress-monitoring-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>progress-monitoring</name>
+    <name>progress-monitoring-service</name>
     <description>Progress Monitoring</description>
 
     <properties>
