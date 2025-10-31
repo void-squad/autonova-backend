@@ -36,6 +36,7 @@ SERVICES=(
     "projects_db:project_service:PROJECTS_DB_PASSWORD"
     "progress_monitoring_db:progress_monitoring_service:PROGRESS_MONITORING_DB_PASSWORD"
     "employee_dashboard_db:employee_dashboard_service:EMPLOYEE_DASHBOARD_DB_PASSWORD"
+    "time_logging_db:time_logging_service:TIME_LOGGING_DB_PASSWORD"
     # Add dbs for serivices as needed
 )
 
