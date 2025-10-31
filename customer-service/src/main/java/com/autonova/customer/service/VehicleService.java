@@ -3,6 +3,8 @@ package com.autonova.customer.service;
 import com.autonova.customer.dto.CustomerMapper;
 import com.autonova.customer.dto.VehicleRequest;
 import com.autonova.customer.dto.VehicleResponse;
+import com.autonova.customer.event.VehicleDomainEventPublisher;
+import com.autonova.customer.event.VehicleEventType;
 import com.autonova.customer.model.Customer;
 import com.autonova.customer.model.Vehicle;
 import com.autonova.customer.repository.CustomerRepository;
@@ -24,10 +26,14 @@ public class VehicleService {
 
     private final CustomerRepository customerRepository;
     private final VehicleRepository vehicleRepository;
+    private final VehicleDomainEventPublisher vehicleDomainEventPublisher;
 
-    public VehicleService(CustomerRepository customerRepository, VehicleRepository vehicleRepository) {
+    public VehicleService(CustomerRepository customerRepository,
+                          VehicleRepository vehicleRepository,
+                          VehicleDomainEventPublisher vehicleDomainEventPublisher) {
         this.customerRepository = customerRepository;
         this.vehicleRepository = vehicleRepository;
+        this.vehicleDomainEventPublisher = vehicleDomainEventPublisher;
     }
 
     public VehicleResponse addVehicle(Long customerId, VehicleRequest request) {
@@ -50,6 +56,7 @@ public class VehicleService {
 
         try {
             Vehicle saved = vehicleRepository.saveAndFlush(vehicle);
+            vehicleDomainEventPublisher.publish(VehicleEventType.CREATED, saved);
             return CustomerMapper.toVehicleResponse(saved);
         } catch (DataIntegrityViolationException ex) {
             throw translateIntegrityViolation(ex);
@@ -93,6 +100,7 @@ public class VehicleService {
 
         try {
             Vehicle updated = vehicleRepository.saveAndFlush(vehicle);
+            vehicleDomainEventPublisher.publish(VehicleEventType.UPDATED, updated);
             return CustomerMapper.toVehicleResponse(updated);
         } catch (DataIntegrityViolationException ex) {
             throw translateIntegrityViolation(ex);
@@ -102,6 +110,7 @@ public class VehicleService {
     public void deleteVehicle(Long customerId, Long vehicleId) {
         Vehicle vehicle = vehicleRepository.findByCustomerIdAndId(customerId, vehicleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
+        vehicleDomainEventPublisher.publish(VehicleEventType.DELETED, vehicle);
         Customer customer = vehicle.getCustomer();
         if (customer != null) {
             customer.removeVehicle(vehicle);

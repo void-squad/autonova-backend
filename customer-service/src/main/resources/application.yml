@@ -19,6 +19,12 @@ spring:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
 server:
   port: ${CUSTOMER_SERVICE_PORT:8083}
 
@@ -44,3 +50,7 @@ management:
 logging:
   level:
     com.autonova.customer: INFO
+
+customer:
+  events:
+    exchange: ${CUSTOMER_EVENTS_EXCHANGE:customer.events}
