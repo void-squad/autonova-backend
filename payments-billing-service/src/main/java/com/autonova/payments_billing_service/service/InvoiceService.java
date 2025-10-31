@@ -10,6 +10,7 @@ import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
 import com.autonova.payments_billing_service.repository.InvoiceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -145,9 +146,9 @@ public class InvoiceService {
     }
 
     private String normalizeCurrency(String currency) {
-        if (currency == null) {
+        if (currency == null || currency.isBlank()) {
             return "lkr";
         }
-        return "LKR".equalsIgnoreCase(currency) ? "lkr" : currency.toUpperCase();
+        return currency.trim().toLowerCase(Locale.ROOT);
     }
 }

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "payment.succeeded",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "payment.succeeded",
+      "description": "Event type identifier."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Semantic version of the payload contract."
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "payment_id": {"type": "string", "format": "uuid"},
+        "invoice_id": {"type": "string", "format": "uuid"},
+        "project_id": {"type": "string", "format": "uuid"},
+        "amount": {"type": "integer", "minimum": 0},
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["STRIPE", "OFFLINE"]
+        }
+      },
+      "required": ["payment_id", "invoice_id", "project_id", "amount", "currency", "provider"]
+    }
+  },
+  "required": ["type", "version", "data"]
+}

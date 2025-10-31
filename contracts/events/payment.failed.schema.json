@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "payment.failed",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "payment.failed",
+      "description": "Event type identifier."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Semantic version of the payload contract."
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "payment_id": {"type": "string", "format": "uuid"},
+        "invoice_id": {"type": "string", "format": "uuid"},
+        "error_code": {"type": "string"}
+      },
+      "required": ["payment_id", "invoice_id", "error_code"]
+    }
+  },
+  "required": ["type", "version", "data"]
+}

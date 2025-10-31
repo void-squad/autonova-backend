@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "invoice.updated",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "invoice.updated",
+      "description": "Event type identifier."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Semantic version of the payload contract."
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "invoice_id": {"type": "string", "format": "uuid"},
+        "status": {
+          "type": "string",
+          "enum": ["DRAFT", "OPEN", "PAID", "VOID"]
+        }
+      },
+      "required": ["invoice_id", "status"]
+    }
+  },
+  "required": ["type", "version", "data"]
+}

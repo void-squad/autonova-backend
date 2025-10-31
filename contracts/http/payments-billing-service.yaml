@@ -1,0 +1,205 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+  - url: http://localhost:8095
+    description: Generated server url
+paths:
+  /webhooks/stripe:
+    post:
+      tags:
+        - stripe-webhook-controller
+      operationId: handleWebhook
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+  /api/invoices/{id}/payment-intent:
+    post:
+      tags:
+        - invoice-controller
+      operationId: createPaymentIntent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/PaymentIntentResponse"
+  /api/invoices/{id}/mark-paid:
+    post:
+      tags:
+        - invoice-controller
+      operationId: markInvoicePaid
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+  /api/invoices:
+    get:
+      tags:
+        - invoice-controller
+      operationId: listInvoices
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+            format: int32
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        "200":
+          description: OK
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/InvoiceListResponse"
+  /api/invoices/{id}:
+    get:
+      tags:
+        - invoice-controller
+      operationId: getInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+  /api/invoices/{id}/pdf:
+    get:
+      tags:
+        - invoice-controller
+      operationId: getInvoicePdf
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: byte
+components:
+  schemas:
+    PaymentIntentResponse:
+      type: object
+      properties:
+        paymentIntentId:
+          type: string
+        clientSecret:
+          type: string
+        publishableKey:
+          type: string
+    InvoiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        quoteId:
+          type: string
+          format: uuid
+        currency:
+          type: string
+        amountTotal:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - OPEN
+            - PAID
+            - VOID
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    InvoiceListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceResponse"
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32

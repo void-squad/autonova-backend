@@ -6,6 +6,7 @@ import com.autonova.payments_billing_service.domain.PaymentEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class DomainEventPublisher {
             "project_id", invoice.getProjectId(),
             "customer_id", invoice.getCustomerId(),
             "amount_total", invoice.getAmountTotal(),
-            "currency", invoice.getCurrency(),
+            "currency", formatCurrency(invoice.getCurrency()),
             "status", invoice.getStatus().name()
         ));
 
@@ -68,7 +69,7 @@ public class DomainEventPublisher {
             "invoice_id", invoice.getId(),
             "project_id", invoice.getProjectId(),
             "amount", payment.getAmount(),
-            "currency", payment.getCurrency(),
+            "currency", formatCurrency(payment.getCurrency()),
             "provider", payment.getProvider().name()
         ));
 
@@ -86,6 +87,10 @@ public class DomainEventPublisher {
         ));
 
         send(properties.getOutbound().getPaymentExchange(), "payment.failed", payload);
+    }
+
+    private String formatCurrency(String currency) {
+        return currency == null ? null : currency.toUpperCase(Locale.ROOT);
     }
 
     private void send(String exchange, String routingKey, Map<String, Object> payload) {

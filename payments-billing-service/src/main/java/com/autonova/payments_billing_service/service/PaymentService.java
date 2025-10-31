@@ -18,6 +18,7 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCancelParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentRetrieveParams;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -107,7 +108,11 @@ public class PaymentService {
 
         payment.setStatus(PaymentStatus.SUCCEEDED);
         payment.setAmount(paymentIntent.getAmountReceived() != null ? paymentIntent.getAmountReceived() : payment.getAmount());
-        payment.setCurrency(paymentIntent.getCurrency());
+        String intentCurrency = canonicalCurrency(paymentIntent.getCurrency());
+        if (intentCurrency == null) {
+            intentCurrency = payment.getCurrency();
+        }
+        payment.setCurrency(intentCurrency);
         payment.setReceiptUrl(resolveReceiptUrl(paymentIntent));
         payment.setFailureCode(null);
         payment.setFailureMessage(null);
@@ -237,11 +242,19 @@ public class PaymentService {
         entity.setId(UUID.randomUUID());
         entity.setInvoice(invoice);
         entity.setAmount(paymentIntent.getAmount() != null ? paymentIntent.getAmount() : invoice.getAmountTotal());
-        entity.setCurrency(paymentIntent.getCurrency());
+        String normalizedCurrency = canonicalCurrency(paymentIntent.getCurrency());
+        entity.setCurrency(normalizedCurrency != null ? normalizedCurrency : invoice.getCurrency());
         entity.setProvider(PaymentProvider.STRIPE);
         entity.setStatus(PaymentStatus.INITIATED);
         entity.setStripePaymentIntentId(paymentIntent.getId());
         return paymentRepository.save(entity);
+    }
+
+    private String canonicalCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            return null;
+        }
+        return currency.trim().toLowerCase(Locale.ROOT);
     }
 
     private String resolveReceiptUrl(PaymentIntent paymentIntent) {

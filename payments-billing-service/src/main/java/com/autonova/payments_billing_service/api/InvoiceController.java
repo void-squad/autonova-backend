@@ -11,7 +11,11 @@ import com.autonova.payments_billing_service.service.InvoiceFilter;
 import com.autonova.payments_billing_service.service.InvoiceService;
 import com.autonova.payments_billing_service.service.PaymentService;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,9 +31,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
 
 @RestController
 @RequestMapping("/api/invoices")
+@Validated
 public class InvoiceController {
 
     private static final int MAX_LIMIT = 100;
@@ -49,13 +55,10 @@ public class InvoiceController {
     public ResponseEntity<InvoiceListResponse> listInvoices(
         @RequestParam(name = "status", required = false) String status,
         @RequestParam(name = "projectId", required = false) String projectId,
-        @RequestParam(name = "limit", defaultValue = "50") int limit,
-        @RequestParam(name = "offset", defaultValue = "0") int offset,
+        @RequestParam(name = "limit", defaultValue = "50") @Min(1) @Max(MAX_LIMIT) int limit,
+        @RequestParam(name = "offset", defaultValue = "0") @PositiveOrZero int offset,
         @AuthenticationPrincipal AuthenticatedUser user
     ) {
-        int sanitizedLimit = Math.min(Math.max(limit, 1), MAX_LIMIT);
-        int sanitizedOffset = Math.max(offset, 0);
-
         InvoiceStatus invoiceStatus = null;
         if (status != null && !status.isBlank()) {
             try {
@@ -74,13 +77,20 @@ public class InvoiceController {
             }
         }
 
-        Pageable pageable = PageRequest.of(sanitizedOffset, sanitizedLimit);
-        Page<InvoiceEntity> page = invoiceService.findInvoices(new InvoiceFilter(invoiceStatus, projectUuid), user, pageable);
+        int pageNumber = offset / limit;
+        int effectiveOffset = pageNumber * limit;
+
+        Pageable pageable = PageRequest.of(pageNumber, limit);
+        Page<InvoiceEntity> page = invoiceService.findInvoices(
+            new InvoiceFilter(invoiceStatus, projectUuid),
+            user,
+            pageable
+        );
         List<InvoiceResponse> items = page.getContent().stream()
             .map(InvoiceResponse::fromEntity)
             .toList();
 
-        return ResponseEntity.ok(new InvoiceListResponse(items, page.getTotalElements(), sanitizedLimit, sanitizedOffset));
+        return ResponseEntity.ok(new InvoiceListResponse(items, page.getTotalElements(), limit, effectiveOffset));
     }
 
     @GetMapping("/{id}")
@@ -130,7 +140,10 @@ public class InvoiceController {
             .filename("invoice-" + invoice.getId() + ".pdf")
             .build());
         headers.add("X-Invoice-Status", invoice.getStatus().name());
-        headers.add("X-Invoice-Currency", invoice.getCurrency());
+        String currencyHeader = invoice.getCurrency() != null ? invoice.getCurrency().toUpperCase(Locale.ROOT) : null;
+        if (currencyHeader != null) {
+            headers.add("X-Invoice-Currency", currencyHeader);
+        }
 
         return ResponseEntity.ok()
             .headers(headers)

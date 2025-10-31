@@ -5,11 +5,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,6 +55,7 @@ public class InvoiceEntity {
 
     @PrePersist
     void onCreate() {
+        normalizeCurrency();
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
         }
@@ -61,6 +64,20 @@ public class InvoiceEntity {
 
     @PreUpdate
     void onUpdate() {
+        normalizeCurrency();
         updatedAt = OffsetDateTime.now();
+    }
+
+    @PostLoad
+    void onLoad() {
+        normalizeCurrency();
+    }
+
+    private void normalizeCurrency() {
+        if (currency == null || currency.isBlank()) {
+            currency = "lkr";
+            return;
+        }
+        currency = currency.trim().toLowerCase(Locale.ROOT);
     }
 }

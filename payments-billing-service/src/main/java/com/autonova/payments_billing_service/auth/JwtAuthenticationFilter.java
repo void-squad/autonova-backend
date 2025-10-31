@@ -52,10 +52,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         throws ServletException, IOException {
 
         String authorization = request.getHeader("Authorization");
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+        if (authorization == null || authorization.isBlank() || !authorization.startsWith("Bearer ")) {
             SecurityContextHolder.clearContext();
-            response.setHeader("WWW-Authenticate", "Bearer");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            filterChain.doFilter(request, response);
             return;
         }
 

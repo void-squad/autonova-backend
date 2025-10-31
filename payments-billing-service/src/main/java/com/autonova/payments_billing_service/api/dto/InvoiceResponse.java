@@ -3,6 +3,7 @@ package com.autonova.payments_billing_service.api.dto;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 public record InvoiceResponse(
@@ -23,7 +24,7 @@ public record InvoiceResponse(
             entity.getProjectId(),
             entity.getCustomerId(),
             entity.getQuoteId(),
-            entity.getCurrency(),
+            entity.getCurrency() != null ? entity.getCurrency().toUpperCase(Locale.ROOT) : null,
             entity.getAmountTotal(),
             entity.getStatus(),
             entity.getCreatedAt(),

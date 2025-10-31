@@ -5,12 +5,16 @@ import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.text.NumberFormat;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Currency;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
@@ -18,6 +22,7 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 @Service
 public class InvoicePdfService {
 
+    private static final Logger log = LoggerFactory.getLogger(InvoicePdfService.class);
     private static final Currency DEFAULT_CURRENCY = Currency.getInstance("LKR");
     private final SpringTemplateEngine templateEngine;
     private static final DateTimeFormatter INVOICE_DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH);
@@ -45,26 +50,42 @@ public class InvoicePdfService {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
-            builder.useFont(
-                () -> InvoicePdfService.class.getResourceAsStream("/fonts/Lato-Regular.ttf"),
-                "Lato",
-                400,
-                BaseRendererBuilder.FontStyle.NORMAL,
-                true
-            );
-            builder.useFont(
-                () -> InvoicePdfService.class.getResourceAsStream("/fonts/Lato-Bold.ttf"),
-                "Lato",
-                700,
-                BaseRendererBuilder.FontStyle.NORMAL,
-                true
-            );
+            registerFontIfAvailable(builder, "/fonts/Lato-Regular.ttf", "Lato", 400);
+            registerFontIfAvailable(builder, "/fonts/Lato-Bold.ttf", "Lato", 700);
             builder.withHtmlContent(html, null);
             builder.toStream(outputStream);
             builder.run();
             return outputStream.toByteArray();
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             throw new IllegalStateException("Unable to generate invoice PDF", e);
+        }
+    }
+
+    private void registerFontIfAvailable(PdfRendererBuilder builder, String resourcePath, String familyName, int weight) {
+        URL resource = InvoicePdfService.class.getResource(resourcePath);
+        if (resource == null) {
+            log.debug("Font resource {} not found; falling back to default fonts", resourcePath);
+            return;
+        }
+
+        try (InputStream ignored = resource.openStream()) {
+            builder.useFont(
+                () -> openFontStream(resource, resourcePath),
+                familyName,
+                weight,
+                BaseRendererBuilder.FontStyle.NORMAL,
+                true
+            );
+        } catch (IOException ex) {
+            log.warn("Failed to load font {}: {}", resourcePath, ex.getMessage());
+        }
+    }
+
+    private InputStream openFontStream(URL resource, String resourcePath) {
+        try {
+            return resource.openStream();
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to open font stream for " + resourcePath, ex);
         }
     }
 

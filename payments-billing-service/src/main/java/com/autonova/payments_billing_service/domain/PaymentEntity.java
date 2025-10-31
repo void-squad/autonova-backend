@@ -8,11 +8,13 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -67,6 +69,7 @@ public class PaymentEntity {
 
     @PrePersist
     void onCreate() {
+        normalizeCurrency();
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
         }
@@ -75,6 +78,20 @@ public class PaymentEntity {
 
     @PreUpdate
     void onUpdate() {
+        normalizeCurrency();
         updatedAt = OffsetDateTime.now();
+    }
+
+    @PostLoad
+    void onLoad() {
+        normalizeCurrency();
+    }
+
+    private void normalizeCurrency() {
+        if (currency == null || currency.isBlank()) {
+            currency = "lkr";
+            return;
+        }
+        currency = currency.trim().toLowerCase(Locale.ROOT);
     }
 }
