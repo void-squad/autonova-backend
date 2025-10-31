@@ -36,14 +36,16 @@ public class SseEmitterRegistry implements EventPublisher {
         for (SseEmitter emitter : list) {
             try {
                 emitter.send(SseEmitter.event().name("project.update").data(eventJson));
-            } catch (IOException e) {
+            } catch (Exception e) {
+                // IOException, IllegalStateException, or other send issues -> remove emitter
                 remove(projectId, emitter);
             }
         }
     }
 
     public void broadcastToAll(String eventJson) {
-        for (String key : emitters.keySet()) {
+        // snapshot keys to avoid concurrent modification while iterating
+        for (String key : List.copyOf(emitters.keySet())) {
             sendToProject(key, eventJson);
         }
     }

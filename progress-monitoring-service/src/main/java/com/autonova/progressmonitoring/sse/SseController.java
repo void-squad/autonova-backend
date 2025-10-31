@@ -43,9 +43,17 @@ public class SseController {
             registry.remove(projectId, emitter);
         });
 
+        emitter.onError((ex) -> {
+            log.debug("SSE error for project {}: {}", projectId, ex.getMessage());
+            registry.remove(projectId, emitter);
+        });
+
         try {
             emitter.send(SseEmitter.event().name("connected").data("subscribed"));
         } catch (Exception ex) {
+            log.warn("Failed to send initial connected event to SSE client for project {}", projectId, ex);
+            // if sending initial event fails, remove emitter to avoid leaking
+            registry.remove(projectId, emitter);
         }
 
         return emitter;
