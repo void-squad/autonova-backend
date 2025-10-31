@@ -54,3 +54,10 @@ logging:
 customer:
   events:
     exchange: ${CUSTOMER_EVENTS_EXCHANGE:customer.events}
+
+auth:
+  events:
+    exchange: ${AUTH_EVENTS_EXCHANGE:auth.events}
+    login:
+      queue: ${AUTH_EVENTS_LOGIN_QUEUE:customer-service.auth.user-login}
+      routing-key: ${AUTH_EVENTS_LOGIN_ROUTING:user.logged-in}

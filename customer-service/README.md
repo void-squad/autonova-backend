@@ -10,6 +10,7 @@ Customer Service is a Spring Boot 3 microservice that manages customer profiles 
 - Service discovery via Eureka (optional locally).
 - Consistent REST error payloads via a global exception handler.
 - Vehicle lifecycle events emitted via RabbitMQ for downstream subscribers.
+- Auth-service login event consumer keeps customer profiles aligned with authenticated users.
 
 ## Tech Stack
 
@@ -44,6 +45,9 @@ The service reads configuration primarily from `src/main/resources/application.y
 | `RABBITMQ_USERNAME`            | RabbitMQ username           | `guest`                                             |
 | `RABBITMQ_PASSWORD`            | RabbitMQ password           | `guest`                                             |
 | `CUSTOMER_EVENTS_EXCHANGE`     | Exchange for vehicle events | `customer.events`                                   |
+| `AUTH_EVENTS_EXCHANGE`         | Exchange for auth events    | `auth.events`                                       |
+| `AUTH_EVENTS_LOGIN_QUEUE`      | Queue bound to auth events  | `customer-service.auth.user-login`                  |
+| `AUTH_EVENTS_LOGIN_ROUTING`    | Routing key for login event | `user.logged-in`                                    |
 
 ### Running Locally
 
@@ -176,6 +180,17 @@ After a vehicle is created, updated, or deleted, the service emits a message to 
 - **Payload:** JSON representation of the vehicle event containing event id, type, customer id, vehicle id, VIN, license plate, make, model, year, and an `occurredAt` timestamp (UTC).
 
 Messages are published only after the surrounding database transaction commits successfully, ensuring consumers never observe rolled-back changes.
+
+## Event Consumption
+
+The service listens for the `user.logged-in` event emitted by `auth-service` to ensure there is always a matching customer profile for authenticated users.
+
+- **Exchange:** `auth.events` (configurable via `AUTH_EVENTS_EXCHANGE`)
+- **Queue:** `customer-service.auth.user-login` (configurable via `AUTH_EVENTS_LOGIN_QUEUE`)
+- **Routing key:** `user.logged-in`
+- **Payload schema:** Defined in `contracts/events/user.logged-in.schema.json`
+
+When a message is received, the service upserts a customer using the provided email, name, and phone number so that subsequent vehicle operations can associate data with the authenticated account.
 
 ## Project Structure
 

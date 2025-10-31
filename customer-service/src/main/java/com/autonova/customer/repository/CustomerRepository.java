@@ -15,4 +15,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     @EntityGraph(attributePaths = "vehicles")
     Optional<Customer> findWithVehiclesById(Long id);
+
+    Optional<Customer> findByEmailIgnoreCase(String email);
 }
