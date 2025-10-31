@@ -1,25 +1,14 @@
 spring:
   application:
     name: progressmonitoring
-
-app:
-  rabbit:
-    # Values can be overridden via environment variables (e.g. APP_RABBIT_EXCHANGE)
-    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
-    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
-    routing-key: ${APP_RABBIT_ROUTING_KEY:project.*}
-
-spring:
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
-
-# Security / SSO: configure oauth2 resource server in production
-# spring:
-#   security:
-#     oauth2:
-#       resourceserver:
-#         jwt:
-#           issuer-uri: https://your-issuer/.well-known/openid-configuration
+    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
+    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
+    routingKey: ${APP_RABBIT_ROUTING_KEY:project.*}
+  rabbit:
+    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
+    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
+    routing-key: ${APP_RABBIT_ROUTING_KEY:project.*}
