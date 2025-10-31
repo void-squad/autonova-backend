@@ -94,6 +94,22 @@ services:
       - postgres-init
       - rabbitmq
 
+  progress-monitoring:
+    container_name: autonova-progress-monitoring
+    build:
+      context: ../progress-monitoring-service
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      APP_RABBIT_EXCHANGE: autonova.events
+      APP_RABBIT_QUEUE: progress.project.queue
+      APP_RABBIT_ROUTING_KEY: project.*
+      JAVA_OPTS: -Xms256m -Xmx512m
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rabbitmq
+
 volumes:
   postgres_data:
     name: autonova_postgres_data
