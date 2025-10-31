@@ -30,6 +30,7 @@ services:
       PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
       PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
       EMPLOYEE_DASHBOARD_DB_PASSWORD: ${EMPLOYEE_DASHBOARD_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
     volumes:
       - ./init-scripts:/scripts:ro
     entrypoint: >
@@ -109,6 +110,26 @@ services:
       - "8080:8080"
     depends_on:
       - rabbitmq
+
+  notification-service:
+    container_name: autonova-notification-service
+    build:
+      context: ../notification-service
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      APP_RABBIT_EXCHANGE: autonova.events
+      APP_RABBIT_QUEUE: notification.events.queue
+      APP_RABBIT_ROUTING_KEY: "#"
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_USER: notification_service
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+    ports:
+      - "8084:8084"
+    depends_on:
+      - rabbitmq
+      - postgres-init
 
 volumes:
   postgres_data:

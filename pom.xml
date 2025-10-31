@@ -49,6 +49,7 @@
         <module>discovery-service</module>
         <module>employee-dashboard-service</module>
         <module>progress-monitoring-service</module>
+        <module>notification-service</module>
     </modules>
 
     <properties>
