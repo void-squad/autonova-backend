@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "project.updated",
+  "type": "object",
+  "properties": {
+    "projectId": {"type": "string", "format": "uuid"},
+    "status": {"type": "string"},
+    "occurredAt": {"type": "string", "format": "date-time"}
+  },
+  "required": ["projectId", "status", "occurredAt"]
+}

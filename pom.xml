@@ -48,6 +48,7 @@
         <module>gateway-service</module>
         <module>discovery-service</module>
         <module>chatbot</module>
+        <module>employee-dashboard-service</module>
     </modules>
 
     <properties>
