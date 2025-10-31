@@ -9,6 +9,7 @@ Customer Service is a Spring Boot 3 microservice that manages customer profiles 
 - PostgreSQL persistence (Neon cloud in production, H2 in tests).
 - Service discovery via Eureka (optional locally).
 - Consistent REST error payloads via a global exception handler.
+- Vehicle lifecycle events emitted via RabbitMQ for downstream subscribers.
 
 ## Tech Stack
 
@@ -31,13 +32,18 @@ Customer Service is a Spring Boot 3 microservice that manages customer profiles 
 
 The service reads configuration primarily from `src/main/resources/application.yml` and optionally from a `.env` file located at the project root. Key variables:
 
-| Variable                       | Description               | Default                                             |
-| ------------------------------ | ------------------------- | --------------------------------------------------- |
-| `CUSTOMER_SERVICE_DB_URL`      | JDBC URL for PostgreSQL   | `jdbc:postgresql://localhost:5432/customer_service` |
-| `CUSTOMER_SERVICE_DB_USERNAME` | Database username         | `customer_service`                                  |
-| `CUSTOMER_SERVICE_DB_PASSWORD` | Database password         | `customer_service`                                  |
-| `CUSTOMER_SERVICE_PORT`        | HTTP port                 | `8083`                                              |
-| `EUREKA_SERVER_URL`            | Eureka discovery endpoint | `http://localhost:8761/eureka/`                     |
+| Variable                       | Description                 | Default                                             |
+| ------------------------------ | --------------------------- | --------------------------------------------------- |
+| `CUSTOMER_SERVICE_DB_URL`      | JDBC URL for PostgreSQL     | `jdbc:postgresql://localhost:5432/customer_service` |
+| `CUSTOMER_SERVICE_DB_USERNAME` | Database username           | `customer_service`                                  |
+| `CUSTOMER_SERVICE_DB_PASSWORD` | Database password           | `customer_service`                                  |
+| `CUSTOMER_SERVICE_PORT`        | HTTP port                   | `8083`                                              |
+| `EUREKA_SERVER_URL`            | Eureka discovery endpoint   | `http://localhost:8761/eureka/`                     |
+| `RABBITMQ_HOST`                | RabbitMQ host               | `localhost`                                         |
+| `RABBITMQ_PORT`                | RabbitMQ port               | `5672`                                              |
+| `RABBITMQ_USERNAME`            | RabbitMQ username           | `guest`                                             |
+| `RABBITMQ_PASSWORD`            | RabbitMQ password           | `guest`                                             |
+| `CUSTOMER_EVENTS_EXCHANGE`     | Exchange for vehicle events | `customer.events`                                   |
 
 ### Running Locally
 
@@ -157,6 +163,19 @@ All failures return a consistent `ApiError` payload:
 ```
 
 Validation failures populate the `fieldErrors` array with field-specific messages, while data-integrity errors rewrite database exceptions into user-friendly messages.
+
+## Event Publishing
+
+After a vehicle is created, updated, or deleted, the service emits a message to RabbitMQ so other microservices can react asynchronously.
+
+- **Exchange:** `customer.events` (configurable via `CUSTOMER_EVENTS_EXCHANGE`)
+- **Routing keys:**
+  - `vehicle.created`
+  - `vehicle.updated`
+  - `vehicle.deleted`
+- **Payload:** JSON representation of the vehicle event containing event id, type, customer id, vehicle id, VIN, license plate, make, model, year, and an `occurredAt` timestamp (UTC).
+
+Messages are published only after the surrounding database transaction commits successfully, ensuring consumers never observe rolled-back changes.
 
 ## Project Structure
 
