@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
 public class TaskController {
     
     private final ProjectTaskRepository taskRepository;

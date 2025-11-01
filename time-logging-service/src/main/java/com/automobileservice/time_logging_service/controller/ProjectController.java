@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/projects")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
 public class ProjectController {
     
     private final ProjectRepository projectRepository;

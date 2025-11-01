@@ -18,7 +18,6 @@ import java.util.List;
 @RequestMapping("/api/time-logs")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*") // Proper CORS will be Configured in production
 public class TimeLogController {
     
     private final TimeLogService timeLogService;
