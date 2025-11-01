@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "vehicles")
@@ -12,27 +15,31 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Vehicle {
     @Id
+    @Column(length = 36)
     private String id;
-    
-    @ManyToOne
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
-    
-    @Column(nullable = false, length = 50)
+
+    @Column(name = "customer_id", length = 36, nullable = false)
+    private String customerId;
+
+    @Column(length = 50, nullable = false)
     private String make;
-    
-    @Column(nullable = false, length = 50)
+
+    @Column(length = 50, nullable = false)
     private String model;
-    
+
     @Column(nullable = false)
     private Integer year;
-    
-    @Column(name = "license_plate", unique = true, nullable = false, length = 20)
+
+    @Column(name = "license_plate", length = 20, unique = true, nullable = false)
     private String licensePlate;
-    
-    @Column(unique = true, nullable = false, length = 17)
+
+    @Column(length = 17)
     private String vin;
-    
+
     @Column(length = 30)
     private String color;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }

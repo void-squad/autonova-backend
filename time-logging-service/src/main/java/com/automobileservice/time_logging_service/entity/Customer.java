@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "customers")
@@ -23,6 +26,10 @@ public class Customer {
     @Column(length = 20)
     private String phone;
     
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String address;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }
