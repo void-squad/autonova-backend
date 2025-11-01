@@ -35,6 +35,8 @@ fi
 SERVICES=(
     "projects_db:project_service:PROJECTS_DB_PASSWORD"
     "progress_monitoring_db:progress_monitoring_service:PROGRESS_MONITORING_DB_PASSWORD"
+    "user_management_db:user_management_service:USER_MANAGEMENT_DB_PASSWORD"
+
     # Add dbs for serivices as needed
 )
 
