@@ -17,6 +17,7 @@ CREATE TABLE employees (
     position VARCHAR(100),
     hourly_rate DECIMAL(10, 2),
     hire_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -25,6 +26,7 @@ CREATE TABLE customers (
     user_id VARCHAR(36) PRIMARY KEY,
     phone VARCHAR(20),
     address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
