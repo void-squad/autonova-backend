@@ -1,8 +1,8 @@
 package com.autonova.employee_dashboard_service.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,17 +20,16 @@ public class OperationalDashboardController {
     private final OperationalDashboardService operationalDashboardService;
 
     @GetMapping
-    public Mono<ResponseEntity<OperationalViewResponse>> getOperationalView(Authentication authentication) {
-        Long employeeId = extractEmployeeId(authentication);
+    public Mono<ResponseEntity<OperationalViewResponse>> getOperationalView(
+            @RequestHeader(value = "X-Employee-Id", defaultValue = "1") Long employeeId) {
         return operationalDashboardService.getOperationalView(employeeId)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    private Long extractEmployeeId(Authentication authentication) {
-        // Extract employee ID from authentication token
-        // This is a placeholder - implement based on your auth service structure
-        String username = authentication.getName();
-        return Long.parseLong(username); // Adjust this based on your auth implementation
-    }
+    // TODO: Re-enable authentication
+    // private Long extractEmployeeId(Authentication authentication) {
+    //     String username = authentication.getName();
+    //     return Long.parseLong(username);
+    // }
 }
