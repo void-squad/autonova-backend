@@ -4,6 +4,8 @@ import com.automobileservice.time_logging_service.dto.request.TimeLogRequest;
 import com.automobileservice.time_logging_service.dto.response.EmployeeSummaryResponse;
 import com.automobileservice.time_logging_service.dto.response.TimeLogResponse;
 import com.automobileservice.time_logging_service.entity.*;
+import com.automobileservice.time_logging_service.exception.BusinessRuleException;
+import com.automobileservice.time_logging_service.exception.ResourceNotFoundException;
 import com.automobileservice.time_logging_service.repository.*;
 import com.automobileservice.time_logging_service.service.TimeLogService;
 import lombok.RequiredArgsConstructor;
@@ -35,28 +37,28 @@ public class TimeLogServiceImpl implements TimeLogService {
         
         // Validate employee exists
         Employee employee = employeeRepository.findById(request.getEmployeeId())
-            .orElseThrow(() -> new RuntimeException("Employee not found: " + request.getEmployeeId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", request.getEmployeeId()));
         
         // Validate project exists and is active
         Project project = projectRepository.findById(request.getProjectId())
-            .orElseThrow(() -> new RuntimeException("Project not found: " + request.getProjectId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.getProjectId()));
         
         if ("COMPLETED".equals(project.getStatus()) || "CANCELLED".equals(project.getStatus())) {
-            throw new RuntimeException("Cannot log time on a completed or cancelled project");
+            throw new BusinessRuleException("Cannot log time on a completed or cancelled project");
         }
         
         // Validate task exists and belongs to the project
         ProjectTask task = projectTaskRepository.findById(request.getTaskId())
-            .orElseThrow(() -> new RuntimeException("Task not found: " + request.getTaskId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Task", "id", request.getTaskId()));
         
         if (!task.getProject().getId().equals(project.getId())) {
-            throw new RuntimeException("Task does not belong to the specified project");
+            throw new BusinessRuleException("Task does not belong to the specified project");
         }
         
         // Validate employee is assigned to the task
         if (task.getAssignedEmployee() == null || 
             !task.getAssignedEmployee().getUserId().equals(employee.getUserId())) {
-            throw new RuntimeException("Employee is not assigned to this task");
+            throw new BusinessRuleException("Employee is not assigned to this task");
         }
         
         // Create time log
@@ -83,20 +85,17 @@ public class TimeLogServiceImpl implements TimeLogService {
         log.info("Updating time log: {}", id);
         
         TimeLog timeLog = timeLogRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Time log not found: " + id));
-        
-        // Get old hours before update (for recalculating task actual hours)
-        BigDecimal oldHours = timeLog.getHours();
+            .orElseThrow(() -> new ResourceNotFoundException("TimeLog", "id", id));
         
         // Validate new values (same as create)
         Employee employee = employeeRepository.findById(request.getEmployeeId())
-            .orElseThrow(() -> new RuntimeException("Employee not found: " + request.getEmployeeId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", request.getEmployeeId()));
         
         Project project = projectRepository.findById(request.getProjectId())
-            .orElseThrow(() -> new RuntimeException("Project not found: " + request.getProjectId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.getProjectId()));
         
         ProjectTask task = projectTaskRepository.findById(request.getTaskId())
-            .orElseThrow(() -> new RuntimeException("Task not found: " + request.getTaskId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Task", "id", request.getTaskId()));
         
         // Update fields
         timeLog.setEmployee(employee);
@@ -119,7 +118,7 @@ public class TimeLogServiceImpl implements TimeLogService {
         log.info("Deleting time log: {}", id);
         
         TimeLog timeLog = timeLogRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Time log not found: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("TimeLog", "id", id));
         
         ProjectTask task = timeLog.getTask();
         
@@ -135,7 +134,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     @Transactional(readOnly = true)
     public TimeLogResponse getTimeLogById(String id) {
         TimeLog timeLog = timeLogRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Time log not found: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("TimeLog", "id", id));
         return mapToResponse(timeLog);
     }
     
@@ -176,7 +175,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     @Transactional(readOnly = true)
     public EmployeeSummaryResponse getEmployeeSummary(String employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
-            .orElseThrow(() -> new RuntimeException("Employee not found: " + employeeId));
+            .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
         
         BigDecimal totalHours = timeLogRepository.getTotalHoursByEmployee(employeeId);
         BigDecimal totalEarnings = totalHours.multiply(employee.getHourlyRate());
