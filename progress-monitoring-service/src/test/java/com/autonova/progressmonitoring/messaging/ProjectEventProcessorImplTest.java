@@ -31,7 +31,9 @@ class ProjectEventProcessorImplTest {
     void setUp() {
         openMocks(this);
         mapper = new ObjectMapper();
-        processor = new ProjectEventProcessorImpl(publisher, mapper);
+        // use the default mapper implementation in tests
+        EventMessageMapper messageMapper = new DefaultEventMessageMapper();
+        processor = new ProjectEventProcessorImpl(publisher, mapper, messageMapper);
     }
 
     @Test

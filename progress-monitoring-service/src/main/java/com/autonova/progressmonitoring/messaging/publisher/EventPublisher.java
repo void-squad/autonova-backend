@@ -5,4 +5,10 @@ public interface EventPublisher {
     void publishToProject(String projectId, String payload);
 
     void broadcast(String payload);
+
+    // publish a human-friendly message derived from an event to subscribers of a specific project/topic
+    void publishMessageToProject(String projectId, String message);
+
+    // broadcast a human-friendly message to all subscribers
+    void broadcastMessage(String message);
 }

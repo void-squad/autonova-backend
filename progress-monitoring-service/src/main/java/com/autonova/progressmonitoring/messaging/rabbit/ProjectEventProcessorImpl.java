@@ -1,5 +1,6 @@
 package com.autonova.progressmonitoring.messaging.rabbit;
 
+import com.autonova.progressmonitoring.messaging.EventMessageMapper;
 import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,10 +18,12 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
 
     private final EventPublisher publisher;
     private final ObjectMapper mapper;
+    private final EventMessageMapper messageMapper;
 
-    public ProjectEventProcessorImpl(EventPublisher publisher, ObjectMapper mapper) {
+    public ProjectEventProcessorImpl(EventPublisher publisher, ObjectMapper mapper, EventMessageMapper messageMapper) {
         this.publisher = publisher;
         this.mapper = mapper;
+        this.messageMapper = messageMapper;
     }
 
     @Override
@@ -31,15 +34,21 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
 
         try {
             JsonNode node = mapper.readTree(body);
+            String messageText = messageMapper.mapToMessage(routingKey, node);
+
             if (node.has("projectId")) {
                 var projectId = node.get("projectId").asText();
                 publisher.publishToProject(projectId, body);
+                publisher.publishMessageToProject(projectId, messageText);
                 return;
             }
         } catch (Exception ex) {
             log.debug("Failed to parse message body as JSON to extract projectId", ex);
         }
 
+        // fallback: broadcast raw payload and a generic message
+        String genericMessage = messageMapper.mapToMessage(routingKey, null);
         publisher.broadcast(body);
+        publisher.broadcastMessage(genericMessage);
     }
 }
