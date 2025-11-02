@@ -1,14 +1,15 @@
 package com.autonova.auth_service.user.service;
 
-import com.autonova.auth_service.user.Role;
-import com.autonova.auth_service.user.model.User;
-import com.autonova.auth_service.user.repository.UserRepository;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import com.autonova.auth_service.user.Role;
+import com.autonova.auth_service.user.model.User;
+import com.autonova.auth_service.user.repository.UserRepository;
 
 @Service
 public class UserService {
@@ -96,10 +97,6 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
         }
 
-        if (userDetails.getRole() != null) {
-            user.setRole(userDetails.getRole());
-        }
-
         // Update optional fields (address and contactTwo)
         if (userDetails.getAddress() != null) {
             user.setAddress(userDetails.getAddress());
@@ -121,6 +118,21 @@ public class UserService {
             throw new IllegalArgumentException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
+    }
+
+    // Update user role - ADMIN only operation
+    @Transactional
+    public User updateUserRole(Long id, Role newRole) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
+
+        // Validate that the new role is a persisted role
+        if (newRole != Role.CUSTOMER && newRole != Role.EMPLOYEE && newRole != Role.ADMIN) {
+            throw new IllegalArgumentException("Invalid role. Only CUSTOMER, EMPLOYEE, or ADMIN roles are allowed.");
+        }
+
+        user.setRole(newRole);
+        return userRepository.save(user);
     }
 
     // Check if user exists

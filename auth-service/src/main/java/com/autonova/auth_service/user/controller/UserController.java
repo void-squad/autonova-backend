@@ -1,15 +1,43 @@
 package com.autonova.auth_service.user.controller;
 
+import com.autonova.auth_service.security.PermissionConstants;
+import com.autonova.auth_service.user.Role;
 import com.autonova.auth_service.user.service.UserService;
 import com.autonova.auth_service.user.model.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * User Management Controller with Role-Based Access Control
+ * 
+ * Access Path:
+ * - USER (Guest): Landing page + Service summary (no authentication required)
+ * - CUSTOMER: Signup/Login -> Customer Dashboard
+ * - EMPLOYEE: Signup/Login -> Employee Dashboard  
+ * - ADMIN: Signup/Login -> Admin Dashboard
+ * 
+ * Note: Only CUSTOMER, EMPLOYEE, and ADMIN roles are stored in database.
+ * 
+ * Access Rules:
+ * - GET /api/users: ADMIN only (view all users)
+ * - GET /api/users/{id}: ADMIN or owner (view specific user)
+ * - GET /api/users/email/{email}: ADMIN only
+ * - POST /api/users: Public (user registration/signup) - configured in SecurityConfig
+ * - PUT /api/users/{id}: Only ADMIN, EMPLOYEE, CUSTOMER (update user profile - NO role changes)
+ *   - USER role (guest) CANNOT update any user details
+ *   - ADMIN can update anyone, EMPLOYEE/CUSTOMER can only update themselves
+ *   - Role changes are NOT allowed through this endpoint
+ * - PATCH /api/users/{id}/role: ADMIN only (change user role)
+ * - DELETE /api/users/{id}: ADMIN only (delete user)
+ * - GET /api/users/exists/{id}: Authenticated users (check existence)
+ * - GET /api/users/email-exists/{email}: Public (for registration validation)
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -20,14 +48,20 @@ public class UserController {
         this.userService = userService;
     }
 
-    // GET all users
+    /**
+     * GET all users - Only ADMIN can view all users
+     */
+    @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
         List<User> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
     }
 
-    // GET user by ID
+    /**
+     * GET user by ID - ADMIN or the user themselves can view
+     */
+    @PreAuthorize("@userSecurityService.canViewUser(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
         return userService.getUserById(id)
@@ -36,7 +70,10 @@ public class UserController {
                         .body(createErrorResponse("User not found with id: " + id)));
     }
 
-    // GET user by email
+    /**
+     * GET user by email - Only ADMIN
+     */
+    @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
     @GetMapping("/email/{email}")
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         return userService.getUserByEmail(email)
@@ -45,10 +82,23 @@ public class UserController {
                         .body(createErrorResponse("User not found with email: " + email)));
     }
 
-    // POST - Create new user
+    /**
+     * POST - Create new user (Signup/Registration)
+     * Public endpoint - Anyone can signup
+     * Accepts role: CUSTOMER, EMPLOYEE, or ADMIN (only these are saved in DB)
+     * No @PreAuthorize needed here
+     */
     @PostMapping
     public ResponseEntity<?> createUser(@RequestBody User user) {
         try {
+            // Validate that role is one of the persisted roles
+            if (user.getRole() != Role.CUSTOMER && 
+                user.getRole() != Role.EMPLOYEE && 
+                user.getRole() != Role.ADMIN) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse("Invalid role. Only CUSTOMER, EMPLOYEE, or ADMIN roles are allowed for signup."));
+            }
+            
             User createdUser = userService.createUser(user);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
         } catch (IllegalArgumentException e) {
@@ -57,7 +107,14 @@ public class UserController {
         }
     }
 
-    // PUT - Update user
+    /**
+     * PUT - Update user profile
+     * Only persisted roles (ADMIN, EMPLOYEE, CUSTOMER) can update user details
+     * USER role (guest) cannot update
+     * ADMIN can update anyone, EMPLOYEE and CUSTOMER can only update themselves
+     * Note: Role cannot be changed through this endpoint (use PATCH /{id}/role instead)
+     */
+    @PreAuthorize("@userSecurityService.canModifyUser(#id)")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User user) {
         try {
@@ -69,7 +126,33 @@ public class UserController {
         }
     }
 
-    // DELETE user
+    /**
+     * PATCH - Update user role - ADMIN only
+     * This is the only way to change a user's role
+     */
+    @PreAuthorize(PermissionConstants.ADMIN_ONLY)
+    @PatchMapping("/{id}/role")
+    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> roleRequest) {
+        try {
+            String roleStr = roleRequest.get("role");
+            if (roleStr == null || roleStr.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse("Role is required"));
+            }
+            
+            Role newRole = Role.valueOf(roleStr.toUpperCase());
+            User updatedUser = userService.updateUserRole(id, newRole);
+            return ResponseEntity.ok(updatedUser);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * DELETE user - Only ADMIN can delete users
+     */
+    @PreAuthorize(PermissionConstants.CAN_DELETE_USER)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         try {
@@ -84,7 +167,10 @@ public class UserController {
         }
     }
 
-    // Check if user exists
+    /**
+     * Check if user exists - Authenticated users only (registered users)
+     */
+    @PreAuthorize(PermissionConstants.REGISTERED_USERS)
     @GetMapping("/exists/{id}")
     public ResponseEntity<Map<String, Boolean>> checkUserExists(@PathVariable Long id) {
         Map<String, Boolean> response = new HashMap<>();
@@ -92,7 +178,10 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    // Check if email exists
+    /**
+     * Check if email exists - Public (for registration form validation)
+     * Note: This is marked as public in SecurityConfig permitAll
+     */
     @GetMapping("/email-exists/{email}")
     public ResponseEntity<Map<String, Boolean>> checkEmailExists(@PathVariable String email) {
         Map<String, Boolean> response = new HashMap<>();
