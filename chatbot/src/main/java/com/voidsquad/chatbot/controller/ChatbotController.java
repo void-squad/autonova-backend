@@ -3,6 +3,7 @@ package com.voidsquad.chatbot.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Profile;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -22,6 +23,7 @@ public class ChatbotController {
         this.messaging = messaging;
     }
 
+    @Profile("dev")
     @MessageMapping("/echo")
     public void handleEchoMessage(@Payload Map<String, Object> msg) {
         log.info("websocket broadcast echo");
@@ -52,5 +54,7 @@ public class ChatbotController {
         log.info("destination user "+ dest);
         messaging.convertAndSend(dest, "[private reply] "+msg);
     }
+
+
 
 }

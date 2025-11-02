@@ -54,6 +54,16 @@ services:
       interval: 5s
       retries: 5
 
+  # ollama model server for local LLM testing
+  ollama:
+    container_name: autonova-ollama
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama-data:/var/lib/ollama
+    restart: "no"
+
   # auth-service:
   #   container_name: autonova-auth-service
   #   build:
