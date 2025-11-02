@@ -1,7 +1,10 @@
 package com.autonova.progressmonitoring.messaging;
 
+import com.autonova.progressmonitoring.messaging.mapper.DefaultEventMessageMapper;
+import com.autonova.progressmonitoring.messaging.mapper.EventMessageMapper;
 import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import com.autonova.progressmonitoring.messaging.rabbit.ProjectEventProcessorImpl;
+import com.autonova.progressmonitoring.service.ProjectMessageService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +27,9 @@ class ProjectEventProcessorImplTest {
     @Mock
     private EventPublisher publisher;
 
+    @Mock
+    private ProjectMessageService messageService;
+
     private ObjectMapper mapper;
     private ProjectEventProcessorImpl processor;
 
@@ -33,7 +39,7 @@ class ProjectEventProcessorImplTest {
         mapper = new ObjectMapper();
         // use the default mapper implementation in tests
         EventMessageMapper messageMapper = new DefaultEventMessageMapper();
-        processor = new ProjectEventProcessorImpl(publisher, mapper, messageMapper);
+        processor = new ProjectEventProcessorImpl(publisher, mapper, messageMapper, messageService);
     }
 
     @Test
@@ -51,6 +57,9 @@ class ProjectEventProcessorImplTest {
 
         assertEquals("1111-2222-3333", idCaptor.getValue());
         assertEquals(json, payloadCaptor.getValue());
+
+        // ensure we persisted the message
+        verify(messageService).saveMessage(org.mockito.ArgumentMatchers.eq(java.util.UUID.fromString("1111-2222-3333")), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(json), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

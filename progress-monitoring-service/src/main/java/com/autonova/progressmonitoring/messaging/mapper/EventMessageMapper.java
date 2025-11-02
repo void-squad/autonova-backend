@@ -1,4 +1,4 @@
-package com.autonova.progressmonitoring.messaging;
+package com.autonova.progressmonitoring.messaging.mapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

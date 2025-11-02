@@ -1,28 +1,18 @@
-package com.autonova.progressmonitoring.messaging;
+package com.autonova.progressmonitoring.messaging.mapper;
 
+import com.autonova.progressmonitoring.enums.EventCategory;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.Map;
 import java.util.Optional;
 
 /**
- * Simple mapper that converts event category -> default message.
- * Reverted from the strategy-based approach to a straightforward mapping.
+ * Simple mapper that converts event category -> default message using EventCategory enum.
  */
 @Component
 public class DefaultEventMessageMapper implements EventMessageMapper {
-
-    private static final Map<String, String> VERB_BY_CATEGORY = Map.ofEntries(
-            Map.entry("created", "created"),
-            Map.entry("approved", "approved"),
-            Map.entry("rejected", "rejected"),
-            Map.entry("completed", "completed"),
-            Map.entry("updated", "updated"),
-            Map.entry("update", "updated")
-    );
 
     public DefaultEventMessageMapper() {
         // no-op constructor for Spring
@@ -40,21 +30,7 @@ public class DefaultEventMessageMapper implements EventMessageMapper {
 
         String when = tryFormatTime(timeStr).orElse("now");
 
-        // Determine category from routing key or payload fields
-        String category = "update";
-        if (routingKey != null) {
-            if (routingKey.endsWith(".created") || routingKey.contains(".created")) category = "created";
-            else if (routingKey.endsWith(".updated") || routingKey.contains(".updated")) category = "updated";
-            else if (routingKey.endsWith(".approved") || routingKey.contains(".approved")) category = "approved";
-            else if (routingKey.endsWith(".rejected") || routingKey.contains(".rejected")) category = "rejected";
-            else if (routingKey.endsWith(".completed") || routingKey.contains(".completed")) category = "completed";
-        }
-
-        // Some payloads carry a status field we can use
-        if (payloadJson != null && payloadJson.has("status")) {
-            var s = payloadJson.get("status").asText(null);
-            if (s != null && !s.isBlank()) category = s.toLowerCase();
-        }
+        EventCategory category = EventCategory.resolve(routingKey, payloadJson);
 
         // Project/title shortcuts
         String title = null;
@@ -63,7 +39,7 @@ public class DefaultEventMessageMapper implements EventMessageMapper {
             else if (payloadJson.has("quoteId")) title = "Quote " + payloadJson.get("quoteId").asText();
         }
 
-        String verb = VERB_BY_CATEGORY.getOrDefault(category, "updated");
+        String verb = category.verb();
         if (title != null) {
             return String.format("%s %s (%s)", title, verb, when);
         } else {
