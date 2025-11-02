@@ -51,7 +51,8 @@ function question(prompt) {
     const defaultUrl = urlArg || 'ws://localhost:8080/chatbot/websocket';
     const endpoint = await question(`WebSocket URL [${defaultUrl}]: `) || defaultUrl;
 
-    const defaultSubs = '/user/msg';
+    // subscribe to private user queue and broadcast by default for MVP
+    const defaultSubs = '/queue/msg,/broadcast/msg';
     const subsInput = await question(`Broker destination(s) to subscribe (comma-separated) [${defaultSubs}]: `) || defaultSubs;
     const subscriptions = subsInput.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -59,8 +60,12 @@ function question(prompt) {
     const username = await question(`Username to use as sender [${defaultUser}]: `) || defaultUser;
 
     // prompt for the send destination (where messages will be published)
+    // default targets the private message handler on the server
     const defaultSendDest = '/app/message';
     const sendDestination = await question(`Send destination [${defaultSendDest}]: `) || defaultSendDest;
+
+    const defaultToken = 'default-token';
+    const token = await question(`Authentication token [${defaultToken}]: `) || defaultToken;
 
     blue(`Connecting to: ${endpoint}`);
 
@@ -98,7 +103,7 @@ function question(prompt) {
           rl.close();
           return;
         }
-        const payload = { sender: username, content: trimmed };
+        const payload = { sender: username, token:token, content: trimmed };
         try {
           if (client.publish) {
             client.publish({ destination: sendDestination, body: JSON.stringify(payload) });
