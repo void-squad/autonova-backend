@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: progressmonitoring
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
+    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
+    routingKey: ${APP_RABBIT_ROUTING_KEY:project.*}
+  rabbit:
+    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
+    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
+    routing-key: ${APP_RABBIT_ROUTING_KEY:project.*}
