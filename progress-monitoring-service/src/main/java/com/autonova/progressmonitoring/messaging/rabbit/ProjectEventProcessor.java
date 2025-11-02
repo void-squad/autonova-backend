@@ -1,4 +1,4 @@
-package com.autonova.progressmonitoring.messaging;
+package com.autonova.progressmonitoring.messaging.rabbit;
 
 import org.springframework.amqp.core.Message;
 

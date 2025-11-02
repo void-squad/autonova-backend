@@ -1,5 +1,8 @@
 package com.autonova.progressmonitoring.messaging;
 
+import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
+import com.autonova.progressmonitoring.messaging.rabbit.ProjectEventProcessorImpl;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

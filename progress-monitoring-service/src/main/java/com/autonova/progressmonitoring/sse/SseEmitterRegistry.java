@@ -1,6 +1,6 @@
 package com.autonova.progressmonitoring.sse;
 
-import com.autonova.progressmonitoring.messaging.EventPublisher;
+import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 

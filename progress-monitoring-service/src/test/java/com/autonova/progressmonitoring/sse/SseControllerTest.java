@@ -1,5 +1,6 @@
 package com.autonova.progressmonitoring.sse;
 
+import com.autonova.progressmonitoring.controller.SseController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

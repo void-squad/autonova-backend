@@ -1,5 +1,6 @@
-package com.autonova.progressmonitoring.messaging;
+package com.autonova.progressmonitoring.messaging.rabbit;
 
+import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

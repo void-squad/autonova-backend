@@ -1,4 +1,4 @@
-package com.autonova.progressmonitoring.messaging;
+package com.autonova.progressmonitoring.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;

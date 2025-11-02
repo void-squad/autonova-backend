@@ -1,4 +1,4 @@
-package com.autonova.progressmonitoring.messaging;
+package com.autonova.progressmonitoring.messaging.publisher;
 
 public interface EventPublisher {
     // publish an event to subscribers of a specific project/topic
