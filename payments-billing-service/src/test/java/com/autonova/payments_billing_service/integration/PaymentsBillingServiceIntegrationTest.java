@@ -3,14 +3,13 @@ package com.autonova.payments_billing_service.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.autonova.payments_billing_service.domain.ConsumedEventEntity;
+import com.autonova.payments_billing_service.auth.AuthenticatedUser;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
-import com.autonova.payments_billing_service.events.QuoteApprovedEvent;
-import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
 import com.autonova.payments_billing_service.repository.InvoiceRepository;
+import com.autonova.payments_billing_service.service.CreateInvoiceCommand;
 import com.autonova.payments_billing_service.service.InvoiceService;
-import java.time.OffsetDateTime;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -20,7 +19,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -53,54 +51,46 @@ class PaymentsBillingServiceIntegrationTest {
     @Autowired
     private InvoiceRepository invoiceRepository;
 
-    @Autowired
-    private ConsumedEventRepository consumedEventRepository;
-
     @Test
-    void handlesQuoteApprovalAndProjectCompletionAcrossPersistence() {
+    void createsInvoiceForCustomerAndMarksPaid() {
         UUID projectId = UUID.randomUUID();
-        UUID customerId = UUID.randomUUID();
-
-        QuoteApprovedEvent quoteEvent = new QuoteApprovedEvent(
+        AuthenticatedUser user = new AuthenticatedUser(5L, "customer@example.com", Set.of("customer"));
+        CreateInvoiceCommand command = new CreateInvoiceCommand(
+            projectId,
             UUID.randomUUID(),
-            "quote.approved",
-            OffsetDateTime.now(),
-            1,
-            new QuoteApprovedEvent.QuoteApprovedData(projectId, customerId, UUID.randomUUID(), 50_000L, "LKR", "APPROVED")
+            "Project Atlas",
+            "Full site redesign",
+            50_000L,
+            "LKR"
         );
 
-        invoiceService.handleQuoteApproved(quoteEvent);
+        InvoiceEntity created = invoiceService.createInvoice(command, user);
 
-        InvoiceEntity stored = invoiceRepository.findByProjectId(projectId).orElseThrow();
-        assertThat(stored.getAmountTotal()).isEqualTo(50_000L);
+        InvoiceEntity stored = invoiceRepository.findById(created.getId()).orElseThrow();
+        assertThat(stored.getCustomerEmail()).isEqualTo("customer@example.com");
+        assertThat(stored.getCustomerUserId()).isEqualTo(5L);
+        assertThat(stored.getProjectName()).isEqualTo("Project Atlas");
+        assertThat(stored.getProjectDescription()).isEqualTo("Full site redesign");
         assertThat(stored.getStatus()).isEqualTo(InvoiceStatus.OPEN);
         assertThat(stored.getCurrency()).isEqualTo("lkr");
 
-        QuoteApprovedEvent updatedQuoteEvent = new QuoteApprovedEvent(
-            UUID.randomUUID(),
-            "quote.approved",
-            OffsetDateTime.now(),
-            1,
-            new QuoteApprovedEvent.QuoteApprovedData(projectId, customerId, stored.getQuoteId(), 55_000L, "LKR", "APPROVED")
-        );
+        invoiceService.markInvoicePaid(stored);
 
-        invoiceService.handleQuoteApproved(updatedQuoteEvent);
-
-        InvoiceEntity refreshed = invoiceRepository.findByProjectId(projectId).orElseThrow();
-        assertThat(invoiceRepository.count()).isEqualTo(1);
-        assertThat(refreshed.getAmountTotal()).isEqualTo(55_000L);
-        assertThat(refreshed.getCurrency()).isEqualTo("lkr");
-
-        invoiceService.markInvoicePaid(refreshed);
-
-        InvoiceEntity paidInvoice = invoiceRepository.findByProjectId(projectId).orElseThrow();
+        InvoiceEntity paidInvoice = invoiceRepository.findById(created.getId()).orElseThrow();
         assertThat(paidInvoice.getStatus()).isEqualTo(InvoiceStatus.PAID);
+    }
 
-        ConsumedEventEntity eventEntity = new ConsumedEventEntity(UUID.randomUUID(), "test.event", OffsetDateTime.now());
-        consumedEventRepository.save(eventEntity);
-        assertThatThrownBy(() -> consumedEventRepository.save(
-            new ConsumedEventEntity(eventEntity.getEventId(), "another", OffsetDateTime.now()))
-        ).isInstanceOf(DataIntegrityViolationException.class);
+    @Test
+    void preventsCreatingDuplicateInvoiceForProject() {
+        UUID projectId = UUID.randomUUID();
+        AuthenticatedUser user = new AuthenticatedUser(8L, "dupe@example.com", Set.of("customer"));
+        CreateInvoiceCommand command = new CreateInvoiceCommand(projectId, null, "Project", null, 25_000L, "LKR");
+
+        invoiceService.createInvoice(command, user);
+
+        assertThatThrownBy(() -> invoiceService.createInvoice(command, user))
+            .isInstanceOf(IllegalStateException.class);
+        assertThat(invoiceRepository.count()).isEqualTo(1);
     }
 
     @TestConfiguration

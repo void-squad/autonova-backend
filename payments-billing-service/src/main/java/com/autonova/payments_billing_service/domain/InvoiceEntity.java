@@ -31,11 +31,20 @@ public class InvoiceEntity {
     @Column(name = "project_id", nullable = false, unique = true)
     private UUID projectId;
 
-    @Column(name = "customer_id", nullable = false)
-    private UUID customerId;
+    @Column(name = "customer_email", nullable = false)
+    private String customerEmail;
+
+    @Column(name = "customer_user_id", nullable = false)
+    private Long customerUserId;
 
     @Column(name = "quote_id")
     private UUID quoteId;
+
+    @Column(name = "project_name")
+    private String projectName;
+
+    @Column(name = "project_description")
+    private String projectDescription;
 
     @Column(name = "currency", nullable = false, length = 3)
     private String currency = "lkr";

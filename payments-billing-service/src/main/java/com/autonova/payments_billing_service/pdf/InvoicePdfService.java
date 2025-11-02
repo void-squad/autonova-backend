@@ -36,10 +36,12 @@ public class InvoicePdfService {
         Context context = new Context();
         context.setVariable("invoiceId", invoice.getId());
         context.setVariable("projectId", invoice.getProjectId());
+        context.setVariable("projectName", invoice.getProjectName());
+        context.setVariable("projectDescription", invoice.getProjectDescription());
         context.setVariable("status", invoice.getStatus().name());
         context.setVariable("issueDate", formatDate(invoice.getCreatedAt()));
-        context.setVariable("customerName", "Customer");
-        context.setVariable("customerEmail", "customer@example.com");
+        context.setVariable("customerName", invoice.getCustomerEmail());
+        context.setVariable("customerEmail", invoice.getCustomerEmail());
 
         Currency currency = resolveCurrency(invoice.getCurrency());
         context.setVariable("amountDueFormatted", formatCurrency(invoice.getAmountTotal(), currency));

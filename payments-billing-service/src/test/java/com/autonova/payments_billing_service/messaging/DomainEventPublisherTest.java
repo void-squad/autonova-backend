@@ -45,7 +45,10 @@ class DomainEventPublisherTest {
         InvoiceEntity invoice = new InvoiceEntity();
         invoice.setId(UUID.randomUUID());
         invoice.setProjectId(UUID.randomUUID());
-        invoice.setCustomerId(UUID.randomUUID());
+        invoice.setCustomerEmail("customer@example.com");
+        invoice.setCustomerUserId(123L);
+        invoice.setProjectName("Project Orion");
+        invoice.setProjectDescription("Onboarding automation");
         invoice.setAmountTotal(42_500L);
         invoice.setCurrency("lkr");
         invoice.setStatus(InvoiceStatus.OPEN);
@@ -63,7 +66,16 @@ class DomainEventPublisherTest {
         assertThat(payload.get("type")).isEqualTo("invoice.created");
         assertThat(payload.get("version")).isEqualTo(1);
         Map<String, Object> data = (Map<String, Object>) payload.get("data");
-        assertThat(data).containsKeys("invoice_id", "project_id", "customer_id", "amount_total", "currency", "status");
+        assertThat(data).containsKeys(
+            "invoice_id",
+            "project_id",
+            "customer_email",
+            "customer_user_id",
+            "amount_total",
+            "currency",
+            "status",
+            "project_name"
+        );
     }
 
     @Test
@@ -71,7 +83,8 @@ class DomainEventPublisherTest {
         InvoiceEntity invoice = new InvoiceEntity();
         invoice.setId(UUID.randomUUID());
         invoice.setProjectId(UUID.randomUUID());
-        invoice.setCustomerId(UUID.randomUUID());
+        invoice.setCustomerEmail("customer@example.com");
+        invoice.setCustomerUserId(321L);
         invoice.setAmountTotal(42_500L);
         invoice.setCurrency("lkr");
         invoice.setStatus(InvoiceStatus.OPEN);

@@ -9,8 +9,11 @@ import java.util.UUID;
 public record InvoiceResponse(
     UUID id,
     UUID projectId,
-    UUID customerId,
     UUID quoteId,
+    String projectName,
+    String projectDescription,
+    String customerEmail,
+    Long customerUserId,
     String currency,
     long amountTotal,
     InvoiceStatus status,
@@ -19,12 +22,18 @@ public record InvoiceResponse(
 ) {
 
     public static InvoiceResponse fromEntity(InvoiceEntity entity) {
+        String normalizedCurrency = entity.getCurrency() != null
+            ? entity.getCurrency().toUpperCase(Locale.ROOT)
+            : null;
         return new InvoiceResponse(
             entity.getId(),
             entity.getProjectId(),
-            entity.getCustomerId(),
             entity.getQuoteId(),
-            entity.getCurrency() != null ? entity.getCurrency().toUpperCase(Locale.ROOT) : null,
+            entity.getProjectName(),
+            entity.getProjectDescription(),
+            entity.getCustomerEmail(),
+            entity.getCustomerUserId(),
+            normalizedCurrency,
             entity.getAmountTotal(),
             entity.getStatus(),
             entity.getCreatedAt(),

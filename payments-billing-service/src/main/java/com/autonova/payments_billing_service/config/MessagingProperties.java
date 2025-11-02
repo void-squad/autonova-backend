@@ -12,18 +12,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "payments.messaging")
 public class MessagingProperties {
 
-    private final Inbound inbound = new Inbound();
     private final Outbound outbound = new Outbound();
-
-    @Getter
-    @Setter
-    public static class Inbound {
-        /**
-         * Queue name where quote.approved events are published.
-         */
-        @NotBlank
-        private String quoteApprovedQueue = "payments.quote-approved";
-    }
 
     @Getter
     @Setter

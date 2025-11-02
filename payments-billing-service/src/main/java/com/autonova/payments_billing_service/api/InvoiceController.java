@@ -1,5 +1,6 @@
 package com.autonova.payments_billing_service.api;
 
+import com.autonova.payments_billing_service.api.dto.InvoiceCreateRequest;
 import com.autonova.payments_billing_service.api.dto.InvoiceListResponse;
 import com.autonova.payments_billing_service.api.dto.InvoiceResponse;
 import com.autonova.payments_billing_service.api.dto.PaymentIntentResponse;
@@ -7,12 +8,14 @@ import com.autonova.payments_billing_service.auth.AuthenticatedUser;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
 import com.autonova.payments_billing_service.pdf.InvoicePdfService;
+import com.autonova.payments_billing_service.service.CreateInvoiceCommand;
 import com.autonova.payments_billing_service.service.InvoiceFilter;
 import com.autonova.payments_billing_service.service.InvoiceService;
 import com.autonova.payments_billing_service.service.PaymentService;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.validation.annotation.Validated;
 
@@ -51,7 +55,7 @@ public class InvoiceController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','MANAGER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','ADMIN')")
     public ResponseEntity<InvoiceListResponse> listInvoices(
         @RequestParam(name = "status", required = false) String status,
         @RequestParam(name = "projectId", required = false) String projectId,
@@ -94,7 +98,7 @@ public class InvoiceController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','MANAGER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','ADMIN')")
     public ResponseEntity<InvoiceResponse> getInvoice(
         @PathVariable("id") UUID invoiceId,
         @AuthenticationPrincipal AuthenticatedUser user
@@ -104,7 +108,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/{id}/payment-intent")
-    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','MANAGER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','ADMIN')")
     public ResponseEntity<PaymentIntentResponse> createPaymentIntent(
         @PathVariable("id") UUID invoiceId,
         @AuthenticationPrincipal AuthenticatedUser user
@@ -115,7 +119,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/{id}/mark-paid")
-    @PreAuthorize("hasAnyRole('EMPLOYEE','MANAGER')")
+    @PreAuthorize("hasAnyRole('EMPLOYEE','ADMIN')")
     public ResponseEntity<InvoiceResponse> markInvoicePaid(
         @PathVariable("id") UUID invoiceId,
         @AuthenticationPrincipal AuthenticatedUser user
@@ -126,7 +130,7 @@ public class InvoiceController {
     }
 
     @GetMapping("/{id}/pdf")
-    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','MANAGER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','EMPLOYEE','ADMIN')")
     public ResponseEntity<byte[]> getInvoicePdf(
         @PathVariable("id") UUID invoiceId,
         @AuthenticationPrincipal AuthenticatedUser user
@@ -148,5 +152,23 @@ public class InvoiceController {
         return ResponseEntity.ok()
             .headers(headers)
             .body(pdfBytes);
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<InvoiceResponse> createInvoice(
+        @Valid @RequestBody InvoiceCreateRequest request,
+        @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        CreateInvoiceCommand command = new CreateInvoiceCommand(
+            request.projectId(),
+            request.quoteId(),
+            request.projectName(),
+            request.projectDescription(),
+            request.amountTotal(),
+            request.currency()
+        );
+        InvoiceEntity invoice = invoiceService.createInvoice(command, user);
+        return ResponseEntity.status(201).body(InvoiceResponse.fromEntity(invoice));
     }
 }

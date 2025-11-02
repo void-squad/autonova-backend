@@ -36,14 +36,23 @@ public class DomainEventPublisher {
         Map<String, Object> payload = new HashMap<>();
         payload.put("type", "invoice.created");
         payload.put("version", 1);
-        payload.put("data", Map.of(
-            "invoice_id", invoice.getId(),
-            "project_id", invoice.getProjectId(),
-            "customer_id", invoice.getCustomerId(),
-            "amount_total", invoice.getAmountTotal(),
-            "currency", formatCurrency(invoice.getCurrency()),
-            "status", invoice.getStatus().name()
-        ));
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("invoice_id", invoice.getId());
+        data.put("project_id", invoice.getProjectId());
+        data.put("customer_email", invoice.getCustomerEmail());
+        data.put("customer_user_id", invoice.getCustomerUserId());
+        if (invoice.getProjectName() != null) {
+            data.put("project_name", invoice.getProjectName());
+        }
+        if (invoice.getProjectDescription() != null) {
+            data.put("project_description", invoice.getProjectDescription());
+        }
+        data.put("amount_total", invoice.getAmountTotal());
+        data.put("currency", formatCurrency(invoice.getCurrency()));
+        data.put("status", invoice.getStatus().name());
+
+        payload.put("data", data);
 
         send(properties.getOutbound().getInvoiceExchange(), "invoice.created", payload);
     }

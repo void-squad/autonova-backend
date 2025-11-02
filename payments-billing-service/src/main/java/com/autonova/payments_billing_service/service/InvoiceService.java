@@ -1,21 +1,17 @@
 package com.autonova.payments_billing_service.service;
 
 import com.autonova.payments_billing_service.auth.AuthenticatedUser;
-import com.autonova.payments_billing_service.domain.ConsumedEventEntity;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
-import com.autonova.payments_billing_service.events.QuoteApprovedEvent;
 import com.autonova.payments_billing_service.messaging.DomainEventPublisher;
-import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
 import com.autonova.payments_billing_service.repository.InvoiceRepository;
 import jakarta.persistence.EntityNotFoundException;
-import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,16 +26,10 @@ public class InvoiceService {
     private static final String ROLE_CUSTOMER = "customer";
 
     private final InvoiceRepository invoiceRepository;
-    private final ConsumedEventRepository consumedEventRepository;
     private final DomainEventPublisher eventPublisher;
 
-    public InvoiceService(
-        InvoiceRepository invoiceRepository,
-        ConsumedEventRepository consumedEventRepository,
-        DomainEventPublisher eventPublisher
-    ) {
+    public InvoiceService(InvoiceRepository invoiceRepository, DomainEventPublisher eventPublisher) {
         this.invoiceRepository = invoiceRepository;
-        this.consumedEventRepository = consumedEventRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -54,7 +44,11 @@ public class InvoiceService {
             specification = specification.and((root, query, cb) -> cb.equal(root.get("projectId"), filter.projectId()));
         }
         if (user.hasRole(ROLE_CUSTOMER)) {
-            specification = specification.and((root, query, cb) -> cb.equal(root.get("customerId"), user.getUserId()));
+            String normalizedEmail = user.getEmail() != null ? user.getEmail().trim().toLowerCase(Locale.ROOT) : null;
+            if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+                throw new AccessDeniedException("Customers must have an email principal");
+            }
+            specification = specification.and((root, query, cb) -> cb.equal(root.get("customerEmail"), normalizedEmail));
         }
 
         return invoiceRepository.findAll(specification, pageable);
@@ -65,8 +59,14 @@ public class InvoiceService {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
             .orElseThrow(() -> new EntityNotFoundException("Invoice not found: " + invoiceId));
 
-        if (user.hasRole(ROLE_CUSTOMER) && !invoice.getCustomerId().equals(user.getUserId())) {
-            throw new AccessDeniedException("Customers may only view their own invoices");
+        if (user.hasRole(ROLE_CUSTOMER)) {
+            String normalizedEmail = user.getEmail() != null ? user.getEmail().trim().toLowerCase(Locale.ROOT) : null;
+            if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+                throw new AccessDeniedException("Customers must have an email principal");
+            }
+            if (!invoice.getCustomerEmail().equals(normalizedEmail)) {
+                throw new AccessDeniedException("Customers may only view their own invoices");
+            }
         }
 
         return invoice;
@@ -78,52 +78,36 @@ public class InvoiceService {
     }
 
     @Transactional
-    public void handleQuoteApproved(QuoteApprovedEvent event) {
-        if (!claimEvent(event.id(), event.type())) {
-            return;
+    public InvoiceEntity createInvoice(CreateInvoiceCommand command, AuthenticatedUser user) {
+        Objects.requireNonNull(command, "command");
+        Objects.requireNonNull(user, "user");
+        Objects.requireNonNull(command.projectId(), "projectId");
+
+        Optional<InvoiceEntity> existing = invoiceRepository.findByProjectId(command.projectId());
+        if (existing.isPresent()) {
+            throw new IllegalStateException("An invoice already exists for project " + command.projectId());
         }
 
-        QuoteApprovedEvent.QuoteApprovedData data = event.data();
-        if (data == null) {
-            log.warn("quote.approved event missing data payload: {}", event);
-            return;
+        InvoiceEntity invoice = new InvoiceEntity();
+        invoice.setId(UUID.randomUUID());
+        invoice.setProjectId(command.projectId());
+        invoice.setQuoteId(command.quoteId());
+        invoice.setProjectName(command.projectName());
+        invoice.setProjectDescription(command.projectDescription());
+        String normalizedEmail = user.getEmail() != null ? user.getEmail().trim().toLowerCase(Locale.ROOT) : null;
+        if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+            throw new IllegalStateException("Authenticated user is missing email");
         }
+        invoice.setCustomerEmail(normalizedEmail);
+        invoice.setCustomerUserId(user.getUserId());
+        invoice.setCurrency(normalizeCurrency(command.currency()));
+        invoice.setAmountTotal(command.amountTotal());
+        invoice.setStatus(InvoiceStatus.OPEN);
 
-        Optional<InvoiceEntity> existing = invoiceRepository.findByProjectId(data.projectId());
-        if (existing.isEmpty()) {
-            InvoiceEntity invoice = new InvoiceEntity();
-            invoice.setId(UUID.randomUUID());
-            invoice.setProjectId(data.projectId());
-            invoice.setCustomerId(data.customerId());
-            invoice.setQuoteId(data.quoteId());
-            invoice.setCurrency(normalizeCurrency(data.currency()));
-            invoice.setAmountTotal(data.total());
-            invoice.setStatus(InvoiceStatus.OPEN);
-            invoiceRepository.save(invoice);
-            eventPublisher.publishInvoiceCreated(invoice);
-            log.info("Created invoice {} for project {}", invoice.getId(), data.projectId());
-            return;
-        }
-
-        InvoiceEntity invoice = existing.get();
-        if (invoice.getStatus() == InvoiceStatus.PAID || invoice.getStatus() == InvoiceStatus.VOID) {
-            log.info("Skipping invoice {} update because status is {}", invoice.getId(), invoice.getStatus());
-            return;
-        }
-
-        long previousAmount = invoice.getAmountTotal();
-        invoice.setAmountTotal(data.total());
-        if (data.currency() != null) {
-            invoice.setCurrency(normalizeCurrency(data.currency()));
-        }
-        if (invoice.getStatus() == InvoiceStatus.DRAFT) {
-            invoice.setStatus(InvoiceStatus.OPEN);
-        }
         invoiceRepository.save(invoice);
-
-        if (previousAmount != data.total()) {
-            eventPublisher.publishInvoiceUpdated(invoice);
-        }
+        eventPublisher.publishInvoiceCreated(invoice);
+        log.info("Created invoice {} for project {} by {}", invoice.getId(), command.projectId(), user.getEmail());
+        return invoice;
     }
 
     @Transactional
@@ -132,16 +116,6 @@ public class InvoiceService {
             invoice.setStatus(InvoiceStatus.PAID);
             invoiceRepository.save(invoice);
             eventPublisher.publishInvoiceUpdated(invoice);
-        }
-    }
-
-    private boolean claimEvent(UUID eventId, String type) {
-        try {
-            consumedEventRepository.save(new ConsumedEventEntity(eventId, type, OffsetDateTime.now()));
-            return true;
-        } catch (DataIntegrityViolationException duplicate) {
-            log.debug("Event {} already processed", eventId);
-            return false;
         }
     }
 

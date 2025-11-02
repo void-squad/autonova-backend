@@ -4,22 +4,27 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 public final class AuthenticatedUser {
 
-    private final UUID userId;
+    private final Long userId;
+    private final String email;
     private final Set<String> roles;
 
-    public AuthenticatedUser(UUID userId, Set<String> roles) {
+    public AuthenticatedUser(Long userId, String email, Set<String> roles) {
         this.userId = Objects.requireNonNull(userId, "userId");
+        this.email = Objects.requireNonNull(email, "email");
         this.roles = Collections.unmodifiableSet(new HashSet<>(roles));
     }
 
-    public UUID getUserId() {
+    public Long getUserId() {
         return userId;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public Set<String> getRoles() {

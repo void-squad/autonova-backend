@@ -274,6 +274,8 @@
         <h2 class="h6">Details</h2>
         <p><strong>Currency</strong>: <span class="mono" th:text="${currencyCode}">LKR</span></p>
         <p><strong>Status</strong>: <span th:text="${status}">PAID</span></p>
+        <p><strong>Project Name</strong>: <span th:text="${projectName} ?: '—'">Project Name</span></p>
+        <p th:if="${projectDescription}"><strong>Project Description</strong>: <span th:text="${projectDescription}">Project description</span></p>
         <p><strong>Project</strong>: <span class="mono" th:text="${projectId}">00000000-0000-0000-0000-000000000000</span></p>
       </div>
     </div>

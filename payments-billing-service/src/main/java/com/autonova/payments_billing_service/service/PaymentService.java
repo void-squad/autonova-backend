@@ -59,7 +59,7 @@ public class PaymentService {
             throw new IllegalStateException("Invoice has been voided");
         }
 
-        log.debug("Preparing PaymentIntent for invoice {} by {}", invoice.getId(), user.getUserId());
+        log.debug("Preparing PaymentIntent for invoice {} by {}", invoice.getId(), user.getEmail());
 
         Optional<PaymentEntity> existing = paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(
             invoice.getId(),
@@ -176,7 +176,7 @@ public class PaymentService {
 
         invoiceService.markInvoicePaid(invoice);
         eventPublisher.publishPaymentSucceeded(invoice, paymentEntity);
-        log.info("Invoice {} marked as paid offline by {}", invoice.getId(), user.getUserId());
+        log.info("Invoice {} marked as paid offline by {}", invoice.getId(), user.getEmail());
     }
 
     private PaymentIntent createStripePaymentIntent(InvoiceEntity invoice) {
@@ -186,7 +186,8 @@ public class PaymentService {
             .addPaymentMethodType("card")
             .putMetadata("invoiceId", invoice.getId().toString())
             .putMetadata("projectId", invoice.getProjectId().toString())
-            .putMetadata("customerId", invoice.getCustomerId().toString())
+            .putMetadata("customerEmail", invoice.getCustomerEmail())
+            .putMetadata("customerUserId", String.valueOf(invoice.getCustomerUserId()))
             .build();
 
         try {

@@ -9,14 +9,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.autonova.payments_billing_service.auth.AuthenticatedUser;
-import com.autonova.payments_billing_service.domain.ConsumedEventEntity;
 import com.autonova.payments_billing_service.domain.InvoiceEntity;
 import com.autonova.payments_billing_service.domain.InvoiceStatus;
-import com.autonova.payments_billing_service.events.QuoteApprovedEvent;
 import com.autonova.payments_billing_service.messaging.DomainEventPublisher;
-import com.autonova.payments_billing_service.repository.ConsumedEventRepository;
 import com.autonova.payments_billing_service.repository.InvoiceRepository;
-import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -25,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class InvoiceServiceTest {
@@ -34,39 +29,39 @@ class InvoiceServiceTest {
     private InvoiceRepository invoiceRepository;
 
     @Mock
-    private ConsumedEventRepository consumedEventRepository;
-
-    @Mock
     private DomainEventPublisher eventPublisher;
 
     private InvoiceService invoiceService;
 
     @BeforeEach
     void setUp() {
-        invoiceService = new InvoiceService(invoiceRepository, consumedEventRepository, eventPublisher);
+        invoiceService = new InvoiceService(invoiceRepository, eventPublisher);
     }
 
     @Test
-    void handleQuoteApprovedCreatesInvoiceWhenNoneExists() {
+    void createInvoiceStoresCallerContext() {
         UUID projectId = UUID.randomUUID();
-        UUID customerId = UUID.randomUUID();
-        QuoteApprovedEvent event = new QuoteApprovedEvent(
+        AuthenticatedUser user = new AuthenticatedUser(42L, "customer@example.com", Set.of("customer"));
+        CreateInvoiceCommand command = new CreateInvoiceCommand(
+            projectId,
             UUID.randomUUID(),
-            "quote.approved",
-            OffsetDateTime.now(),
-            1,
-            new QuoteApprovedEvent.QuoteApprovedData(projectId, customerId, UUID.randomUUID(), 12_500L, "LKR", "APPROVED")
+            "Project Falcon",
+            "Migration work",
+            12_500L,
+            "LKR"
         );
 
-        when(consumedEventRepository.save(any(ConsumedEventEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(invoiceRepository.findByProjectId(projectId)).thenReturn(Optional.empty());
         when(invoiceRepository.save(any(InvoiceEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        invoiceService.handleQuoteApproved(event);
+        invoiceService.createInvoice(command, user);
 
         verify(invoiceRepository).save(argThat(invoice -> {
             assertThat(invoice.getProjectId()).isEqualTo(projectId);
-            assertThat(invoice.getCustomerId()).isEqualTo(customerId);
+            assertThat(invoice.getCustomerEmail()).isEqualTo("customer@example.com");
+            assertThat(invoice.getCustomerUserId()).isEqualTo(42L);
+            assertThat(invoice.getProjectName()).isEqualTo("Project Falcon");
+            assertThat(invoice.getProjectDescription()).isEqualTo("Migration work");
             assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.OPEN);
             assertThat(invoice.getCurrency()).isEqualTo("lkr");
             assertThat(invoice.getAmountTotal()).isEqualTo(12_500L);
@@ -76,21 +71,14 @@ class InvoiceServiceTest {
     }
 
     @Test
-    void handleQuoteApprovedSkipsWhenEventAlreadyConsumed() {
-        QuoteApprovedEvent event = new QuoteApprovedEvent(
-            UUID.randomUUID(),
-            "quote.approved",
-            OffsetDateTime.now(),
-            1,
-            new QuoteApprovedEvent.QuoteApprovedData(UUID.randomUUID(), UUID.randomUUID(), null, 10_000L, "LKR", "APPROVED")
-        );
+    void createInvoiceRejectsDuplicateProject() {
+        UUID projectId = UUID.randomUUID();
+        AuthenticatedUser user = new AuthenticatedUser(42L, "customer@example.com", Set.of("customer"));
+        CreateInvoiceCommand command = new CreateInvoiceCommand(projectId, null, "Project", null, 10_000L, "LKR");
 
-        when(consumedEventRepository.save(any(ConsumedEventEntity.class)))
-            .thenThrow(new DataIntegrityViolationException("duplicate"));
+        when(invoiceRepository.findByProjectId(projectId)).thenReturn(Optional.of(new InvoiceEntity()));
 
-        invoiceService.handleQuoteApproved(event);
-
-        verify(invoiceRepository, never()).findByProjectId(any());
+        assertThrows(IllegalStateException.class, () -> invoiceService.createInvoice(command, user));
         verify(invoiceRepository, never()).save(any());
         verify(eventPublisher, never()).publishInvoiceCreated(any());
     }
@@ -101,12 +89,13 @@ class InvoiceServiceTest {
         InvoiceEntity invoice = new InvoiceEntity();
         invoice.setId(invoiceId);
         invoice.setProjectId(UUID.randomUUID());
-        invoice.setCustomerId(UUID.randomUUID());
+        invoice.setCustomerEmail("owner@example.com");
+        invoice.setCustomerUserId(7L);
         invoice.setStatus(InvoiceStatus.OPEN);
 
         when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
 
-        AuthenticatedUser otherCustomer = new AuthenticatedUser(UUID.randomUUID(), Set.of("customer"));
+        AuthenticatedUser otherCustomer = new AuthenticatedUser(99L, "other@example.com", Set.of("customer"));
 
         assertThrows(
             org.springframework.security.access.AccessDeniedException.class,

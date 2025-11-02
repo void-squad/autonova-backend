@@ -47,8 +47,6 @@ management:
 
 payments:
   messaging:
-    inbound:
-      quote-approved-queue: ${PBS_QUOTE_APPROVED_QUEUE:?Missing PBS_QUOTE_APPROVED_QUEUE}
     outbound:
       invoice-exchange: ${PBS_INVOICE_EXCHANGE:?Missing PBS_INVOICE_EXCHANGE}
       payment-exchange: ${PBS_PAYMENT_EXCHANGE:?Missing PBS_PAYMENT_EXCHANGE}
@@ -61,8 +59,6 @@ stripe:
 
 auth:
   jwt:
-    issuer: ${AUTH_JWT_ISSUER:?Missing AUTH_JWT_ISSUER}
-    audience: ${AUTH_JWT_AUDIENCE:?Missing AUTH_JWT_AUDIENCE}
     hs256-secret: ${AUTH_JWT_HS256_SECRET:?Missing AUTH_JWT_HS256_SECRET}
 
 springdoc:
