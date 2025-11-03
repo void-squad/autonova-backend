@@ -29,11 +29,12 @@ import java.util.Map;
  * - GET /api/users/{id}: ADMIN or owner (view specific user)
  * - GET /api/users/email/{email}: ADMIN only
  * - POST /api/users: Public (user registration/signup) - configured in SecurityConfig
- * - PUT /api/users/{id}: Only ADMIN, EMPLOYEE, CUSTOMER (update user profile - NO role changes)
+ * - PUT /api/users/{id}: Only ADMIN, EMPLOYEE, CUSTOMER (update user profile - NO role/password changes)
  *   - USER role (guest) CANNOT update any user details
  *   - ADMIN can update anyone, EMPLOYEE/CUSTOMER can only update themselves
- *   - Role changes are NOT allowed through this endpoint
+ *   - Role and password changes are NOT allowed through this endpoint
  * - PATCH /api/users/{id}/role: ADMIN only (change user role)
+ * - Password changes: Use /api/auth/forgot-password and /api/auth/reset-password (email verification required)
  * - DELETE /api/users/{id}: ADMIN only (delete user)
  * - GET /api/users/exists/{id}: Authenticated users (check existence)
  * - GET /api/users/email-exists/{email}: Public (for registration validation)
@@ -148,6 +149,12 @@ public class UserController {
                     .body(createErrorResponse(e.getMessage()));
         }
     }
+
+    /**
+     * Note: Password changes are handled through /api/auth/forgot-password and /api/auth/reset-password
+     * This approach ensures email verification for all password changes (more secure)
+     * Users don't need to remember their current password - they just verify via email
+     */
 
     /**
      * DELETE user - Only ADMIN can delete users

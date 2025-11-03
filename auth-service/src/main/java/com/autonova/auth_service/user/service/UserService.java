@@ -92,10 +92,8 @@ public class UserService {
             user.setContactOne(userDetails.getContactOne());
         }
 
-        if (userDetails.getPassword() != null && !userDetails.getPassword().trim().isEmpty()) {
-            // Hash the password before updating
-            user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
-        }
+        // Note: Password changes are NOT allowed through this endpoint
+        // Use the dedicated change-password endpoint instead
 
         // Update optional fields (address and contactTwo)
         if (userDetails.getAddress() != null) {
@@ -134,6 +132,9 @@ public class UserService {
         user.setRole(newRole);
         return userRepository.save(user);
     }
+
+    // Note: Password changes are handled through the forgot-password/reset-password flow
+    // This ensures email verification for all password changes (more secure)
 
     // Check if user exists
     public boolean userExists(Long id) {
