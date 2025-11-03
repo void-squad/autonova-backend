@@ -11,15 +11,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.autonova.auth_service.oauth2.OAuth2LoginSuccessHandler;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true) // Enable @PreAuthorize
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OAuth2LoginSuccessHandler oauth2LoginSuccessHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            OAuth2LoginSuccessHandler oauth2LoginSuccessHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.oauth2LoginSuccessHandler = oauth2LoginSuccessHandler;
     }
 
     @Bean
@@ -40,11 +46,18 @@ public class SecurityConfig {
                     "/api/auth/reset-password", // Password reset with token
                     "/api/auth/validate-reset-token", // Token validation
                     "/api/users", // POST to create user (registration)
-                    "/api/users/email-exists/**", // Email validation for registration
+                    "/api/users/email-exists/**", // Deprecated - Email validation (URL path)
+                    "/api/users/email-exists", // Secure POST endpoint for email validation
+                    "/oauth2/**", // OAuth2 login endpoints
+                    "/login/oauth2/**", // OAuth2 callback
                     "/actuator/**"
                 ).permitAll()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
+            )
+            // OAuth2 Login Configuration
+            .oauth2Login(oauth2 -> oauth2
+                .successHandler(oauth2LoginSuccessHandler)
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

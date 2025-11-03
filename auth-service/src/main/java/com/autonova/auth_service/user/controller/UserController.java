@@ -2,6 +2,7 @@ package com.autonova.auth_service.user.controller;
 
 import com.autonova.auth_service.security.PermissionConstants;
 import com.autonova.auth_service.user.Role;
+import com.autonova.auth_service.user.dto.UserLookupRequest;
 import com.autonova.auth_service.user.service.UserService;
 import com.autonova.auth_service.user.model.User;
 import org.springframework.http.HttpStatus;
@@ -72,11 +73,33 @@ public class UserController {
     }
 
     /**
-     * GET user by email - Only ADMIN
+     * POST - Get user by email (SECURE) - Only ADMIN
+     * Uses POST with request body to avoid exposing email in URL/logs
+     * Enterprise security best practice: Sensitive data in body, not URL
      */
     @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
+    @PostMapping("/by-email")
+    public ResponseEntity<?> getUserByEmail(@RequestBody UserLookupRequest request) {
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse("Email is required"));
+        }
+        return userService.getUserByEmail(request.getEmail())
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(createErrorResponse("User not found")));
+    }
+    
+    /**
+     * @deprecated Use POST /api/users/by-email instead (more secure)
+     * GET user by email - Only ADMIN
+     * WARNING: This endpoint exposes email in URL which can be logged
+     * Kept for backward compatibility - will be removed in future version
+     */
+    @Deprecated
+    @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
     @GetMapping("/email/{email}")
-    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<?> getUserByEmailDeprecated(@PathVariable String email) {
         return userService.getUserByEmail(email)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -186,11 +209,31 @@ public class UserController {
     }
 
     /**
-     * Check if email exists - Public (for registration form validation)
-     * Note: This is marked as public in SecurityConfig permitAll
+     * POST - Check if email exists (SECURE) - Public (for registration form validation)
+     * Uses POST with request body to avoid exposing email in URL/logs
+     * Enterprise security best practice: Sensitive data in body, not URL
      */
+    @PostMapping("/email-exists")
+    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@RequestBody UserLookupRequest request) {
+        Map<String, Boolean> response = new HashMap<>();
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            response.put("exists", false);
+            response.put("error", true);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+        response.put("exists", userService.emailExists(request.getEmail()));
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * @deprecated Use POST /api/users/email-exists instead (more secure)
+     * GET - Check if email exists - Public (for registration form validation)
+     * WARNING: This endpoint exposes email in URL which can be logged
+     * Kept for backward compatibility - will be removed in future version
+     */
+    @Deprecated
     @GetMapping("/email-exists/{email}")
-    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@PathVariable String email) {
+    public ResponseEntity<Map<String, Boolean>> checkEmailExistsDeprecated(@PathVariable String email) {
         Map<String, Boolean> response = new HashMap<>();
         response.put("exists", userService.emailExists(email));
         return ResponseEntity.ok(response);
