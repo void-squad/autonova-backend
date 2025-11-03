@@ -1,6 +1,8 @@
 package com.autonova.auth_service.auth;
 
 import com.autonova.auth_service.security.JwtService;
+import com.autonova.auth_service.security.model.RefreshToken;
+import com.autonova.auth_service.security.service.RefreshTokenService;
 import com.autonova.auth_service.user.model.User;
 import com.autonova.auth_service.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,11 +14,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(
+            UserRepository userRepository, 
+            PasswordEncoder passwordEncoder, 
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -42,8 +50,34 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid email or password");
         }
 
-        // Generate JWT token
-        String token = jwtService.generateToken(
+        // Generate JWT access token (1 hour)
+        String accessToken = jwtService.generateToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+
+        // Generate refresh token (7 days)
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        // Create user info
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
+                user.getId(),
+                user.getUserName(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+
+        // Return login response with both tokens
+        return new LoginResponse(accessToken, refreshToken.getToken(), userInfo);
+    }
+
+    /**
+     * Refresh access token using refresh token
+     */
+    public LoginResponse refreshAccessToken(User user) {
+        // Generate new JWT access token
+        String accessToken = jwtService.generateToken(
                 user.getId(),
                 user.getEmail(),
                 user.getRole().name()
@@ -57,7 +91,7 @@ public class AuthService {
                 user.getRole().name()
         );
 
-        // Return login response
-        return new LoginResponse(token, userInfo);
+        // Return new access token (refresh token stays the same)
+        return new LoginResponse(accessToken, null, userInfo);
     }
 }
