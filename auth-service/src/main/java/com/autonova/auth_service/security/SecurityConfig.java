@@ -34,6 +34,11 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/login",
                     "/api/auth/health",
+                    "/api/auth/refresh", // Refresh access token
+                    "/api/auth/logout", // Logout (revoke refresh token)
+                    "/api/auth/forgot-password", // Password reset request
+                    "/api/auth/reset-password", // Password reset with token
+                    "/api/auth/validate-reset-token", // Token validation
                     "/api/users", // POST to create user (registration)
                     "/api/users/email-exists/**", // Email validation for registration
                     "/actuator/**"
