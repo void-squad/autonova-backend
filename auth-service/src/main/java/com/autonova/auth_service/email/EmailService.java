@@ -30,9 +30,13 @@ public class EmailService {
 
     /**
      * Send password reset email
+     * Returns true if sent successfully, false if failed
      */
-    public void sendPasswordResetEmail(String toEmail, String token) {
+    public boolean sendPasswordResetEmail(String toEmail, String token) {
         try {
+            log.info("📧 Attempting to send password reset email to: {}", toEmail);
+            log.info("🔧 Email configuration - From: {}, SMTP Host: {}", fromEmail, mailSender);
+            
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
@@ -48,13 +52,21 @@ public class EmailService {
             mailSender.send(message);
             
             log.info("✅ Password reset email sent successfully to: {}", toEmail);
+            log.info("🔗 Reset link: {}", resetLink);
+            return true;
             
         } catch (MessagingException e) {
             log.error("❌ Failed to send password reset email to: {}", toEmail, e);
-            throw new RuntimeException("Failed to send email: " + e.getMessage());
+            log.error("💡 Email sending failed - Check SMTP credentials in application.properties");
+            log.error("💡 For Gmail: Generate App Password at https://myaccount.google.com/apppasswords");
+            log.warn("⚠️ Email not sent, but token generated. Manual reset link: {}/reset-password?token={}", 
+                    frontendUrl, token);
+            return false;
         } catch (Exception e) {
             log.error("❌ Unexpected error sending email to: {}", toEmail, e);
-            throw new RuntimeException("Failed to send email: " + e.getMessage());
+            log.warn("⚠️ Email not sent, but token generated. Manual reset link: {}/reset-password?token={}", 
+                    frontendUrl, token);
+            return false;
         }
     }
 
@@ -154,13 +166,10 @@ public class EmailService {
                             <a href="%s" class="button">Reset Password</a>
                         </div>
                         
-                        <p>Or copy and paste this link into your browser:</p>
-                        <div class="token-box">%s</div>
-                        
                         <div class="warning">
                             <strong>⏰ Important:</strong>
                             <ul style="margin: 10px 0;">
-                                <li>This link will expire in <strong>24 hours</strong></li>
+                                <li>This link will expire in <strong>2 hours</strong></li>
                                 <li>This link can only be used <strong>once</strong></li>
                                 <li>If you didn't request this, please ignore this email</li>
                             </ul>
@@ -176,7 +185,7 @@ public class EmailService {
                 </div>
             </body>
             </html>
-            """.formatted(resetLink, resetLink);
+            """.formatted(resetLink);
     }
 
     /**

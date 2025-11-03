@@ -1,8 +1,25 @@
 package com.autonova.auth_service.user.model;
 
-import com.autonova.auth_service.user.Role;
-import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.autonova.auth_service.security.model.PasswordResetToken;
+import com.autonova.auth_service.security.model.RefreshToken;
+import com.autonova.auth_service.user.Role;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "users")
@@ -43,6 +60,13 @@ public class User {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    // Cascade delete relationships - when user is deleted, delete all related tokens
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RefreshToken> refreshTokens = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PasswordResetToken> passwordResetTokens = new ArrayList<>();
 
     @PrePersist
     void onCreate() {

@@ -110,12 +110,16 @@ public class UserService {
     }
 
     // Delete user
+    // Note: Related tokens (RefreshToken, PasswordResetToken) are automatically deleted via CASCADE
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new IllegalArgumentException("User not found with id: " + id);
-        }
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
+        
+        // Delete the user - cascade will automatically delete:
+        // - All refresh tokens
+        // - All password reset tokens
+        userRepository.delete(user);
     }
 
     // Update user role - ADMIN only operation
