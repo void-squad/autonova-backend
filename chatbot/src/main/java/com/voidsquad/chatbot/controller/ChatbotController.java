@@ -1,26 +1,41 @@
 package com.voidsquad.chatbot.controller;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.voidsquad.chatbot.service.AIService;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api")
 public class ChatbotController {
 
-    private static final Logger log = LogManager.getLogger(ChatbotController.class);
+    private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
     private final SimpMessagingTemplate messaging;
+    private final AIService aiService;
 
-    public ChatbotController(SimpMessagingTemplate messaging) {
+    public ChatbotController(SimpMessagingTemplate messaging, AIService aiService){
+        this.aiService = aiService;
         this.messaging = messaging;
+    }
+
+    @Profile("dev")
+    @GetMapping("/v1/hello")
+    public String hello(){
+        return "hello!";
     }
 
     @Profile("dev")
@@ -55,6 +70,11 @@ public class ChatbotController {
         messaging.convertAndSend(dest, "[private reply] "+msg);
     }
 
+
+    @GetMapping("/v1/ai")
+    public String answerWithAI(@Param("prompt") String prompt){
+        return aiService.generation(prompt);
+    }
 
 
 }
