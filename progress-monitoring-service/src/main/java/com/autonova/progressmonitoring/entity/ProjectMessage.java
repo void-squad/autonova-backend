@@ -1,4 +1,3 @@
-// ...existing code...
 package com.autonova.progressmonitoring.entity;
 
 import jakarta.persistence.*;
