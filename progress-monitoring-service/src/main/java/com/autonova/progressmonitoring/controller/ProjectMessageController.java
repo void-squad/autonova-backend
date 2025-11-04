@@ -1,7 +1,8 @@
 // ...existing code...
 package com.autonova.progressmonitoring.controller;
 
-import com.autonova.progressmonitoring.entity.ProjectMessage;
+import com.autonova.progressmonitoring.dto.ProjectMessageDto;
+import com.autonova.progressmonitoring.mapper.ProjectMessageMapper;
 import com.autonova.progressmonitoring.service.ProjectMessageService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,9 +23,9 @@ public class ProjectMessageController {
     }
 
     @GetMapping("/{projectId}/messages")
-    public List<ProjectMessage> getMessages(@PathVariable String projectId) {
+    public List<ProjectMessageDto> getMessages(@PathVariable String projectId) {
         UUID id = UUID.fromString(projectId);
-        return service.getMessagesForProject(id);
+        return service.getMessagesForProjectDto(id);
     }
 }
 
