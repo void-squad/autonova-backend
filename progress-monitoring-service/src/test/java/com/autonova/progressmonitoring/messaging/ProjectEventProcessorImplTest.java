@@ -44,7 +44,9 @@ class ProjectEventProcessorImplTest {
 
     @Test
     void process_withProjectId_callsPublishToProject() {
-        String json = "{\"projectId\":\"1111-2222-3333\", \"status\":\"updated\"}";
+        // use a valid UUID string literal for tests
+        String validProjectId = "11111111-2222-3333-4444-555555555555";
+        String json = "{\"projectId\":\"" + validProjectId + "\", \"status\":\"updated\"}";
         MessageProperties props = new MessageProperties();
         props.setReceivedRoutingKey("project.updated");
         Message msg = new Message(json.getBytes(StandardCharsets.UTF_8), props);
@@ -55,11 +57,11 @@ class ProjectEventProcessorImplTest {
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(publisher).publishToProject(idCaptor.capture(), payloadCaptor.capture());
 
-        assertEquals("1111-2222-3333", idCaptor.getValue());
+        assertEquals(validProjectId, idCaptor.getValue());
         assertEquals(json, payloadCaptor.getValue());
 
         // ensure we persisted the message
-        verify(messageService).saveMessage(org.mockito.ArgumentMatchers.eq(java.util.UUID.fromString("1111-2222-3333")), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(json), org.mockito.ArgumentMatchers.any());
+        verify(messageService).saveMessage(org.mockito.ArgumentMatchers.eq(java.util.UUID.fromString(validProjectId)), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(json), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
