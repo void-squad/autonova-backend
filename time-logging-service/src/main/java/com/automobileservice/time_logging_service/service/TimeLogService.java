@@ -1,8 +1,7 @@
 package com.automobileservice.time_logging_service.service;
 
 import com.automobileservice.time_logging_service.dto.request.TimeLogRequest;
-import com.automobileservice.time_logging_service.dto.response.EmployeeSummaryResponse;
-import com.automobileservice.time_logging_service.dto.response.TimeLogResponse;
+import com.automobileservice.time_logging_service.dto.response.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -79,4 +78,25 @@ public interface TimeLogService {
      * @return List of time logs
      */
     List<TimeLogResponse> getTimeLogsByEmployeeAndProject(String employeeId, String projectId);
+    
+    /**
+     * Get weekly summary for an employee
+     * @param employeeId Employee ID
+     * @return Weekly summary with daily hours and project breakdown
+     */
+    WeeklySummaryResponse getWeeklySummary(String employeeId);
+    
+    /**
+     * Get smart task suggestions for an employee
+     * @param employeeId Employee ID
+     * @return List of suggested tasks with reasoning
+     */
+    List<SmartSuggestionResponse> getSmartSuggestions(String employeeId);
+    
+    /**
+     * Get efficiency metrics for an employee
+     * @param employeeId Employee ID
+     * @return Efficiency metrics and productivity data
+     */
+    EfficiencyMetricsResponse getEfficiencyMetrics(String employeeId);
 }
