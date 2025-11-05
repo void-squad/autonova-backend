@@ -15,11 +15,11 @@ spring:
   sql:
     init:
       mode: never   # set to 'always' if using schema.sql and you want Spring to run it
-  security:
-    oauth2:
-          resourceserver:
-            jwt:
-              jwk-set-uri: https://auth-server.example.com/.well-known/jwks.json
+#  security:
+#    oauth2:
+#          resourceserver:
+#            jwt:
+#              jwk-set-uri: https://auth-server.example.com/.well-known/jwks.json
 
 server:
   port: 8082
