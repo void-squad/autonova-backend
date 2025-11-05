@@ -68,15 +68,34 @@ services:
   #   depends_on:
   #     - postgres-init
 
-  # gateway-service:
-  #   container_name: autonova-gateway-service
-  #   build:
-  #     context: ../gateway-service
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - auth-service
-  #     - project-service
+  discovery-service:
+    container_name: autonova-discovery-service
+    build:
+      context: ../discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  gateway-service:
+     container_name: autonova-gateway-service
+     build:
+       context: ../gateway-service
+     environment:
+       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+       CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8083}
+       PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8085}
+     ports:
+       - "8080:8080"
+     depends_on:
+       - discovery-service
 
   project-service:
     container_name: autonova-project-service
@@ -109,7 +128,7 @@ services:
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - "8080:8080"
+      - "8086:8080"
     depends_on:
       - rabbitmq
 

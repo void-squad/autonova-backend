@@ -22,18 +22,28 @@ spring:
             allowCredentials: true
       routes:
         - id: auth-service
-          uri: http://localhost:8081
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/api/auth/**
         - id: user-service
-          uri: http://localhost:8081
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/api/users,/api/users/**
         - id: customer-service
-          uri: http://localhost:8083
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/customers/**
         - id: project-service
-          uri: http://localhost:8085
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8085}
           predicates:
             - Path=/api/projects/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
