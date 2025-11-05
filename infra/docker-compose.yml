@@ -19,7 +19,7 @@ services:
 
   postgres-init:
     image: postgres:17
-    
+
     # depends_on:
     #   - postgres  # Commented out since we're using cloud Postgres
     environment:
@@ -128,7 +128,7 @@ services:
       DB_USER: notification_service
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
       # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
-      DB_SSLMODE: ${DB_SSLMODE:disable}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
       - "8084:8084"
     depends_on:
