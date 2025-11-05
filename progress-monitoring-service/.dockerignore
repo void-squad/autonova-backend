@@ -1,0 +1,7 @@
+# Ignore build output and IDE files, but keep mvnw and entrypoint for Docker build
+target/
+.git
+*.md
+*.log
+.idea/
+*.iml

@@ -1,0 +1,22 @@
+# Build artifacts
+bin/
+obj/
+
+# User-specific settings
+*.user
+*.suo
+*.userprefs
+
+# Secrets and configs
+appsettings.Development.json
+appsettings.Local.json
+
+# EF Core tool state
+*Migrations/obj/
+
+# Logs
+*.log
+
+# Rider/VS Code
+.idea/
+.vscode/
