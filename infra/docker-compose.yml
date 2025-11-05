@@ -65,7 +65,6 @@ services:
   #     ConnectionStrings__Postgres: ${AUTH_SERVICE_POSTGRES:-Host=postgres;Database=auth_db;Username=auth_user;Password=auth_pass}
   #   depends_on:
   #     - postgres-init
-
   # gateway-service:
   #   container_name: autonova-gateway-service
   #   build:
@@ -127,6 +126,7 @@ services:
       APP_RABBIT_QUEUE: progress.project.queue
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
     ports:
       - "8084:8080"
     depends_on:

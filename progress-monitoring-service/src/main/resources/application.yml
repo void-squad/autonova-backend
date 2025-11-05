@@ -1,32 +1,26 @@
+server:
+  port: ${SERVER_PORT:8084}
+
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: progressmonitoring
-  # Eureka client registration
-eureka:
-  client:
-    enabled: true
-    service-url:
-      defaultZone: http://discovery-service:8761/eureka/
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
+
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
-    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
-    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
-    routingKey: ${APP_RABBIT_ROUTING_KEY:project.*}
-  rabbit:
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
     exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
     queue: ${APP_RABBIT_QUEUE:progress.project.queue}
     routing-key: ${APP_RABBIT_ROUTING_KEY:project.*}
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/progress}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${PGDATABASE:progressdb}}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -38,4 +32,12 @@ eureka:
         jdbc:
           time_zone: UTC
 
-# Logging and other common dev properties can go here
+#eureka:
+#  client:
+#    enabled: true
+#    register-with-eureka: true
+#    fetch-registry: true
+#    serviceUrl:
+#      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka}
+#  instance:
+#    prefer-ip-address: true
