@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +21,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/projects")
 public class ProjectMessageController {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectMessageController.class);
 
     private final ProjectMessageService service;
     private final EventPublisher publisher;
@@ -27,18 +33,32 @@ public class ProjectMessageController {
     }
 
     @GetMapping("/{projectId}/messages")
-    public List<ProjectMessageDto> getMessages(@PathVariable String projectId) {
-        UUID id = UUID.fromString(projectId);
-        return service.getMessagesForProjectDto(id);
+    public ResponseEntity<List<ProjectMessageDto>> getMessages(@PathVariable String projectId) {
+        UUID id;
+        try {
+            id = UUID.fromString(projectId);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Invalid projectId UUID: {}", projectId);
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<ProjectMessageDto> messages = service.getMessagesForProjectDto(id);
+        return ResponseEntity.ok(messages);
     }
 
     @PostMapping("/{projectId}/messages")
-    public org.springframework.http.ResponseEntity<ProjectMessageDto> postStatusMessage(@PathVariable String projectId,
-                                                                                       @org.springframework.web.bind.annotation.RequestBody CreateStatusRequest request) {
-        UUID id = UUID.fromString(projectId);
+    public ResponseEntity<ProjectMessageDto> postStatusMessage(@PathVariable String projectId,
+                                                               @RequestBody CreateStatusRequest request) {
+        UUID id;
+        try {
+            id = UUID.fromString(projectId);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Invalid projectId UUID: {}", projectId);
+            return ResponseEntity.badRequest().build();
+        }
 
         if (request.getMessage() == null || request.getMessage().isBlank()) {
-            return org.springframework.http.ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().build();
         }
 
         ProjectMessageDto saved = service.saveMessage(id,
@@ -52,10 +72,10 @@ public class ProjectMessageController {
             publisher.publishMessageToProject(projectId, saved.getMessage());
         } catch (Exception ex) {
             // don't fail the request if publishing fails; log and return created
-            org.slf4j.LoggerFactory.getLogger(ProjectMessageController.class).warn("Failed to publish status message for project {}", projectId, ex);
+            log.warn("Failed to publish status message for project {}", projectId, ex);
         }
 
-        return org.springframework.http.ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(saved);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }
 

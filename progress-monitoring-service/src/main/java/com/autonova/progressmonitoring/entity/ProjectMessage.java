@@ -2,6 +2,7 @@ package com.autonova.progressmonitoring.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.CreationTimestamp;
 import lombok.*;
 
 import java.time.OffsetDateTime;
@@ -17,8 +18,7 @@ import java.util.UUID;
 public class ProjectMessage {
 
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", updatable = false, nullable = false)
     @Setter(AccessLevel.NONE)
     private UUID id;
@@ -37,10 +37,10 @@ public class ProjectMessage {
 
     @Column(name = "occurred_at")
     private OffsetDateTime occurredAt;
-
-    @Column(name = "created_at", nullable = false)
-    @Builder.Default
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreationTimestamp
+    private OffsetDateTime createdAt;
 
     public ProjectMessage(UUID projectId, String category, String message, String payload, OffsetDateTime occurredAt) {
         this.projectId = projectId;
@@ -48,7 +48,6 @@ public class ProjectMessage {
         this.message = message;
         this.payload = payload;
         this.occurredAt = occurredAt;
-        this.createdAt = OffsetDateTime.now();
     }
 }
 
