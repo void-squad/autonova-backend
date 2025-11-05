@@ -125,6 +125,8 @@ services:
       DB_PORT: ${POSTGRES_PORT}
       DB_USER: notification_service
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      # Postgres server has no SSL; disable SSL in client
+      DB_SSLMODE: require
     ports:
       - "8084:8084"
     depends_on:

@@ -2,12 +2,14 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
       <profile name="Maven default annotation processors profile" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="auth-service" />
         <module name="progress-monitoring-service" />
+        <module name="notification-service" />
         <module name="employee-dashboard-service" />
         <module name="progressmonitoring" />
       </profile>
@@ -17,11 +19,10 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/unknown/lombok-unknown.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/unknown/lombok-unknown.jar" />
         </processorPath>
         <module name="appointment-booking-service" />
-        <module name="gateway-service" />
         <module name="discovery-service" />
+        <module name="gateway-service" />
       </profile>
     </annotationProcessing>
   </component>
@@ -32,6 +33,7 @@
       <module name="discovery-service" options="-parameters" />
       <module name="employee-dashboard-service" options="-parameters" />
       <module name="gateway-service" options="-parameters" />
+      <module name="notification-service" options="-parameters" />
       <module name="progress-monitoring-service" options="-parameters" />
       <module name="progressmonitoring" options="-parameters" />
     </option>
