@@ -1,18 +1,24 @@
+
 spring:
   application:
     name: gateway-service
   cloud:
     gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
       routes:
+        # If services register with Eureka, discovery locator will auto-create routes.
+        # Keep an explicit example route to ensure prefix stripping for APIs that use /api/**
         - id: project-service
-          uri: http://project-service:8081
+          uri: lb://project-service
           predicates:
             - Path=/api/projects/**
           filters:
             - StripPrefix=1
-        - id: customer-service
-          uri: lb://customer-service
-          predicates:
-            - Path=/api/customers/**
-          filters:
-            - StripPrefix=1
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-service:8761/eureka/

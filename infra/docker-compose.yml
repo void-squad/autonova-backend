@@ -75,6 +75,26 @@ services:
   #   depends_on:
   #     - auth-service
   #     - project-service
+  discovery-service:
+    container_name: autonova-discovery-service
+    build:
+      context: ..
+      dockerfile: discovery-service/Dockerfile
+    ports:
+      - "8761:8761"
+
+  gateway-service:
+    container_name: autonova-gateway-service
+    build:
+      context: ../gateway-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-service
+      - project-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
 
   project-service:
     container_name: autonova-project-service
@@ -82,7 +102,7 @@ services:
       context: ../services/project-service
     environment:
       ConnectionStrings__Postgres: Host=${POSTGRES_HOST};Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD}
-      Auth__Authority: http://auth-service:8082
+      Auth__Authority: http://auth-service:8081
       Rabbit__HostName: rabbitmq
       Rabbit__UserName: guest
       Rabbit__Password: guest
@@ -107,7 +127,7 @@ services:
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - "8080:8080"
+      - "8084:8080"
     depends_on:
       - rabbitmq
 
