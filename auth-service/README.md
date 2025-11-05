@@ -24,12 +24,20 @@
 ## 📋 Quick Start
 
 ### 1. Prerequisites
+
+**Option A: Local Development**
 - Java 17+
 - PostgreSQL database (Neon Cloud recommended)
 - Maven 3.6+
 - Gmail account (for email service)
 
+**Option B: Docker (Recommended)**
+- Docker Desktop 20.10+
+- Docker Compose 2.0+
+
 ### 2. Configuration
+
+#### Option A: Local Development
 
 Create `application-local.properties`:
 ```properties
@@ -52,14 +60,50 @@ spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
 spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
 ```
 
+#### Option B: Docker (Recommended) 🐳
+
+See **[DOCKER_GUIDE.md](./DOCKER_GUIDE.md)** for detailed instructions.
+
+**Quick Start:**
+```powershell
+# 1. Copy environment template
+Copy-Item .env.example .env
+# Edit .env with your credentials
+
+# 2. Run with Docker Compose (includes PostgreSQL)
+docker-compose up -d
+
+# 3. View logs
+docker-compose logs -f auth-service
+```
+
+Or use the quick start script:
+```powershell
+.\docker-start.ps1
+```
+
 ### 3. Run the Service
+
+#### Local Development
 ```bash
 # With local profile
-.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 # Or compile and run
-.\mvnw.cmd clean install
-java -jar target/auth-service-0.0.1-SNAPSHOT.jar
+mvn clean install
+java -jar target/auth-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
+```
+
+#### Docker
+```powershell
+# Start services
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f
 ```
 
 Service will run on: **http://localhost:8081**
@@ -71,10 +115,13 @@ Service will run on: **http://localhost:8081**
 | Document | Description |
 |----------|-------------|
 | **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** | Complete API reference with all endpoints |
-| **[AUTHENTICATION_INTEGRATION_GUIDE.md](./AUTHENTICATION_INTEGRATION_GUIDE.md)** | 🆕 Frontend integration guide (React) |
-| **[ROLE_BASED_ACCESS_GUIDE.md](./ROLE_BASED_ACCESS_GUIDE.md)** | 🆕 Role-based access control implementation |
+| **[AUTHENTICATION_INTEGRATION_GUIDE.md](./AUTHENTICATION_INTEGRATION_GUIDE.md)** | Frontend integration guide (React) |
+| **[ROLE_BASED_ACCESS_GUIDE.md](./ROLE_BASED_ACCESS_GUIDE.md)** | Role-based access control implementation |
+| **[DOCKER_GUIDE.md](./DOCKER_GUIDE.md)** | 🐳 **Docker deployment & container guide** |
+| **[SECURITY_CREDENTIALS_GUIDE.md](./SECURITY_CREDENTIALS_GUIDE.md)** | 🔒 Securing sensitive data (environment variables) |
 | **[SECURITY_GUIDE.md](./SECURITY_GUIDE.md)** | Security implementation & best practices |
 | **[GOOGLE_OAUTH2_SETUP.md](./GOOGLE_OAUTH2_SETUP.md)** | Google OAuth2 setup guide |
+| **[FORGOT_PASSWORD_EMAIL_GUIDE.md](./FORGOT_PASSWORD_EMAIL_GUIDE.md)** | Email service implementation guide |
 
 ---
 
@@ -176,12 +223,14 @@ See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed schema.
 - **Spring Boot 3.3.3** - Framework
 - **Spring Security** - Authentication & authorization
 - **Spring Data JPA** - Data access
-- **PostgreSQL** - Database
+- **PostgreSQL 17** - Database
 - **JWT (jjwt 0.12.6)** - Token generation
 - **OAuth2 Client** - Google login
 - **JavaMail** - Email service
 - **Lombok** - Reduce boilerplate
 - **BCrypt** - Password hashing
+- **Docker** - Containerization
+- **Docker Compose** - Multi-container orchestration
 
 ---
 
