@@ -69,6 +69,12 @@
             <version>1.18.38</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Eureka client for service discovery -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -1,6 +1,16 @@
 spring:
   application:
     name: progressmonitoring
+  # Eureka client registration
+eureka:
+  client:
+    enabled: true
+    service-url:
+      defaultZone: http://discovery-service:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
