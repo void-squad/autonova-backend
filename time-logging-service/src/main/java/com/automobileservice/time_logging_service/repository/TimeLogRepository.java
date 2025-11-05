@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -36,4 +37,11 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, String> {
     // Find time logs by employee and project
     List<TimeLog> findByEmployeeUserIdAndProjectIdOrderByLoggedAtDesc(
         String employeeId, String projectId);
+    
+    // Find time logs after a specific date for an employee
+    List<TimeLog> findByEmployeeUserIdAndLoggedAtAfter(String employeeId, LocalDateTime after);
+    
+    // Find time logs between two dates for an employee
+    List<TimeLog> findByEmployeeUserIdAndLoggedAtBetween(
+        String employeeId, LocalDateTime start, LocalDateTime end);
 }
