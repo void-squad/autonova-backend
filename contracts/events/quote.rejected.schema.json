@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "quote.rejected",
+  "type": "object",
+  "properties": {
+    "quoteId": {"type": "string", "format": "uuid"},
+    "projectId": {"type": "string", "format": "uuid"},
+    "rejectedAt": {"type": "string", "format": "date-time"},
+    "rejectedBy": {"type": "string", "format": "uuid"},
+    "status": {"type": "string"}
+  },
+  "required": ["quoteId", "projectId", "rejectedAt", "rejectedBy", "status"]
+}
