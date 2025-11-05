@@ -96,6 +96,12 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
+		<!-- Service discovery (Eureka client) -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		</dependency>
+
 		<!-- OpenAPI / Swagger UI -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
