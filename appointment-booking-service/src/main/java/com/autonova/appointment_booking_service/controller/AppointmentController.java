@@ -3,6 +3,7 @@ package com.autonova.appointment_booking_service.controller;
 import com.autonova.appointment_booking_service.dto.*;
 import com.autonova.appointment_booking_service.service.AppointmentService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,11 +28,17 @@ public class AppointmentController {
     }
 
     @PostMapping("/{id}/reschedule")
-    public ResponseEntity<AppointmentResponseDto> reschedule(@PathVariable("id") UUID id,
-                                                             @RequestParam("start") OffsetDateTime start,
-                                                             @RequestParam("end") OffsetDateTime end) {
-        AppointmentResponseDto dto = service.reschedule(id, start, end);
-        return ResponseEntity.ok(dto);
+    public ResponseEntity<?> reschedule(@PathVariable("id") UUID id,
+                                        @RequestParam("start") String startStr,
+                                        @RequestParam("end") String endStr) {
+        try {
+            OffsetDateTime start = OffsetDateTime.parse(startStr);
+            OffsetDateTime end = OffsetDateTime.parse(endStr);
+            AppointmentResponseDto dto = service.reschedule(id, start, end);
+            return ResponseEntity.ok(dto);
+        } catch (java.time.format.DateTimeParseException ex) {
+            return ResponseEntity.badRequest().body("Invalid date-time format for start/end. Use ISO_OFFSET_DATE_TIME, e.g. 2025-11-07T11:00:00+05:30");
+        }
     }
 
     @PostMapping("/{id}/cancel")
@@ -47,8 +54,14 @@ public class AppointmentController {
     }
 
     @GetMapping("/availability")
-    public ResponseEntity<AvailabilityDto> checkAvailability(@RequestParam("start") OffsetDateTime start,
-                                                             @RequestParam("end") OffsetDateTime end) {
-        return ResponseEntity.ok(service.checkAvailability(start, end));
+    public ResponseEntity<?> checkAvailability(@RequestParam("start") String startStr,
+                                               @RequestParam("end") String endStr) {
+        try {
+            OffsetDateTime start = OffsetDateTime.parse(startStr);
+            OffsetDateTime end = OffsetDateTime.parse(endStr);
+            return ResponseEntity.ok(service.checkAvailability(start, end));
+        } catch (java.time.format.DateTimeParseException ex) {
+            return ResponseEntity.badRequest().body("Invalid date-time format for start/end. Use ISO_OFFSET_DATE_TIME, e.g. 2025-11-07T11:00:00+05:30");
+        }
     }
 }
