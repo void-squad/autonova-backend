@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/appointmentdb
+    username: postgres
+    password: root123
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    # Recommended for non-prod/dev only: let Hibernate create/update schema from entities
+    hibernate:
+      ddl-auto: update
+
+  sql:
+    init:
+      mode: never   # set to 'always' if using schema.sql and you want Spring to run it
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              jwk-set-uri: https://auth-server.example.com/.well-known/jwks.json
+
+server:
+  port: 8082
+
+# security jwt jwk-set-uri example (resource-server)
+
+# Logging
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
