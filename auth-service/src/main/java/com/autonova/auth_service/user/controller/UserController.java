@@ -2,16 +2,29 @@ package com.autonova.auth_service.user.controller;
 
 import com.autonova.auth_service.security.PermissionConstants;
 import com.autonova.auth_service.user.Role;
+import com.autonova.auth_service.user.dto.CustomerProfile;
+import com.autonova.auth_service.user.dto.UserMapper;
+import com.autonova.auth_service.user.dto.UserProfileResponse;
+import com.autonova.auth_service.user.dto.UserResponse;
+import com.autonova.auth_service.user.service.CustomerServiceClient;
 import com.autonova.auth_service.user.service.UserService;
 import com.autonova.auth_service.user.model.User;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * User Management Controller with Role-Based Access Control
@@ -43,9 +56,11 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final CustomerServiceClient customerServiceClient;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, CustomerServiceClient customerServiceClient) {
         this.userService = userService;
+        this.customerServiceClient = customerServiceClient;
     }
 
     /**
@@ -53,8 +68,10 @@ public class UserController {
      */
     @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        List<UserResponse> users = userService.getAllUsers().stream()
+                .map(UserMapper::toResponse)
+                .toList();
         return ResponseEntity.ok(users);
     }
 
@@ -64,10 +81,31 @@ public class UserController {
     @PreAuthorize("@userSecurityService.canViewUser(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
-        return userService.getUserById(id)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+    return userService.getUserById(id)
+        .map(UserMapper::toResponse)
+        .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(createErrorResponse("User not found with id: " + id)));
+    }
+
+    @PreAuthorize(PermissionConstants.REGISTERED_USERS)
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
+        String authorization = request.getHeader("Authorization");
+
+        return userService.getCurrentUser()
+                .map(UserMapper::toResponse)
+                .map(user -> {
+                    CustomerProfile customer = null;
+                    if (authorization != null && !authorization.isBlank()
+                            && user.role() == Role.CUSTOMER) {
+                        customer = customerServiceClient.getCurrentCustomer(authorization).orElse(null);
+                    }
+                    return new UserProfileResponse(user, customer);
+                })
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(createErrorResponse("Current user not found")));
     }
 
     /**
@@ -77,6 +115,7 @@ public class UserController {
     @GetMapping("/email/{email}")
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         return userService.getUserByEmail(email)
+                .map(UserMapper::toResponse)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(createErrorResponse("User not found with email: " + email)));
@@ -99,8 +138,9 @@ public class UserController {
                     .body(createErrorResponse("Invalid role. Only CUSTOMER, EMPLOYEE, or ADMIN roles are allowed for signup."));
             }
             
-            User createdUser = userService.createUser(user);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+        User createdUser = userService.createUser(user);
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(UserMapper.toResponse(createdUser));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(e.getMessage()));
@@ -119,7 +159,7 @@ public class UserController {
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User user) {
         try {
             User updatedUser = userService.updateUser(id, user);
-            return ResponseEntity.ok(updatedUser);
+            return ResponseEntity.ok(UserMapper.toResponse(updatedUser));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(e.getMessage()));
@@ -142,7 +182,7 @@ public class UserController {
             
             Role newRole = Role.valueOf(roleStr.toUpperCase());
             User updatedUser = userService.updateUserRole(id, newRole);
-            return ResponseEntity.ok(updatedUser);
+            return ResponseEntity.ok(UserMapper.toResponse(updatedUser));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(e.getMessage()));
