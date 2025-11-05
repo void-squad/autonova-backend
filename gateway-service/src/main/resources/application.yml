@@ -10,3 +10,9 @@ spring:
             - Path=/api/projects/**
           filters:
             - StripPrefix=1
+        - id: customer-service
+          uri: lb://customer-service
+          predicates:
+            - Path=/api/customers/**
+          filters:
+            - StripPrefix=1
