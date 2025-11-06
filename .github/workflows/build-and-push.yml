@@ -118,9 +118,10 @@ jobs:
               continue
             fi
 
-            # Build Maven projects before Docker build (for Java services)
-            if [ -f "$svc/pom.xml" ]; then
-              echo "Building Maven project for $svc"
+            # Build Maven projects before Docker build (only for Dockerfile.prebuilt)
+            # Multi-stage Dockerfiles build inside Docker, so skip pre-building
+            if [ -f "$svc/pom.xml" ] && [ -f "$svc/Dockerfile.prebuilt" ]; then
+              echo "Building Maven project for $svc (Dockerfile.prebuilt detected)"
               
               # Detect Java version from pom.xml
               JAVA_VERSION=$(grep -oP '<java\.version>\K[0-9]+' "$svc/pom.xml" | head -1 || echo "17")
@@ -134,22 +135,37 @@ jobs:
                 JAVA_HOME=$(echo $JAVA_HOME_${JAVA_VERSION}_X64) mvn clean package -DskipTests
               fi
               cd ..
+            elif [ -f "$svc/pom.xml" ] && [ -f "$svc/Dockerfile" ]; then
+              echo "Skipping Maven pre-build for $svc (multi-stage Dockerfile will build inside Docker)"
             fi
 
             IMAGE=ghcr.io/${OWNER}/${svc}:${SHORT_SHA::8}
             echo "Building and pushing $IMAGE from $svc"
 
-            # Choose Dockerfile if present
+            # Choose Dockerfile and determine build context
             DOCKERFILE=""
             BUILD_CONTEXT="."
+            
             if [ -f "$svc/Dockerfile" ]; then
               DOCKERFILE="$svc/Dockerfile"
+              # Check if Dockerfile uses service-prefixed paths (e.g., "COPY discovery-service/src")
+              # or simple paths (e.g., "COPY src")
+              if grep -q "COPY $svc/" "$DOCKERFILE"; then
+                # Uses service-prefixed paths -> build from repo root
+                BUILD_CONTEXT="."
+                echo "Using repo root as build context (service-prefixed paths detected)"
+              else
+                # Uses simple relative paths -> build from service directory
+                BUILD_CONTEXT="$svc"
+                echo "Using service directory as build context (relative paths detected)"
+              fi
             elif [ -f "$svc/Dockerfile.prebuilt" ]; then
               DOCKERFILE="$svc/Dockerfile.prebuilt"
               # Dockerfile.prebuilt expects build context to be the service directory
               BUILD_CONTEXT="$svc"
             elif [ -f "$svc/docker/Dockerfile" ]; then
               DOCKERFILE="$svc/docker/Dockerfile"
+              BUILD_CONTEXT="$svc"
             fi
 
             docker buildx build --platform linux/amd64 --push \
