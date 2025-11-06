@@ -11,4 +11,7 @@ public interface NotificationService {
     List<NotificationDto> latestForUser(UUID userId);
     void markRead(UUID notificationId);
     void create(Notification notification);
+    void createAll(List<Notification> notifications);
+    long unreadCount(UUID userId);
+    void markAllRead(UUID userId);
 }

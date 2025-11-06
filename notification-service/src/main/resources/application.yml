@@ -1,5 +1,5 @@
 server:
-  port: 8084
+  port: 8085
 
 spring:
   application:
@@ -35,3 +35,5 @@ app:
     exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
     queue: ${APP_RABBIT_QUEUE:notification.events.queue}
     routingKey: ${APP_RABBIT_ROUTING_KEY:#}
+  demo:
+    enabled: ${APP_DEMO_ENABLED:false}
