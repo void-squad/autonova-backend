@@ -41,6 +41,8 @@ services:
         until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do
           sleep 2;
         done;
+        echo 'Starting pgvector extension setup...';
+        bash /scripts/pgvector-init.sh;
         echo 'Starting database initialization via db-init.sh';
         bash /scripts/db-init.sh
       "
@@ -56,6 +58,18 @@ services:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 5s
       retries: 5
+
+  # ollama model server for local LLM testing
+#  ollama:
+#    container_name: autonova-ollama
+#    image: ollama/ollama:latest
+#    ports:
+#      - "11434:11434"
+#    volumes:
+#      - ./ollama-data:/root/.ollama
+#      - ./init-scripts/ollama-init.sh:/usr/local/bin/ollama-entrypoint.sh
+#    entrypoint: ["/usr/local/bin/ollama-entrypoint.sh"]
+#    restart: "no"
 
   # auth-service:
   #   container_name: autonova-auth-service
