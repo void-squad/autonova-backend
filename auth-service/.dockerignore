@@ -1,0 +1,161 @@
+# Docker ignore file for auth-service
+# Prevents sensitive files and unnecessary folders from being copied to Docker image
+
+# ==========================================
+# SENSITIVE DATA (NEVER INCLUDE IN DOCKER IMAGE)
+# ==========================================
+
+# Local configuration with sensitive credentials
+application-local.properties
+application-local.yml
+**/application-local.*
+
+# Environment files with secrets
+.env
+.env.*
+*.env
+.env.local
+.env.*.local
+
+# Secret files
+*-secrets.properties
+*-credentials.properties
+config/secrets/
+secrets/
+
+# Private keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# ==========================================
+# BUILD ARTIFACTS (ALREADY BUILT IN DOCKERFILE)
+# ==========================================
+
+# Maven build output
+target/
+!target/*.jar
+
+# Compiled class files
+*.class
+
+# Maven wrapper jar (we use system Maven in Docker)
+.mvn/wrapper/maven-wrapper.jar
+
+# ==========================================
+# DEVELOPMENT FILES
+# ==========================================
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+*~
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows files
+Thumbs.db
+Desktop.ini
+
+# ==========================================
+# VERSION CONTROL
+# ==========================================
+
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ==========================================
+# DOCUMENTATION (NOT NEEDED IN RUNTIME)
+# ==========================================
+
+*.md
+!README.md
+HELP.md
+API_DOCUMENTATION.md
+GOOGLE_OAUTH2_SETUP.md
+SECURITY_GUIDE.md
+SECURITY_CREDENTIALS_GUIDE.md
+DELETE_USER_API_FIX.md
+ROLE_BASED_ACCESS_GUIDE.md
+RBAC_QUICK_SUMMARY.md
+AUTHENTICATION_INTEGRATION_GUIDE.md
+FORGOT_PASSWORD_EMAIL_GUIDE.md
+
+# ==========================================
+# TEST FILES (NOT NEEDED IN PRODUCTION)
+# ==========================================
+
+src/test/
+**/test/
+**/*Test.java
+**/*Tests.java
+
+# Test configuration
+application-test.properties
+application-test.yml
+
+# ==========================================
+# LOGS AND TEMPORARY FILES
+# ==========================================
+
+*.log
+logs/
+*.tmp
+*.temp
+tmp/
+temp/
+
+# ==========================================
+# DOCKER FILES (NO NEED TO COPY THEMSELVES)
+# ==========================================
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# ==========================================
+# CI/CD FILES
+# ==========================================
+
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+azure-pipelines.yml
+.circleci/
+
+# ==========================================
+# BACKUP FILES
+# ==========================================
+
+*.bak
+*.backup
+*.old
+*~
+
+# ==========================================
+# MAVEN FILES (DOWNLOADED IN DOCKER BUILD)
+# ==========================================
+
+# Maven local repository (will be downloaded in container)
+.m2/
+
+# Maven wrapper scripts (using system Maven)
+mvnw
+mvnw.cmd

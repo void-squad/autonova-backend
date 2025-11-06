@@ -2,6 +2,7 @@ package com.autonova.auth_service.user.controller;
 
 import com.autonova.auth_service.security.PermissionConstants;
 import com.autonova.auth_service.user.Role;
+import com.autonova.auth_service.user.dto.UserLookupRequest;
 import com.autonova.auth_service.user.dto.CustomerProfile;
 import com.autonova.auth_service.user.dto.UserMapper;
 import com.autonova.auth_service.user.dto.UserProfileResponse;
@@ -28,25 +29,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * User Management Controller with Role-Based Access Control
- * 
- * Access Path:
+ * * Access Path:
  * - USER (Guest): Landing page + Service summary (no authentication required)
  * - CUSTOMER: Signup/Login -> Customer Dashboard
  * - EMPLOYEE: Signup/Login -> Employee Dashboard  
  * - ADMIN: Signup/Login -> Admin Dashboard
- * 
- * Note: Only CUSTOMER, EMPLOYEE, and ADMIN roles are stored in database.
- * 
- * Access Rules:
+ * * Note: Only CUSTOMER, EMPLOYEE, and ADMIN roles are stored in database.
+ * * Access Rules:
  * - GET /api/users: ADMIN only (view all users)
  * - GET /api/users/{id}: ADMIN or owner (view specific user)
  * - GET /api/users/email/{email}: ADMIN only
  * - POST /api/users: Public (user registration/signup) - configured in SecurityConfig
- * - PUT /api/users/{id}: Only ADMIN, EMPLOYEE, CUSTOMER (update user profile - NO role changes)
- *   - USER role (guest) CANNOT update any user details
- *   - ADMIN can update anyone, EMPLOYEE/CUSTOMER can only update themselves
- *   - Role changes are NOT allowed through this endpoint
+ * - PUT /api/users/{id}: Only ADMIN, EMPLOYEE, CUSTOMER (update user profile - NO role/password changes)
+ * - USER role (guest) CANNOT update any user details
+ * - ADMIN can update anyone, EMPLOYEE/CUSTOMER can only update themselves
+ * - Role and password changes are NOT allowed through this endpoint
  * - PATCH /api/users/{id}/role: ADMIN only (change user role)
+ * - Password changes: Use /api/auth/forgot-password and /api/auth/reset-password (email verification required)
  * - DELETE /api/users/{id}: ADMIN only (delete user)
  * - GET /api/users/exists/{id}: Authenticated users (check existence)
  * - GET /api/users/email-exists/{email}: Public (for registration validation)
@@ -56,7 +55,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
-    private final CustomerServiceClient customerServiceClient;
+    private final CustomerServiceClient customerServiceClient; // Added for /me endpoint
 
     public UserController(UserService userService, CustomerServiceClient customerServiceClient) {
         this.userService = userService;
@@ -109,11 +108,38 @@ public class UserController {
     }
 
     /**
-     * GET user by email - Only ADMIN
+     * POST - Get user by email (SECURE) - Only ADMIN
+     * Uses POST with request body to avoid exposing email in URL/logs
+     * Enterprise security best practice: Sensitive data in body, not URL
      */
     @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
+    @PostMapping("/by-email")
+    public ResponseEntity<?> getUserByEmail(@RequestBody UserLookupRequest request) {
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse("Email is required"));
+        }
+        // NOTE: The mapping logic here seems missing the UserMapper in the original dev-Lasitha conflict file,
+        // but I'm preserving the original intent of returning the User object, which should be mapped to a DTO.
+        // I'll ensure the correct DTO mapping is applied for consistency if the return type of getUserByEmail is User.
+        // Assuming getUserByEmail returns User.
+        return userService.getUserByEmail(request.getEmail())
+                .map(UserMapper::toResponse) // Added mapping for consistency
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(createErrorResponse("User not found")));
+    }
+    
+    /**
+     * @deprecated Use POST /api/users/by-email instead (more secure)
+     * GET user by email - Only ADMIN
+     * WARNING: This endpoint exposes email in URL which can be logged
+     * Kept for backward compatibility - will be removed in future version
+     */
+    @Deprecated
+    @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
     @GetMapping("/email/{email}")
-    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<?> getUserByEmailDeprecated(@PathVariable String email) {
         return userService.getUserByEmail(email)
                 .map(UserMapper::toResponse)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
@@ -190,6 +216,12 @@ public class UserController {
     }
 
     /**
+     * Note: Password changes are handled through /api/auth/forgot-password and /api/auth/reset-password
+     * This approach ensures email verification for all password changes (more secure)
+     * Users don't need to remember their current password - they just verify via email
+     */
+
+    /**
      * DELETE user - Only ADMIN can delete users
      */
     @PreAuthorize(PermissionConstants.CAN_DELETE_USER)
@@ -219,11 +251,31 @@ public class UserController {
     }
 
     /**
-     * Check if email exists - Public (for registration form validation)
-     * Note: This is marked as public in SecurityConfig permitAll
+     * POST - Check if email exists (SECURE) - Public (for registration form validation)
+     * Uses POST with request body to avoid exposing email in URL/logs
+     * Enterprise security best practice: Sensitive data in body, not URL
      */
+    @PostMapping("/email-exists")
+    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@RequestBody UserLookupRequest request) {
+        Map<String, Boolean> response = new HashMap<>();
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            response.put("exists", false);
+            response.put("error", true);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+        response.put("exists", userService.emailExists(request.getEmail()));
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * @deprecated Use POST /api/users/email-exists instead (more secure)
+     * GET - Check if email exists - Public (for registration form validation)
+     * WARNING: This endpoint exposes email in URL which can be logged
+     * Kept for backward compatibility - will be removed in future version
+     */
+    @Deprecated
     @GetMapping("/email-exists/{email}")
-    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@PathVariable String email) {
+    public ResponseEntity<Map<String, Boolean>> checkEmailExistsDeprecated(@PathVariable String email) {
         Map<String, Boolean> response = new HashMap<>();
         response.put("exists", userService.emailExists(email));
         return ResponseEntity.ok(response);

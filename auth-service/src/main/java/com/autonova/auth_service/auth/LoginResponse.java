@@ -1,7 +1,8 @@
 package com.autonova.auth_service.auth;
 
 public class LoginResponse {
-    private String token;
+    private String token;          // Access token (JWT) - 1 hour
+    private String refreshToken;   // Refresh token - 7 days
     private String type = "Bearer";
     private UserInfo user;
 
@@ -13,6 +14,12 @@ public class LoginResponse {
         this.user = user;
     }
 
+    public LoginResponse(String token, String refreshToken, UserInfo user) {
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.user = user;
+    }
+
     // Getters and Setters
     public String getToken() {
         return token;
@@ -20,6 +27,14 @@ public class LoginResponse {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
     public String getType() {
