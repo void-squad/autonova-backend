@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains the backend microservices for the Autonova project (Java + .NET services) and an `infra/docker-compose.yml` to start a local development environment with Postgres and RabbitMQ.
+This repository contains the backend microservices for the Autonova project (Java + .NET services). We use Neon (managed Postgres) for all databases and provide `infra/docker-compose.yml` to run the microservices and RabbitMQ locally.
 
 ## Prerequisites
 
@@ -29,11 +29,10 @@ This repository contains the backend microservices for the Autonova project (Jav
   ```
 
 
-   This will build the local services and start Postgres and RabbitMQ. Services and ports:
+   This will build the local services and start RabbitMQ (Postgres lives in Neon). Services and ports:
    - gateway-service: 8080
    - project-service: 8081
    - auth-service: 8082
-   - Postgres: 5432
    - RabbitMQ management: 15672
 
    #### Or if you have built the images before:
@@ -49,7 +48,7 @@ This repository contains the backend microservices for the Autonova project (Jav
   docker compose up
   ```   
 
-### 2. Wait for services to start. Postgres has a healthcheck; migration steps (if needed) are described below.
+### 2. Wait for services to start. RabbitMQ has a healthcheck; Neon provisioning is handled by the helper container described below.
 
 Run services locally (without Docker)
 
@@ -60,22 +59,15 @@ Run services locally (without Docker)
   For other Maven services replace directory and run `mvn spring-boot:run` or `mvn -DskipTests package` and run the artifact.
 
 - project-service (.NET):
-  cd services/project-service
+  cd project-service
   dotnet restore
   dotnet build
   dotnet run --urls "http://localhost:8081"
 
-### 3. Creating databases for the microservices
+### 3. Configure Neon database access
 
-  - The compose file includes a postgres-init service that runs infra/init-db/init-db.sh to create the required databases and users.
-  - Edit the SERVICES array in that script to add or change databases/users. Example:
-  ```bash
-  SERVICES=(
-    "projects_db:project_service:PROJECTS_DB_PASSWORD"
-    "progress_monitoring_db:progress_monitoring_service:PROGRESS_MONITORING_DB_PASSWORD"
-  )
-  ```
-  - Environment variables are read from infra/.env — copy infra/.env.example to infra/.env if missing.
-
-  - `PROJECT_SERVICE_POSTGRES` — e.g. `Host=postgres;Database=project_db;Username=project_user;Password=project_pass`
-  - `AUTH_SERVICE_POSTGRES` — connection string used by `auth-service`
+  - Copy `infra/.env.example` to `infra/.env` and update the Neon host/user/password secrets.
+  - The `postgres-init` helper container uses those credentials to provision per-service databases and roles in Neon. It does **not** start a local Postgres instance.
+  - Example connection string values:
+    - `PROJECT_SERVICE_POSTGRES` — `Host=your-neon-host.neon.tech;Port=5432;Database=projects_db;Username=project_service;Password=<secret>;Ssl Mode=Require;Trust Server Certificate=false`
+    - `AUTH_SERVICE_POSTGRES` — Neon connection string consumed by `auth-service`
