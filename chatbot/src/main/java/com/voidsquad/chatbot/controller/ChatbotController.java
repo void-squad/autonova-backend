@@ -1,12 +1,12 @@
 package com.voidsquad.chatbot.controller;
 
-import com.voidsquad.chatbot.config.RabbitMQConfig;
+import com.voidsquad.chatbot.entities.WorkflowStep;
+import com.voidsquad.chatbot.repository.WorkflowStepRepository;
 import com.voidsquad.chatbot.service.AIService;
+import com.voidsquad.chatbot.service.embedding.EmbeddingService;
+import com.voidsquad.chatbot.service.workflow.WorkflowStepService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -24,19 +24,22 @@ public class ChatbotController {
     private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
     private final SimpMessagingTemplate messaging;
     private final AIService aiService;
+    private final WorkflowStepRepository workflowStepRepository;
+    private final WorkflowStepService workflowStepService;
 
-    public ChatbotController(SimpMessagingTemplate messaging, AIService aiService){
+    public ChatbotController(SimpMessagingTemplate messaging, AIService aiService, WorkflowStepRepository workflowStepRepository, EmbeddingService embeddingService, WorkflowStepService workflowStepService){
         this.aiService = aiService;
         this.messaging = messaging;
+        this.workflowStepRepository = workflowStepRepository;
+        this.embeddingService = embeddingService;
+        this.workflowStepService = workflowStepService;
     }
 
-    @Profile("dev")
     @GetMapping("/v1/hello")
     public String hello(){
         return "hello!";
     }
 
-    @Profile("dev")
     @MessageMapping("/echo")
     public void handleEchoMessage(@Payload Map<String, Object> msg) {
         log.info("websocket broadcast echo");
@@ -78,6 +81,18 @@ public class ChatbotController {
     public String sendMessage(@Param("msg") String msg) {
 //        aiService.send(msg);
         return "msg sent";
+    }
+
+    private final EmbeddingService embeddingService;
+
+    @GetMapping("/v1/test")
+    public String test(){
+        WorkflowStep workflowStep = new WorkflowStep();
+        workflowStep.setName("test");
+        workflowStep.setDescription("this is a test workflow");
+        workflowStep.setEmbedding(embeddingService.generateEmbedding("test"+"this is a test workflow"));
+        workflowStepService.saveWorkflowStep(workflowStep);
+        return "test ok";
     }
 
 }

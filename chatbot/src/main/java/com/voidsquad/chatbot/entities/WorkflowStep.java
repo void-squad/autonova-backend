@@ -1,26 +1,38 @@
 package com.voidsquad.chatbot.entities;
 
-import com.vladmihalcea.hibernate.type.array.DoubleArrayType;
+import com.fasterxml.jackson.databind.ser.std.StdArraySerializers;
+import com.voidsquad.chatbot.converter.FloatArrayConverter;
+import io.hypersistence.utils.hibernate.type.array.FloatArrayType;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
+import org.hibernate.id.UUIDGenerator;
+import org.hibernate.type.SqlTypes;
+
 import java.util.UUID;
 
 @Entity
-@Table(name = "workflows")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "workflow_steps")
 public class WorkflowStep {
 
     @Id
-    @GeneratedValue
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name="step_name")
     private String name;
 
-    @Type(DoubleArrayType.class)
-    @Column(columnDefinition = "vector(1536)")
-    private double[] embedding;
+    @Column(name = "embedding", columnDefinition = "vector(384)")
+    @Convert(converter = FloatArrayConverter.class)
+    private float[] embedding;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name="step_description",columnDefinition = "TEXT")
     private String description;
 
     // Getters and Setters
@@ -40,11 +52,11 @@ public class WorkflowStep {
         this.name = name;
     }
 
-    public double[] getEmbedding() {
+    public float[] getEmbedding() {
         return embedding;
     }
 
-    public void setEmbedding(double[] embedding) {
+    public void setEmbedding(float[] embedding) {
         this.embedding = embedding;
     }
 
@@ -55,4 +67,6 @@ public class WorkflowStep {
     public void setDescription(String description) {
         this.description = description;
     }
+
+
 }
