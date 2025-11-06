@@ -1,10 +1,9 @@
 package com.autonova.progressmonitoring.sse;
 
-import com.autonova.progressmonitoring.messaging.EventPublisher;
+import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,10 +42,29 @@ public class SseEmitterRegistry implements EventPublisher {
         }
     }
 
+    public void sendMessageToProject(String projectId, String message) {
+        var list = emitters.get(projectId);
+        if (list == null) return;
+
+        for (SseEmitter emitter : list) {
+            try {
+                emitter.send(SseEmitter.event().name("project.message").data(message));
+            } catch (Exception e) {
+                remove(projectId, emitter);
+            }
+        }
+    }
+
     public void broadcastToAll(String eventJson) {
         // snapshot keys to avoid concurrent modification while iterating
         for (String key : List.copyOf(emitters.keySet())) {
             sendToProject(key, eventJson);
+        }
+    }
+
+    public void broadcastMessageToAll(String message) {
+        for (String key : List.copyOf(emitters.keySet())) {
+            sendMessageToProject(key, message);
         }
     }
 
@@ -58,5 +76,15 @@ public class SseEmitterRegistry implements EventPublisher {
     @Override
     public void broadcast(String payload) {
         broadcastToAll(payload);
+    }
+
+    @Override
+    public void publishMessageToProject(String projectId, String message) {
+        sendMessageToProject(projectId, message);
+    }
+
+    @Override
+    public void broadcastMessage(String message) {
+        broadcastMessageToAll(message);
     }
 }
