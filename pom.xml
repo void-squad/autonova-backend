@@ -47,8 +47,11 @@
         <module>appointment-booking-service</module>
         <module>gateway-service</module>
         <module>discovery-service</module>
+        <module>customer-service</module>
         <module>chatbot</module>
         <module>employee-dashboard-service</module>
+        <module>progress-monitoring-service</module>
+        <module>notification-service</module>
     </modules>
 
     <properties>
