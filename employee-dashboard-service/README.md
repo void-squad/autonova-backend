@@ -1,220 +1,212 @@
 # Employee Dashboard Service
 
-## Overview
-The Employee Dashboard Service is a microservice that aggregates data from multiple services to provide a unified dashboard experience for employees. It supports both operational and analytical views, along with user preferences management.
+This microservice manages employee jobs and tasks for the Autonova automobile service system.
 
 ## Features
 
-### 1. Operational View
-**Endpoint:** `GET /api/dashboard/operational`
+- View all jobs assigned to employees
+- Track active jobs
+- Start, pause, and stop jobs
+- Update job status
+- Track job timing and progress
 
-Aggregates real-time operational data from multiple services:
-- Active timer from Time Logging service
-- Today's appointments from Appointment Booking service
-- Work queue from Service Tracking service
+## API Endpoints
 
-**Response Example:**
-```json
+### 1. Get All Jobs
+```
+GET /api/employee/jobs
+Query Parameters: employeeId (optional, UUID)
+```
+Returns all jobs, optionally filtered by employee ID.
+
+### 2. Get Active Jobs
+```
+GET /api/employee/jobs/active
+Query Parameters: employeeId (optional, UUID)
+```
+Returns all jobs with ACTIVE status.
+
+### 3. Start Job
+```
+POST /api/employee/jobs/{jobId}/start
+Path Parameters: jobId (UUID)
+```
+Starts a job (changes status from PENDING or PAUSED to IN_PROGRESS).
+
+### 4. Update Job Status
+```
+PATCH /api/employee/jobs/{jobId}/status
+Path Parameters: jobId (UUID)
+Request Body:
 {
-  "activeTimer": {
-    "timerId": 123,
-    "employeeId": 1,
-    "jobId": "JOB-001",
-    "status": "RUNNING",
-    "startTime": "2025-11-01T09:00:00",
-    "elapsedSeconds": 3600
-  },
-  "todaysAppointments": [
-    {
-      "appointmentId": 456,
-      "customerName": "John Doe",
-      "appointmentTime": "2025-11-01T14:00:00",
-      "serviceType": "Oil Change",
-      "status": "SCHEDULED"
-    }
-  ],
-  "workQueue": [
-    {
-      "jobId": 789,
-      "jobType": "Repair",
-      "priority": "HIGH",
-      "status": "IN_PROGRESS",
-      "assignedTo": "Employee 1",
-      "deadline": "2025-11-02T17:00:00"
-    }
-  ]
+  "status": "COMPLETED",
+  "notes": "Optional notes"
 }
 ```
+Updates the job status with a custom status value.
 
-### 2. Analytical View
-**Endpoint:** `GET /api/dashboard/analytics/summary`
-
-Fetches analytics summary from the Analytics and Reporting service.
-
-**Response:** Passes through the analytics service response directly.
-
-### 3. Save Analytics Report
-**Endpoint:** `POST /api/dashboard/analytics/save-report`
-
-Saves custom analytics report parameters for later retrieval.
-
-**Request Example:**
-```json
-{
-  "reportName": "My Q3 Job Summary",
-  "reportParameters": {
-    "dateRange": "Q3-2025",
-    "jobType": "Repair",
-    "status": "Completed"
-  }
-}
+### 5. Pause Job
 ```
-
-**Response Example:**
-```json
-{
-  "reportId": 1,
-  "employeeId": 1,
-  "reportName": "My Q3 Job Summary",
-  "reportParameters": {
-    "dateRange": "Q3-2025",
-    "jobType": "Repair",
-    "status": "Completed"
-  },
-  "createdAt": "2025-11-01T10:30:00"
-}
+POST /api/employee/jobs/{jobId}/pause
+Path Parameters: jobId (UUID)
 ```
+Pauses a job (changes status from IN_PROGRESS to PAUSED).
 
-### 4. Get Saved Reports
-**Endpoint:** `GET /api/dashboard/analytics/saved-reports`
-
-Retrieves all saved reports for the authenticated employee.
-
-### 5. Employee Preferences
-**Endpoint:** `GET /api/dashboard/preferences`
-
-Retrieves employee's dashboard preferences.
-
-**Response Example:**
-```json
-{
-  "employeeId": 1,
-  "defaultView": "operational",
-  "theme": "light"
-}
+### 6. Stop Job
 ```
-
-**Endpoint:** `PUT /api/dashboard/preferences`
-
-Updates employee's dashboard preferences.
-
-**Request Example:**
-```json
-{
-  "defaultView": "analytical",
-  "theme": "dark"
-}
+POST /api/employee/jobs/{jobId}/stop
+Path Parameters: jobId (UUID)
 ```
+Stops a job (changes status to STOPPED).
 
-## Database Schema
-
-### EmployeePreferences Table
-```sql
-employee_id (Primary Key, Foreign Key to Authentication service)
-default_view (String: "OPERATIONAL" or "ANALYTICAL")
-theme (String: "DARK" or "LIGHT")
-created_at (Timestamp)
-updated_at (Timestamp)
+### 7. Get Job by ID
 ```
-
-### SavedAnalyticsReports Table
-```sql
-report_id (Primary Key, Auto-increment)
-employee_id (Foreign Key to EmployeePreferences)
-report_name (String)
-report_parameters (JSONB)
-created_at (Timestamp)
-updated_at (Timestamp)
+GET /api/employee/jobs/{jobId}
+Path Parameters: jobId (UUID)
 ```
+Returns detailed information about a specific job.
+
+## Job Status Values
+
+- `PENDING` - Job is waiting to be started
+- `ACTIVE` - Job is available for work
+- `IN_PROGRESS` - Job is currently being worked on
+- `PAUSED` - Job work has been temporarily paused
+- `COMPLETED` - Job has been successfully completed
+- `STOPPED` - Job has been stopped/cancelled
+
+## Technology Stack
+
+- **Framework**: Spring Boot 3.3.3
+- **Database**: PostgreSQL
+- **ORM**: Spring Data JPA / Hibernate
+- **Service Discovery**: Eureka Client
+- **Build Tool**: Maven
 
 ## Configuration
 
-### Application Properties
-The service requires the following configuration in `application.properties`:
+### Database Configuration
+The service connects to PostgreSQL. Update `application.properties` with your database credentials:
 
 ```properties
-# Server Configuration
-server.port=8084
-
-# Database Configuration
-spring.datasource.url=jdbc:postgresql://[host]:[port]/employee_dashboard_db
-spring.datasource.username=[username]
-spring.datasource.password=[password]
-
-# External Service URLs
-services.time-logging.url=http://localhost:8081
-services.appointment-booking.url=http://localhost:8082
-services.service-tracking.url=http://localhost:8083
-services.analytics-reporting.url=http://localhost:8085
+spring.datasource.url=jdbc:postgresql://localhost:5432/employee_dashboard_db
+spring.datasource.username=postgres
+spring.datasource.password=postgres
 ```
 
-## Dependencies
-- Spring Boot 3.5.7
-- Spring Data JPA
-- Spring Security
-- Spring WebFlux (for reactive WebClient)
-- PostgreSQL
-- Lombok
+### Server Port
+The service runs on port `8084` by default.
+
+### Eureka Configuration
+The service registers with Eureka Discovery Server at `http://localhost:8761/eureka/`.
 
 ## Running the Service
 
 ### Prerequisites
-1. PostgreSQL database running
-2. Other dependent services (Time Logging, Appointment Booking, Service Tracking, Analytics) running
+1. Java 17 or higher
+2. Maven 3.6+
+3. PostgreSQL database
+4. Eureka Discovery Service running on port 8761
 
-### Build
+### Steps
+
+1. **Create the database**:
+   ```bash
+   psql -U postgres
+   CREATE DATABASE employee_dashboard_db;
+   ```
+
+2. **Build the project**:
+   ```bash
+   mvn clean install
+   ```
+
+3. **Run the service**:
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+
+   Or run from the JAR:
+   ```bash
+   java -jar target/employee-dashboard-service-0.0.1-SNAPSHOT.jar
+   ```
+
+4. **Verify the service**:
+   - Health check: `http://localhost:8084/actuator/health`
+   - Eureka dashboard: `http://localhost:8761`
+
+## Testing the APIs
+
+### Example: Get All Jobs
 ```bash
-./mvnw clean install
+curl -X GET "http://localhost:8084/api/employee/jobs"
 ```
 
-### Run
+### Example: Start a Job
 ```bash
-./mvnw spring-boot:run
+curl -X POST "http://localhost:8084/api/employee/jobs/{jobId}/start"
 ```
 
-### Access
-- API Base URL: `http://localhost:8084/api/dashboard`
-- Actuator Health: `http://localhost:8084/actuator/health`
-
-## Security
-The service uses Spring Security with stateless session management. All endpoints (except actuator) require authentication. The employee ID is extracted from the authentication token.
-
-**Note:** The current implementation uses a placeholder for extracting employee ID from authentication. Update the `extractEmployeeId()` method in controllers based on your actual authentication service implementation.
+### Example: Update Job Status
+```bash
+curl -X PATCH "http://localhost:8084/api/employee/jobs/{jobId}/status" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "COMPLETED", "notes": "Job finished successfully"}'
+```
 
 ## Error Handling
-The service includes global exception handling for:
-- Resource not found (404)
-- Invalid arguments (400)
-- External service errors (propagated status codes)
-- Generic errors (500)
 
-## Testing
-Run tests with:
-```bash
-./mvnw test
+The service includes comprehensive error handling with appropriate HTTP status codes:
+
+- `200 OK` - Successful request
+- `400 Bad Request` - Invalid request or job state
+- `404 Not Found` - Job not found
+- `500 Internal Server Error` - Server error
+
+Error responses follow this format:
+```json
+{
+  "timestamp": "2025-10-26T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Job not found with id: {jobId}"
+}
 ```
 
-## Architecture
-This service follows the microservices aggregator pattern:
-- Acts as a gateway for frontend to access multiple backend services
-- Reduces frontend complexity by providing unified APIs
-- Manages employee-specific data (preferences and saved reports)
-- Uses reactive WebClient for non-blocking inter-service communication
+## Development
+
+### Project Structure
+```
+employee-dashboard-service/
+├── src/
+│   ├── main/
+│   │   ├── java/com/autonova/employee_dashboard/
+│   │   │   ├── controller/        # REST controllers
+│   │   │   ├── service/           # Business logic
+│   │   │   ├── repository/        # Data access
+│   │   │   ├── domain/            # Entities and enums
+│   │   │   ├── dto/               # Data transfer objects
+│   │   │   └── exception/         # Exception handling
+│   │   └── resources/
+│   │       ├── application.properties
+│   │       └── db/init.sql
+│   └── test/
+└── pom.xml
+```
+
+## Integration with Other Services
+
+This service is designed to work with:
+- **Discovery Service** (Eureka) - Service registration and discovery
+- **Gateway Service** - API Gateway routing
+- **Auth Service** - Authentication and authorization
+- **Project Service** - Project management integration
 
 ## Future Enhancements
-- Add caching for frequently accessed data
-- Implement circuit breakers for resilience
-- Add rate limiting
-- Implement JWT token validation
-- Add comprehensive integration tests
-- Add API documentation with Swagger/OpenAPI
+
+- Add authentication and authorization
+- Implement job assignment workflow
+- Add time tracking for actual hours worked
+- Integrate with notification service
+- Add reporting and analytics
+- Implement job history and audit logs

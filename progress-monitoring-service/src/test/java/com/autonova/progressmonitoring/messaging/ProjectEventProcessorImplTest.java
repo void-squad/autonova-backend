@@ -1,11 +1,5 @@
 package com.autonova.progressmonitoring.messaging;
 
-import com.autonova.progressmonitoring.messaging.mapper.DefaultEventMessageMapper;
-import com.autonova.progressmonitoring.messaging.mapper.EventMessageMapper;
-import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
-import com.autonova.progressmonitoring.messaging.rabbit.ProjectEventProcessorImpl;
-import com.autonova.progressmonitoring.service.ProjectMessageService;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,9 +21,6 @@ class ProjectEventProcessorImplTest {
     @Mock
     private EventPublisher publisher;
 
-    @Mock
-    private ProjectMessageService messageService;
-
     private ObjectMapper mapper;
     private ProjectEventProcessorImpl processor;
 
@@ -37,16 +28,12 @@ class ProjectEventProcessorImplTest {
     void setUp() {
         openMocks(this);
         mapper = new ObjectMapper();
-        // use the default mapper implementation in tests
-        EventMessageMapper messageMapper = new DefaultEventMessageMapper();
-        processor = new ProjectEventProcessorImpl(publisher, mapper, messageMapper, messageService);
+        processor = new ProjectEventProcessorImpl(publisher, mapper);
     }
 
     @Test
     void process_withProjectId_callsPublishToProject() {
-        // use a valid UUID string literal for tests
-        String validProjectId = "11111111-2222-3333-4444-555555555555";
-        String json = "{\"projectId\":\"" + validProjectId + "\", \"status\":\"updated\"}";
+        String json = "{\"projectId\":\"1111-2222-3333\", \"status\":\"updated\"}";
         MessageProperties props = new MessageProperties();
         props.setReceivedRoutingKey("project.updated");
         Message msg = new Message(json.getBytes(StandardCharsets.UTF_8), props);
@@ -57,11 +44,8 @@ class ProjectEventProcessorImplTest {
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(publisher).publishToProject(idCaptor.capture(), payloadCaptor.capture());
 
-        assertEquals(validProjectId, idCaptor.getValue());
+        assertEquals("1111-2222-3333", idCaptor.getValue());
         assertEquals(json, payloadCaptor.getValue());
-
-        // ensure we persisted the message
-        verify(messageService).saveMessage(org.mockito.ArgumentMatchers.eq(java.util.UUID.fromString(validProjectId)), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(json), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
