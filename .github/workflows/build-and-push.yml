@@ -33,6 +33,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
+      - name: Set up JDK 17 and 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: |
+            17
+            21
+          distribution: 'temurin'
+          cache: 'maven'
+
       - name: Determine changed top-level dirs
         id: changes
         run: |
@@ -45,10 +54,38 @@ jobs:
           fi
           echo "BASE_REF=$BASE_REF"
           git fetch --no-tags --prune --depth=50 origin
-          CHANGED_FILES=$(git diff --name-only "$BASE_REF" "${{ github.sha }}" || true)
-          echo "Changed files:\n$CHANGED_FILES"
-          # extract top-level directory names
-          SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')
+          
+          # Check if this is the first commit or base ref doesn't exist
+          if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+            echo "First commit detected - building all services"
+            SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+          else
+            CHANGED_FILES=$(git diff --name-only "$BASE_REF" "${{ github.sha }}" || true)
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+            # extract top-level directory names
+            SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')
+            
+            # Check if only .github or non-service directories changed
+            # In that case, build all services (likely first workflow run)
+            FILTERED_SERVICES=""
+            for svc in $SERVICES; do
+              case "$svc" in
+                .github|infra|docs|contracts|http|scripts|target|README.md|pom.xml)
+                  ;;
+                *)
+                  FILTERED_SERVICES="$FILTERED_SERVICES $svc"
+                  ;;
+              esac
+            done
+            
+            if [ -z "$FILTERED_SERVICES" ] && [ -n "$SERVICES" ]; then
+              echo "Only non-service directories changed (likely adding CI/CD) - building all services"
+              SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+            fi
+          fi
+          
+          echo "Services to process: $SERVICES"
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
 
       - name: Build & push images for changed services
@@ -79,6 +116,24 @@ jobs:
             if [ ! -f "$svc/Dockerfile" ] && [ ! -f "$svc/Dockerfile.prebuilt" ] && [ ! -f "$svc/docker/Dockerfile" ]; then
               echo "Skipping $svc: no Dockerfile found"
               continue
+            fi
+
+            # Build Maven projects before Docker build (for Java services)
+            if [ -f "$svc/pom.xml" ]; then
+              echo "Building Maven project for $svc"
+              
+              # Detect Java version from pom.xml
+              JAVA_VERSION=$(grep -oP '<java\.version>\K[0-9]+' "$svc/pom.xml" | head -1 || echo "17")
+              echo "Detected Java version: $JAVA_VERSION"
+              
+              cd "$svc"
+              if [ -f "./mvnw" ]; then
+                chmod +x ./mvnw
+                JAVA_HOME=$(echo $JAVA_HOME_${JAVA_VERSION}_X64) ./mvnw clean package -DskipTests
+              else
+                JAVA_HOME=$(echo $JAVA_HOME_${JAVA_VERSION}_X64) mvn clean package -DskipTests
+              fi
+              cd ..
             fi
 
             IMAGE=ghcr.io/${OWNER}/${svc}:${SHORT_SHA::8}
