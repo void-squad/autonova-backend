@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.autonova.com/billing/invoice.updated.json",
+  "title": "invoice.updated",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "version", "data"],
+  "properties": {
+    "type": { "const": "invoice.updated" },
+    "version": { "type": "integer", "const": 1 },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invoice_id", "status"],
+      "properties": {
+        "invoice_id": { "type": "string", "format": "uuid" },
+        "status": { "type": "string", "enum": ["DRAFT", "OPEN", "PAID", "VOID"] }
+      }
+    }
+  }
+}

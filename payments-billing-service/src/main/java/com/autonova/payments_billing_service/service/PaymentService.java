@@ -1,0 +1,294 @@
+package com.autonova.payments_billing_service.service;
+
+import com.autonova.payments_billing_service.api.dto.PaymentIntentResponse;
+import com.autonova.payments_billing_service.auth.AuthenticatedUser;
+import com.autonova.payments_billing_service.config.StripeProperties;
+import com.autonova.payments_billing_service.domain.InvoiceEntity;
+import com.autonova.payments_billing_service.domain.InvoiceStatus;
+import com.autonova.payments_billing_service.domain.PaymentEntity;
+import com.autonova.payments_billing_service.domain.PaymentProvider;
+import com.autonova.payments_billing_service.domain.PaymentStatus;
+import com.autonova.payments_billing_service.messaging.DomainEventPublisher;
+import com.autonova.payments_billing_service.repository.PaymentRepository;
+import com.autonova.payments_billing_service.stripe.StripeIntegrationException;
+import com.stripe.StripeClient;
+import com.stripe.exception.StripeException;
+import com.stripe.model.Charge;
+import com.stripe.model.PaymentIntent;
+import com.stripe.param.PaymentIntentCancelParams;
+import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.PaymentIntentRetrieveParams;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class PaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
+    private final StripeProperties stripeProperties;
+    private final PaymentRepository paymentRepository;
+    private final DomainEventPublisher eventPublisher;
+    private final StripeClient stripeClient;
+    private final InvoiceService invoiceService;
+
+    public PaymentService(
+        StripeProperties stripeProperties,
+        PaymentRepository paymentRepository,
+        InvoiceService invoiceService,
+        DomainEventPublisher eventPublisher
+    ) {
+        this.stripeProperties = stripeProperties;
+        this.paymentRepository = paymentRepository;
+        this.eventPublisher = eventPublisher;
+        this.stripeClient = new StripeClient(stripeProperties.getApiKey());
+        this.invoiceService = invoiceService;
+    }
+
+    @Transactional
+    public PaymentIntentResponse createOrReusePaymentIntent(InvoiceEntity invoice, AuthenticatedUser user) {
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            throw new IllegalStateException("Invoice already paid");
+        }
+        if (invoice.getStatus() == InvoiceStatus.VOID) {
+            throw new IllegalStateException("Invoice has been voided");
+        }
+
+        log.debug("Preparing PaymentIntent for invoice {} by {}", invoice.getId(), user.getEmail());
+
+        Optional<PaymentEntity> existing = paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(
+            invoice.getId(),
+            PaymentStatus.INITIATED
+        );
+
+        if (existing.isPresent()) {
+            PaymentEntity payment = existing.get();
+            PaymentIntent intent = retrievePaymentIntent(payment.getStripePaymentIntentId());
+            if (intent != null && isReusable(intent)) {
+                if (matchesInvoiceAmountAndCurrency(intent, invoice)) {
+                    log.debug("Reusing active PaymentIntent {} for invoice {}", intent.getId(), invoice.getId());
+                    return new PaymentIntentResponse(intent.getId(), intent.getClientSecret(), stripeProperties.getPublishableKey());
+                }
+
+                log.debug("Canceling PaymentIntent {} due to amount/currency mismatch for invoice {}", intent.getId(), invoice.getId());
+                cancelPaymentIntent(intent.getId());
+                payment.setStatus(PaymentStatus.CANCELED);
+                paymentRepository.save(payment);
+            }
+        }
+
+        PaymentIntent newIntent = createStripePaymentIntent(invoice);
+        PaymentEntity paymentEntity = new PaymentEntity();
+        paymentEntity.setId(UUID.randomUUID());
+        paymentEntity.setInvoice(invoice);
+        paymentEntity.setAmount(invoice.getAmountTotal());
+        paymentEntity.setCurrency(invoice.getCurrency());
+        paymentEntity.setProvider(PaymentProvider.STRIPE);
+        paymentEntity.setStatus(PaymentStatus.INITIATED);
+        paymentEntity.setStripePaymentIntentId(newIntent.getId());
+        paymentRepository.save(paymentEntity);
+
+        return new PaymentIntentResponse(newIntent.getId(), newIntent.getClientSecret(), stripeProperties.getPublishableKey());
+    }
+
+    @Transactional
+    public void handlePaymentIntentSucceeded(PaymentIntent paymentIntent) {
+        PaymentEntity payment = paymentRepository.findByStripePaymentIntentId(paymentIntent.getId())
+            .orElseGet(() -> createDetachedPaymentRecord(paymentIntent));
+
+        if (payment.getStatus() == PaymentStatus.SUCCEEDED) {
+            log.debug("Payment {} already marked succeeded", payment.getId());
+            return;
+        }
+
+        payment.setStatus(PaymentStatus.SUCCEEDED);
+        payment.setAmount(paymentIntent.getAmountReceived() != null ? paymentIntent.getAmountReceived() : payment.getAmount());
+        String intentCurrency = canonicalCurrency(paymentIntent.getCurrency());
+        if (intentCurrency == null) {
+            intentCurrency = payment.getCurrency();
+        }
+        payment.setCurrency(intentCurrency);
+        payment.setReceiptUrl(resolveReceiptUrl(paymentIntent));
+        payment.setFailureCode(null);
+        payment.setFailureMessage(null);
+        paymentRepository.save(payment);
+
+        // Refresh invoice and publish events
+        InvoiceEntity invoice = payment.getInvoice();
+        invoiceService.markInvoicePaid(invoice);
+        eventPublisher.publishPaymentSucceeded(invoice, payment);
+    }
+
+    @Transactional
+    public void handlePaymentIntentFailed(PaymentIntent paymentIntent) {
+        paymentRepository.findByStripePaymentIntentId(paymentIntent.getId()).ifPresentOrElse(payment -> {
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setFailureCode(paymentIntent.getLastPaymentError() != null ? paymentIntent.getLastPaymentError().getCode() : null);
+            payment.setFailureMessage(paymentIntent.getLastPaymentError() != null ? paymentIntent.getLastPaymentError().getMessage() : null);
+            payment.setReceiptUrl(null);
+            paymentRepository.save(payment);
+            eventPublisher.publishPaymentFailed(payment.getId(), payment.getInvoice().getId(), payment.getFailureCode());
+        }, () -> log.warn("Received payment failure for intent {} but no payment record found", paymentIntent.getId()));
+    }
+
+    @Transactional
+    public void handlePaymentIntentCanceled(PaymentIntent paymentIntent) {
+        paymentRepository.findByStripePaymentIntentId(paymentIntent.getId()).ifPresent(payment -> {
+            payment.setStatus(PaymentStatus.CANCELED);
+            paymentRepository.save(payment);
+        });
+    }
+
+    @Transactional
+    public void recordOfflinePayment(InvoiceEntity invoice, AuthenticatedUser user) {
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            throw new IllegalStateException("Invoice already paid");
+        }
+        if (invoice.getStatus() == InvoiceStatus.VOID) {
+            throw new IllegalStateException("Invoice has been voided");
+        }
+        if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+            throw new IllegalStateException("Invoice must be finalized before recording payment");
+        }
+
+        paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(invoice.getId(), PaymentStatus.SUCCEEDED)
+            .ifPresent(existing -> {
+                throw new IllegalStateException("Invoice already has a successful payment recorded");
+            });
+
+        PaymentEntity paymentEntity = new PaymentEntity();
+        paymentEntity.setId(UUID.randomUUID());
+        paymentEntity.setInvoice(invoice);
+        paymentEntity.setAmount(invoice.getAmountTotal());
+        paymentEntity.setCurrency(invoice.getCurrency());
+        paymentEntity.setProvider(PaymentProvider.OFFLINE);
+        paymentEntity.setStatus(PaymentStatus.SUCCEEDED);
+        paymentEntity.setStripePaymentIntentId(null);
+        paymentEntity.setFailureCode(null);
+        paymentEntity.setFailureMessage(null);
+        paymentEntity.setReceiptUrl(null);
+        paymentRepository.save(paymentEntity);
+
+        invoiceService.markInvoicePaid(invoice);
+        eventPublisher.publishPaymentSucceeded(invoice, paymentEntity);
+        log.info("Invoice {} marked as paid offline by {}", invoice.getId(), user.getEmail());
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<PaymentProvider> findLatestSuccessfulPaymentProvider(UUID invoiceId) {
+        return paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(invoiceId, PaymentStatus.SUCCEEDED)
+            .map(PaymentEntity::getProvider);
+    }
+
+    private PaymentIntent createStripePaymentIntent(InvoiceEntity invoice) {
+        PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+            .setAmount(invoice.getAmountTotal())
+            .setCurrency(invoice.getCurrency().toLowerCase())
+            .addPaymentMethodType("card")
+            .putMetadata("invoiceId", invoice.getId().toString())
+            .putMetadata("projectId", invoice.getProjectId().toString())
+            .putMetadata("customerEmail", invoice.getCustomerEmail())
+            .putMetadata("customerUserId", String.valueOf(invoice.getCustomerUserId()))
+            .build();
+
+        try {
+            return stripeClient.paymentIntents().create(params);
+        } catch (StripeException e) {
+            throw new StripeIntegrationException("Failed to create PaymentIntent", e);
+        }
+    }
+
+    private PaymentIntent retrievePaymentIntent(String paymentIntentId) {
+        try {
+            return stripeClient.paymentIntents().retrieve(paymentIntentId, PaymentIntentRetrieveParams.builder().build(), null);
+        } catch (StripeException e) {
+            log.warn("Unable to retrieve PaymentIntent {}: {}", paymentIntentId, e.getMessage());
+            return null;
+        }
+    }
+
+    private void cancelPaymentIntent(String paymentIntentId) {
+        try {
+            stripeClient.paymentIntents().cancel(paymentIntentId, PaymentIntentCancelParams.builder().build(), null);
+        } catch (StripeException e) {
+            throw new StripeIntegrationException("Failed to cancel PaymentIntent " + paymentIntentId, e);
+        }
+    }
+
+    private boolean isReusable(PaymentIntent paymentIntent) {
+        String status = paymentIntent.getStatus();
+        if (status == null) {
+            return true;
+        }
+        return !status.equalsIgnoreCase("succeeded") && !status.equalsIgnoreCase("canceled");
+    }
+
+    private boolean matchesInvoiceAmountAndCurrency(PaymentIntent paymentIntent, InvoiceEntity invoice) {
+        Long intentAmount = paymentIntent.getAmount();
+        String intentCurrency = paymentIntent.getCurrency();
+        boolean amountsMatch = intentAmount != null && intentAmount.equals(invoice.getAmountTotal());
+        boolean currenciesMatch = intentCurrency != null && intentCurrency.equalsIgnoreCase(invoice.getCurrency());
+        return amountsMatch && currenciesMatch;
+    }
+
+    private PaymentEntity createDetachedPaymentRecord(PaymentIntent paymentIntent) {
+        if (paymentIntent.getMetadata() == null || !paymentIntent.getMetadata().containsKey("invoiceId")) {
+            throw new IllegalStateException("PaymentIntent missing invoice metadata: " + paymentIntent.getId());
+        }
+
+        UUID invoiceId = UUID.fromString(paymentIntent.getMetadata().get("invoiceId"));
+        InvoiceEntity invoice = invoiceService.findById(invoiceId)
+            .orElseThrow(() -> new IllegalStateException("No invoice found for PaymentIntent " + paymentIntent.getId()));
+
+        PaymentEntity entity = new PaymentEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setInvoice(invoice);
+        entity.setAmount(paymentIntent.getAmount() != null ? paymentIntent.getAmount() : invoice.getAmountTotal());
+        String normalizedCurrency = canonicalCurrency(paymentIntent.getCurrency());
+        entity.setCurrency(normalizedCurrency != null ? normalizedCurrency : invoice.getCurrency());
+        entity.setProvider(PaymentProvider.STRIPE);
+        entity.setStatus(PaymentStatus.INITIATED);
+        entity.setStripePaymentIntentId(paymentIntent.getId());
+        return paymentRepository.save(entity);
+    }
+
+    private String canonicalCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            return null;
+        }
+        return currency.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String resolveReceiptUrl(PaymentIntent paymentIntent) {
+        Charge charge = paymentIntent.getLatestChargeObject();
+        if (charge != null) {
+            String receiptUrl = charge.getReceiptUrl();
+            if (receiptUrl != null && !receiptUrl.isBlank()) {
+                return receiptUrl;
+            }
+        }
+
+        String chargeId = paymentIntent.getLatestCharge();
+        if (chargeId == null || chargeId.isBlank()) {
+            return null;
+        }
+
+        try {
+            Charge retrieved = stripeClient.charges().retrieve(chargeId);
+            return retrieved != null ? retrieved.getReceiptUrl() : null;
+        } catch (StripeException e) {
+            log.warn(
+                "Unable to load receipt for charge {} on PaymentIntent {}: {}",
+                chargeId,
+                paymentIntent.getId(),
+                e.getMessage()
+            );
+            return null;
+        }
+    }
+}
