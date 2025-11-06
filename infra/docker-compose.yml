@@ -1,26 +1,26 @@
 services:
   # Local DB commented out as we are using Neon/Postgres Cloud
   # postgres:
-  #   container_name: autonova-postgres
-  #   image: postgres:17
-  #   environment:
-  #     POSTGRES_USER: ${POSTGRES_USER}
-  #     POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD}
-  #     PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
-  #     PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
-  #     interval: 5s
-  #     retries: 5
+  #  container_name: autonova-postgres
+  #  image: postgres:17
+  #  environment:
+  #    POSTGRES_USER: ${POSTGRES_USER}
+  #    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #    PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
+  #    PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
+  #  ports:
+  #    - "5432:5432"
+  #  volumes:
+  #    - postgres_data:/var/lib/postgresql/data
+  #  healthcheck:
+  #    test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #    interval: 5s
+  #    retries: 5
 
   postgres-init:
     image: postgres:17
     # depends_on:
-    #   - postgres  # Commented out since we're using cloud Postgres
+    #  - postgres # Commented out since we're using cloud Postgres
     environment:
       PGHOST: ${POSTGRES_HOST}
       PGPORT: ${POSTGRES_PORT}
@@ -31,6 +31,8 @@ services:
       PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
       EMPLOYEE_DASHBOARD_DB_PASSWORD: ${EMPLOYEE_DASHBOARD_DB_PASSWORD}
       USER_MANAGEMENT_DB_PASSWORD: ${USER_MANAGEMENT_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD} # Added from dev
+      VECTOR_DB_PASSWORD: ${VECTOR_DB_PASSWORD} # Added from dev
     volumes:
       - ./init-scripts:/scripts:ro
     entrypoint: >
@@ -39,6 +41,8 @@ services:
         until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do
           sleep 2;
         done;
+        echo 'Starting pgvector extension setup...'; # Added from dev
+        bash /scripts/pgvector-init.sh; # Added from dev
         echo 'Starting database initialization via db-init.sh';
         bash /scripts/db-init.sh
       "
@@ -54,6 +58,24 @@ services:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 5s
       retries: 5
+    networks:
+      - autonova-network
+
+  # --- New Service: Discovery Service (from dev) ---
+  discovery-service:
+    container_name: autonova-discovery-service
+    build:
+      context: ../discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
     networks:
       - autonova-network
 
@@ -92,6 +114,7 @@ services:
     depends_on:
       - postgres-init
       - rabbitmq
+      - discovery-service # Added dependency on discovery service
     healthcheck:
       test:
         [
@@ -110,15 +133,22 @@ services:
     networks:
       - autonova-network
 
-  # gateway-service:
-  #   container_name: autonova-gateway-service
-  #   build:
-  #     context: ../gateway-service
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - auth-service
-  #     - project-service
+  gateway-service:
+    container_name: autonova-gateway-service
+    build:
+      context: ../gateway-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081} # Auth internal port
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8083}
+      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8081} # Project internal port
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-service
+    networks:
+      - autonova-network
+
 
   project-service:
     container_name: autonova-project-service
@@ -126,7 +156,7 @@ services:
       context: ../services/project-service
     environment:
       ConnectionStrings__Postgres: Host=${POSTGRES_HOST};Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD}
-      Auth__Authority: http://auth-service:8081
+      Auth__Authority: http://auth-service:8081 # Changed from 8082 to 8081 (auth container port)
       Rabbit__HostName: rabbitmq
       Rabbit__UserName: guest
       Rabbit__Password: guest
@@ -135,10 +165,10 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      # - postgres  # Commented out since we're using cloud Postgres
       - postgres-init
       - rabbitmq
       - auth-service
+      - discovery-service # Added dependency on discovery service
     networks:
       - autonova-network
 
@@ -154,9 +184,36 @@ services:
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - "8080:8080"
+      - "8086:8080" # Used 8086 from dev, mapping to container 8080
     depends_on:
       - rabbitmq
+      - discovery-service # Added dependency on discovery service
+    networks:
+      - autonova-network
+
+  # --- New Service: Notification Service (from dev) ---
+  notification-service:
+    container_name: autonova-notification-service
+    build:
+      context: ../notification-service
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      APP_RABBIT_EXCHANGE: autonova.events
+      APP_RABBIT_QUEUE: notification.events.queue
+      APP_RABBIT_ROUTING_KEY: "#"
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_USER: notification_service
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+    ports:
+      - "8084:8084"
+    depends_on:
+      - rabbitmq
+      - postgres-init
+      - discovery-service # Added dependency on discovery service
     networks:
       - autonova-network
 

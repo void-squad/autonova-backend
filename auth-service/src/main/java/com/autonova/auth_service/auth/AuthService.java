@@ -1,5 +1,6 @@
 package com.autonova.auth_service.auth;
 
+import com.autonova.auth_service.event.AuthEventPublisher;
 import com.autonova.auth_service.security.JwtService;
 import com.autonova.auth_service.security.model.RefreshToken;
 import com.autonova.auth_service.security.service.RefreshTokenService;
@@ -15,16 +16,19 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final AuthEventPublisher authEventPublisher;
 
     public AuthService(
-            UserRepository userRepository, 
-            PasswordEncoder passwordEncoder, 
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            AuthEventPublisher authEventPublisher) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.authEventPublisher = authEventPublisher;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -83,7 +87,10 @@ public class AuthService {
                 user.getRole().name()
         );
 
-        // Create user info
+    // Emit login event for downstream services
+    authEventPublisher.publishUserLoggedIn(user);
+
+    // Create user info
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
                 user.getId(),
                 user.getUserName(),
