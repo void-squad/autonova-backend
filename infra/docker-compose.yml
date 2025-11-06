@@ -154,7 +154,7 @@ services:
   project-service:
     container_name: autonova-project-service
     build:
-      context: ../services/project-service
+      context: ../project-service
     environment:
       ConnectionStrings__Postgres: Host=${POSTGRES_HOST};Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD}
       Auth__Authority: http://auth-service:8081 # Changed from 8082 to 8081 (auth container port)
