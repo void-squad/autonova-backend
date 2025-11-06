@@ -1,8 +1,5 @@
 package com.autonova.progressmonitoring.messaging;
 
-import com.autonova.progressmonitoring.messaging.rabbit.ProjectEventProcessor;
-import com.autonova.progressmonitoring.messaging.rabbit.RabbitProjectConsumer;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
@@ -18,20 +15,14 @@ import static org.mockito.Mockito.mock;
 
 class RabbitProjectConsumerTest {
 
-    private AutoCloseable mocks;
     private ProjectEventProcessor processor;
     private RabbitProjectConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        mocks = openMocks(this);
+        openMocks(this);
         processor = mock(ProjectEventProcessor.class);
         consumer = new RabbitProjectConsumer(processor);
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        mocks.close();
     }
 
     @Test

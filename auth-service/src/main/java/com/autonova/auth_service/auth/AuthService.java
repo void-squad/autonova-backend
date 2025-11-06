@@ -1,11 +1,16 @@
 package com.autonova.auth_service.auth;
 
-import com.autonova.auth_service.event.AuthEventPublisher;
 import com.autonova.auth_service.security.JwtService;
-import com.autonova.auth_service.user.model.User;
-import com.autonova.auth_service.user.repository.UserRepository;
+import com.autonova.auth_service.user.User;
+import com.autonova.auth_service.user.UserRepository;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
 
 @Service
 public class AuthService {
@@ -13,60 +18,42 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final AuthEventPublisher authEventPublisher;
+    private final AuthenticationManager authenticationManager;
 
-    public AuthService(UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            JwtService jwtService,
-            AuthEventPublisher authEventPublisher) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.authEventPublisher = authEventPublisher;
+        this.authenticationManager = authenticationManager;
     }
 
-    public LoginResponse login(LoginRequest request) {
-        // Validate input
-        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("Email is required");
+    @Transactional
+    public AuthResponse register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("Email already registered");
         }
-        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
-            throw new IllegalArgumentException("Password is required");
+        User user = new User();
+        user.setEmail(request.email());
+        user.setFullName(request.fullName());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        userRepository.save(user);
+
+        var claims = new HashMap<String, Object>();
+        claims.put("uid", user.getId());
+        String token = jwtService.generateToken(user.getEmail(), claims);
+        return new AuthResponse(token, new AuthResponse.UserData(user.getId(), user.getEmail(), user.getFullName()));
+    }
+
+    public AuthResponse login(LoginRequest request) {
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+        } catch (AuthenticationException e) {
+            throw new IllegalArgumentException("Invalid credentials");
         }
-
-        // Find user by email
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
-
-        // Check if user is enabled
-        if (!user.isEnabled()) {
-            throw new IllegalArgumentException("Account is disabled");
-        }
-
-        // Validate password
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Invalid email or password");
-        }
-
-        // Generate JWT token
-        String token = jwtService.generateToken(
-                user.getId(),
-                user.getEmail(),
-                user.getRole().name()
-        );
-
-    // Emit login event for downstream services
-    authEventPublisher.publishUserLoggedIn(user);
-
-    // Create user info
-        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
-                user.getId(),
-                user.getUserName(),
-                user.getEmail(),
-                user.getRole().name()
-        );
-
-        // Return login response
-        return new LoginResponse(token, userInfo);
+        User user = userRepository.findByEmail(request.email()).orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        var claims = new HashMap<String, Object>();
+        claims.put("uid", user.getId());
+        String token = jwtService.generateToken(user.getEmail(), claims);
+        return new AuthResponse(token, new AuthResponse.UserData(user.getId(), user.getEmail(), user.getFullName()));
     }
 }
