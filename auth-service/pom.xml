@@ -19,7 +19,6 @@
     <description>Authentication Service</description>
 
     <dependencies>
-        <!-- Core Dependencies for Auth Service -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -52,20 +51,17 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ✅ Test dependency -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- In-memory DB for tests -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
 
-        <!-- Security / JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -84,19 +80,16 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Database migrations -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
 
-        <!-- Observability -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- OpenAPI / Swagger UI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -108,13 +101,11 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!-- OAuth2 Client for Google Login -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
 
-        <!-- Spring Dotenv - Load .env files automatically -->
         <dependency>
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
@@ -126,8 +117,10 @@
             <artifactId>spring-dotenv</artifactId>
             <version>4.0.0</version>
         </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
     </dependencies>
-
-
 </project>
-

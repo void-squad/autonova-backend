@@ -1,5 +1,6 @@
 package com.autonova.progressmonitoring.messaging;
 
+import com.autonova.progressmonitoring.config.RabbitConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.Queue;

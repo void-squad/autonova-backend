@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autonova.auth_service.security.UserSecurityService;
 import com.autonova.auth_service.user.Role;
 import com.autonova.auth_service.user.model.User;
 import com.autonova.auth_service.user.repository.UserRepository;
@@ -16,10 +17,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserSecurityService userSecurityService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+            UserSecurityService userSecurityService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userSecurityService = userSecurityService;
     }
 
     // Get all users
@@ -34,6 +38,14 @@ public class UserService {
 
     // Get user by email
     public Optional<User> getUserByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    public Optional<User> getCurrentUser() {
+        String email = userSecurityService.getCurrentUserEmail();
+        if (email == null) {
+            return Optional.empty();
+        }
         return userRepository.findByEmail(email);
     }
 
@@ -64,6 +76,14 @@ public class UserService {
             user.setRole(Role.CUSTOMER);
         }
 
+        if (user.getFirstName() != null) {
+            user.setFirstName(user.getFirstName().trim());
+        }
+
+        if (user.getLastName() != null) {
+            user.setLastName(user.getLastName().trim());
+        }
+
         // Hash the password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
@@ -91,9 +111,19 @@ public class UserService {
         if (userDetails.getContactOne() != null && !userDetails.getContactOne().trim().isEmpty()) {
             user.setContactOne(userDetails.getContactOne());
         }
+        
+        // --- Merged changes for firstName and lastName ---
+        if (userDetails.getFirstName() != null && !userDetails.getFirstName().trim().isEmpty()) {
+            user.setFirstName(userDetails.getFirstName().trim());
+        }
+
+        if (userDetails.getLastName() != null && !userDetails.getLastName().trim().isEmpty()) {
+            user.setLastName(userDetails.getLastName().trim());
+        }
 
         // Note: Password changes are NOT allowed through this endpoint
         // Use the dedicated change-password endpoint instead
+        // Password update logic from 'dev' was intentionally omitted for security separation.
 
         // Update optional fields (address and contactTwo)
         if (userDetails.getAddress() != null) {
