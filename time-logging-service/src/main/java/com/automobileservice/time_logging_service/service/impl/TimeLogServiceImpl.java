@@ -89,17 +89,35 @@ public class TimeLogServiceImpl implements TimeLogService {
         
         TimeLog timeLog = timeLogRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("TimeLog", "id", id));
-        
         // Validate new values (same as create)
         Employee employee = employeeRepository.findById(request.getEmployeeId())
             .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", request.getEmployeeId()));
-        
+
         Project project = projectRepository.findById(request.getProjectId())
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.getProjectId()));
-        
+
+        // Prevent assigning to completed or cancelled projects
+        if ("COMPLETED".equals(project.getStatus()) || "CANCELLED".equals(project.getStatus())) {
+            throw new BusinessRuleException("Cannot assign time log to a completed or cancelled project");
+        }
+
         ProjectTask task = projectTaskRepository.findById(request.getTaskId())
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", request.getTaskId()));
-        
+
+        // Ensure task belongs to project
+        if (!task.getProject().getId().equals(project.getId())) {
+            throw new BusinessRuleException("Task does not belong to the specified project");
+        }
+
+        // Ensure employee is assigned to the task
+        if (task.getAssignedEmployee() == null ||
+            !task.getAssignedEmployee().getUserId().equals(employee.getUserId())) {
+            throw new BusinessRuleException("Employee is not assigned to this task");
+        }
+
+        // Keep reference to old task so we can recalculate its hours if task changed
+        ProjectTask oldTask = timeLog.getTask();
+
         // Update fields
         timeLog.setEmployee(employee);
         timeLog.setProject(project);
@@ -109,7 +127,10 @@ public class TimeLogServiceImpl implements TimeLogService {
         
         TimeLog updatedTimeLog = timeLogRepository.save(timeLog);
         
-        // Recalculate task actual hours
+        // Recalculate task actual hours for both old and new tasks (if different)
+        if (oldTask != null && !oldTask.getId().equals(task.getId())) {
+            updateTaskActualHours(oldTask);
+        }
         updateTaskActualHours(task);
         
         log.info("Time log updated successfully: {}", id);
