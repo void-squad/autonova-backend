@@ -1,8 +1,11 @@
 package com.voidsquad.chatbot.controller;
 
+import com.voidsquad.chatbot.config.RabbitMQConfig;
 import com.voidsquad.chatbot.service.AIService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.handler.annotation.Header;
@@ -71,5 +74,10 @@ public class ChatbotController {
         return aiService.generation(prompt);
     }
 
+    @GetMapping("/v1/send")
+    public String sendMessage(@Param("msg") String msg) {
+//        aiService.send(msg);
+        return "msg sent";
+    }
 
 }

@@ -6,12 +6,12 @@ import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+//@Data
+//@NoArgsConstructor
+//@AllArgsConstructor
 public class WorkflowRequestEvent {
-    private String userId;
-    private String userRole;
-    private String prompt;
-    private Map<String, Object> userData;
+//    private String userId;
+//    private String userRole;
+//    private String prompt;
+//    private Map<String, Object> userData;
 }

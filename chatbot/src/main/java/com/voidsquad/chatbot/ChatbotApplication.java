@@ -1,11 +1,12 @@
 package com.voidsquad.chatbot;
 
+import com.voidsquad.chatbot.config.RabbitMQConfig;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
-@EnableRabbit
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class}) //TODO: enable the database connection
 public class ChatbotApplication {
 
@@ -13,4 +14,12 @@ public class ChatbotApplication {
         SpringApplication.run(ChatbotApplication.class, args);
     }
 
+
+    //TODO: remove this testing codes for RabbitMQ
+//    @RabbitListener(queues = RabbitMQConfig.QUEUE)
+//    public void receive(String message) {
+//        System.out.println("Received Message: " + message);
+//    }
+
 }
+
