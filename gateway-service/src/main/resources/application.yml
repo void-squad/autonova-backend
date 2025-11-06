@@ -30,7 +30,7 @@ spring:
           predicates:
             - Path=/api/users,/api/users/**
         - id: customer-service
-          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
         - id: project-service
@@ -46,4 +46,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-
