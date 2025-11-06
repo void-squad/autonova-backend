@@ -79,7 +79,7 @@ services:
   #   ports:
   #     - "8082:8082"
   #   environment:
-  #     ConnectionStrings__Postgres: ${AUTH_SERVICE_POSTGRES:-Host=postgres;Database=auth_db;Username=auth_user;Password=auth_pass}
+  #     ConnectionStrings__Postgres: ${AUTH_SERVICE_POSTGRES:-Host=your-neon-host.neon.tech;Port=5432;Database=auth_db;Username=auth_user;Password=auth_pass;Ssl Mode=Require;Trust Server Certificate=false}
   #   depends_on:
   #     - postgres-init
 
@@ -115,9 +115,9 @@ services:
   project-service:
     container_name: autonova-project-service
     build:
-      context: ../services/project-service
+      context: ../project-service
     environment:
-      ConnectionStrings__Postgres: Host=${POSTGRES_HOST};Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD}
+      ConnectionStrings__Postgres: Host=${POSTGRES_HOST};Port=${POSTGRES_PORT};Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD};Ssl Mode=Require;Trust Server Certificate=false
       Auth__Authority: http://auth-service:8082
       Rabbit__HostName: rabbitmq
       Rabbit__UserName: guest
