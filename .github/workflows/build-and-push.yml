@@ -1,0 +1,103 @@
+name: Build and push changed services
+
+on:
+  push:
+    branches: [ main, dev, ci-cd-test ]
+  pull_request:
+    branches: [ main, dev, ci-cd-test ]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Determine changed top-level dirs
+        id: changes
+        run: |
+          set -euo pipefail
+          # Determine base ref: prefer pull_request base, otherwise previous commit
+          if [ -n "${{ github.event.pull_request.head.sha || '' }}" ]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_REF="${{ github.sha }}~1"
+          fi
+          echo "BASE_REF=$BASE_REF"
+          git fetch --no-tags --prune --depth=50 origin
+          CHANGED_FILES=$(git diff --name-only "$BASE_REF" "${{ github.sha }}" || true)
+          echo "Changed files:\n$CHANGED_FILES"
+          # extract top-level directory names
+          SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+
+      - name: Build & push images for changed services
+        env:
+          OWNER: void-squad
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          services_str="${{ steps.changes.outputs.services }}"
+          echo "Services detected: $services_str"
+          read -r -a services <<< "$services_str"
+          if [ ${#services[@]} -eq 0 ]; then
+            echo "No top-level changes detected; nothing to build"
+            exit 0
+          fi
+          for svc in "${services[@]}"; do
+            # skip common top-level directories that are not services
+            case "$svc" in
+              .github|infra|docs|contracts|http|scripts|target|README.md|pom.xml)
+                echo "Skipping $svc (not a service)"
+                continue
+                ;;
+            esac
+            if [ ! -d "$svc" ]; then
+              echo "Skipping $svc: not a directory"
+              continue
+            fi
+            if [ ! -f "$svc/Dockerfile" ] && [ ! -f "$svc/Dockerfile.prebuilt" ] && [ ! -f "$svc/docker/Dockerfile" ]; then
+              echo "Skipping $svc: no Dockerfile found"
+              continue
+            fi
+
+            IMAGE=ghcr.io/${OWNER}/${svc}:${SHORT_SHA::8}
+            echo "Building and pushing $IMAGE from $svc"
+
+            # Choose Dockerfile if present
+            DOCKERFILE=""
+            if [ -f "$svc/Dockerfile" ]; then
+              DOCKERFILE="$svc/Dockerfile"
+            elif [ -f "$svc/Dockerfile.prebuilt" ]; then
+              DOCKERFILE="$svc/Dockerfile.prebuilt"
+            elif [ -f "$svc/docker/Dockerfile" ]; then
+              DOCKERFILE="$svc/docker/Dockerfile"
+            fi
+
+            docker buildx build --platform linux/amd64 --push \
+              --tag "$IMAGE" \
+              --file "$DOCKERFILE" \
+              "$svc"
+
+            echo "Pushed $IMAGE"
+          done
