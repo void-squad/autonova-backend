@@ -11,7 +11,7 @@ CREATE TABLE workflow_steps (
     required_local_data TEXT[],
     related_steps TEXT[],
     prompt_template TEXT,
-    embedding vector(1536)
+    embedding vector(384)
 );
 
 -- Optional: index for faster vector search

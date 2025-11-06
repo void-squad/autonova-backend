@@ -1,6 +1,6 @@
 package com.voidsquad.chatbot.repository;
 
-import com.voidsquad.chatbot.service.workflow.workflowStep.WorkflowStep;
+import com.voidsquad.chatbot.entities.WorkflowStep;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

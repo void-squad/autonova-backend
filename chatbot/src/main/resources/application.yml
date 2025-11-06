@@ -9,19 +9,11 @@ spring:
       chat:
         options:
           model: llama3
-  datasource:
-    url: jdbc:postgresql://localhost:5432/vector_db
-    username: postgres
-    password: postgres
+
   jpa:
     hibernate:
       ddl-auto: none
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: true
-    loggers: true
+
   rabbitmq:
     host: localhost
     port: 5672
