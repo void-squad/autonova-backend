@@ -9,6 +9,8 @@ import com.autonova.customer.model.Customer;
 import com.autonova.customer.model.Vehicle;
 import com.autonova.customer.repository.CustomerRepository;
 import com.autonova.customer.repository.VehicleRepository;
+import com.autonova.customer.security.AuthenticatedUser;
+import com.autonova.customer.security.CurrentUserProvider;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,17 +29,20 @@ public class VehicleService {
     private final CustomerRepository customerRepository;
     private final VehicleRepository vehicleRepository;
     private final VehicleDomainEventPublisher vehicleDomainEventPublisher;
+    private final CurrentUserProvider currentUserProvider;
 
     public VehicleService(CustomerRepository customerRepository,
                           VehicleRepository vehicleRepository,
-                          VehicleDomainEventPublisher vehicleDomainEventPublisher) {
+                          VehicleDomainEventPublisher vehicleDomainEventPublisher,
+                          CurrentUserProvider currentUserProvider) {
         this.customerRepository = customerRepository;
         this.vehicleRepository = vehicleRepository;
         this.vehicleDomainEventPublisher = vehicleDomainEventPublisher;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public VehicleResponse addVehicle(Long customerId, VehicleRequest request) {
-        Customer customer = findCustomer(customerId);
+        Customer customer = findCustomerForCurrentUser(customerId);
         String normalizedPlate = normalizeLicensePlate(request.licensePlate());
         String normalizedVin = normalizeVin(request.vin());
 
@@ -63,9 +68,14 @@ public class VehicleService {
         }
     }
 
+    public VehicleResponse addVehicleForCurrentCustomer(VehicleRequest request) {
+        Long customerId = resolveCurrentCustomerId();
+        return addVehicle(customerId, request);
+    }
+
     @Transactional(readOnly = true)
     public List<VehicleResponse> getVehicles(Long customerId) {
-        assertCustomerExists(customerId);
+        findCustomerForCurrentUser(customerId);
         return vehicleRepository.findAllByCustomerId(customerId).stream()
                 .sorted(VEHICLE_COMPARATOR)
                 .map(CustomerMapper::toVehicleResponse)
@@ -73,13 +83,27 @@ public class VehicleService {
     }
 
     @Transactional(readOnly = true)
+    public List<VehicleResponse> getVehiclesForCurrentCustomer() {
+        Long customerId = resolveCurrentCustomerId();
+        return getVehicles(customerId);
+    }
+
+    @Transactional(readOnly = true)
     public VehicleResponse getVehicle(Long customerId, Long vehicleId) {
+        findCustomerForCurrentUser(customerId);
         Vehicle vehicle = vehicleRepository.findByCustomerIdAndId(customerId, vehicleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
         return CustomerMapper.toVehicleResponse(vehicle);
     }
 
+    @Transactional(readOnly = true)
+    public VehicleResponse getVehicleForCurrentCustomer(Long vehicleId) {
+        Long customerId = resolveCurrentCustomerId();
+        return getVehicle(customerId, vehicleId);
+    }
+
     public VehicleResponse updateVehicle(Long customerId, Long vehicleId, VehicleRequest request) {
+        findCustomerForCurrentUser(customerId);
         Vehicle vehicle = vehicleRepository.findByCustomerIdAndId(customerId, vehicleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
 
@@ -107,7 +131,13 @@ public class VehicleService {
         }
     }
 
+    public VehicleResponse updateVehicleForCurrentCustomer(Long vehicleId, VehicleRequest request) {
+        Long customerId = resolveCurrentCustomerId();
+        return updateVehicle(customerId, vehicleId, request);
+    }
+
     public void deleteVehicle(Long customerId, Long vehicleId) {
+        findCustomerForCurrentUser(customerId);
         Vehicle vehicle = vehicleRepository.findByCustomerIdAndId(customerId, vehicleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
         vehicleDomainEventPublisher.publish(VehicleEventType.DELETED, vehicle);
@@ -118,15 +148,20 @@ public class VehicleService {
         vehicleRepository.delete(vehicle);
     }
 
-    private Customer findCustomer(Long customerId) {
-        return customerRepository.findById(customerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+    public void deleteVehicleForCurrentCustomer(Long vehicleId) {
+        Long customerId = resolveCurrentCustomerId();
+        deleteVehicle(customerId, vehicleId);
     }
 
-    private void assertCustomerExists(Long customerId) {
-        if (!customerRepository.existsById(customerId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found");
+    private Customer findCustomerForCurrentUser(Long customerId) {
+        AuthenticatedUser currentUser = currentUserProvider.requireCurrentUser();
+        if (currentUser.hasRole("ADMIN")) {
+            return customerRepository.findById(customerId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
         }
+
+        return customerRepository.findByIdAndEmailIgnoreCase(customerId, currentUser.normalizedEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied for customer"));
     }
 
     private String normalizeLicensePlate(String licensePlate) {
@@ -135,6 +170,13 @@ public class VehicleService {
 
     private String normalizeVin(String vin) {
         return vin == null ? null : vin.trim().toUpperCase();
+    }
+
+    private Long resolveCurrentCustomerId() {
+        AuthenticatedUser currentUser = currentUserProvider.requireCurrentUser();
+        return customerRepository.findByEmailIgnoreCase(currentUser.normalizedEmail())
+                .map(Customer::getId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer profile not found"));
     }
 
     private ResponseStatusException translateIntegrityViolation(DataIntegrityViolationException ex) {
