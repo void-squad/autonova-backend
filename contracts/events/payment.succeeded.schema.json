@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.autonova.com/billing/payment.succeeded.json",
+  "title": "payment.succeeded",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "version", "data"],
+  "properties": {
+    "type": { "const": "payment.succeeded" },
+    "version": { "type": "integer", "const": 1 },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payment_id",
+        "invoice_id",
+        "project_id",
+        "amount",
+        "currency",
+        "provider"
+      ],
+      "properties": {
+        "payment_id": { "type": "string", "format": "uuid" },
+        "invoice_id": { "type": "string", "format": "uuid" },
+        "project_id": { "type": "string", "format": "uuid" },
+        "amount": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "provider": { "type": "string", "enum": ["STRIPE", "OFFLINE"] }
+      }
+    }
+  }
+}
