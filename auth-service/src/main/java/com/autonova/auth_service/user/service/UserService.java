@@ -111,7 +111,8 @@ public class UserService {
         if (userDetails.getContactOne() != null && !userDetails.getContactOne().trim().isEmpty()) {
             user.setContactOne(userDetails.getContactOne());
         }
-
+        
+        // --- Merged changes for firstName and lastName ---
         if (userDetails.getFirstName() != null && !userDetails.getFirstName().trim().isEmpty()) {
             user.setFirstName(userDetails.getFirstName().trim());
         }
@@ -120,10 +121,9 @@ public class UserService {
             user.setLastName(userDetails.getLastName().trim());
         }
 
-        if (userDetails.getPassword() != null && !userDetails.getPassword().trim().isEmpty()) {
-            // Hash the password before updating
-            user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
-        }
+        // Note: Password changes are NOT allowed through this endpoint
+        // Use the dedicated change-password endpoint instead
+        // Password update logic from 'dev' was intentionally omitted for security separation.
 
         // Update optional fields (address and contactTwo)
         if (userDetails.getAddress() != null) {
@@ -140,12 +140,16 @@ public class UserService {
     }
 
     // Delete user
+    // Note: Related tokens (RefreshToken, PasswordResetToken) are automatically deleted via CASCADE
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new IllegalArgumentException("User not found with id: " + id);
-        }
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
+        
+        // Delete the user - cascade will automatically delete:
+        // - All refresh tokens
+        // - All password reset tokens
+        userRepository.delete(user);
     }
 
     // Update user role - ADMIN only operation
@@ -162,6 +166,9 @@ public class UserService {
         user.setRole(newRole);
         return userRepository.save(user);
     }
+
+    // Note: Password changes are handled through the forgot-password/reset-password flow
+    // This ensures email verification for all password changes (more secure)
 
     // Check if user exists
     public boolean userExists(Long id) {
