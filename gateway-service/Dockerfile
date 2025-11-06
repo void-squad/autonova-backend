@@ -2,14 +2,21 @@
 # Stage 1: Build
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
-# Copy Maven wrapper and pom.xml
-COPY .mvn .mvn
-COPY mvnw .
-COPY pom.xml .
+
+# Copy root pom so the module's parent relativePath (../pom.xml) resolves
+COPY pom.xml /pom.xml
+
+# Copy service-specific mvnw, .mvn and pom from the repository root context
+COPY gateway-service/.mvn .mvn
+COPY gateway-service/mvnw mvnw
+COPY gateway-service/pom.xml pom.xml
+
 # Download dependencies
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
+
 # Copy source code
-COPY src ./src
+COPY gateway-service/src ./src
+
 # Build the application
 RUN ./mvnw clean package -DskipTests
 # Stage 2: Runtime

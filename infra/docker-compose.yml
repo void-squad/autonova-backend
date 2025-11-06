@@ -66,7 +66,11 @@ services:
   discovery-service:
     container_name: autonova-discovery-service
     build:
-      context: ../discovery-service
+      # Use repository root as build context so the parent POM (../pom.xml)
+      # is available to Maven during the image build. The Dockerfile path
+      # points to the service's Dockerfile inside the repo.
+      context: ..
+      dockerfile: discovery-service/Dockerfile
     ports:
       - "8761:8761"
     environment:
@@ -137,7 +141,11 @@ services:
   gateway-service:
     container_name: autonova-gateway-service
     build:
-      context: ../gateway-service
+      # Use repository root as build context so the parent POM (../pom.xml)
+      # is available during the image build. Point dockerfile at the service
+      # Dockerfile inside the repo.
+      context: ..
+      dockerfile: gateway-service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081} # Auth internal port
