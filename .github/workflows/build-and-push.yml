@@ -141,10 +141,13 @@ jobs:
 
             # Choose Dockerfile if present
             DOCKERFILE=""
+            BUILD_CONTEXT="."
             if [ -f "$svc/Dockerfile" ]; then
               DOCKERFILE="$svc/Dockerfile"
             elif [ -f "$svc/Dockerfile.prebuilt" ]; then
               DOCKERFILE="$svc/Dockerfile.prebuilt"
+              # Dockerfile.prebuilt expects build context to be the service directory
+              BUILD_CONTEXT="$svc"
             elif [ -f "$svc/docker/Dockerfile" ]; then
               DOCKERFILE="$svc/docker/Dockerfile"
             fi
@@ -152,7 +155,7 @@ jobs:
             docker buildx build --platform linux/amd64 --push \
               --tag "$IMAGE" \
               --file "$DOCKERFILE" \
-              "$svc"
+              "$BUILD_CONTEXT"
 
             echo "Pushed $IMAGE"
           done
