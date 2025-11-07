@@ -39,6 +39,11 @@ All mutating endpoints accept the optional `X-Idempotency-Key` header (max 64 ch
 - `POST /api/change-requests/{changeRequestId}/apply`
 - `GET /api/projects/{projectId}/status-history`
 
+### Projects & tasks by assignee
+
+- `GET /api/projects?assigneeId=<employee-uuid>&includeTasks=true&page=1&pageSize=20` returns only projects that have work for that employee. When `includeTasks=true`, the task collections contain just that employee's assignments.
+- `GET /api/tasks?assigneeId=<employee-uuid>&status=InProgress&page=1&pageSize=50` exposes a paged task feed for employees/managers. Employees may only view their own records; managers can omit `assigneeId` to see everything.
+
 ### Environment variables
 
 Key settings consumed by the service:

@@ -43,15 +43,41 @@ paths:
           schema:
             type: string
             format: uuid
+        - in: query
+          name: assigneeId
+          schema:
+            type: string
+            format: uuid
+          description: When set, returns only projects with tasks assigned to the specified employee.
+        - in: query
+          name: includeTasks
+          schema:
+            type: boolean
+          description: When true and assigneeId is provided, includes only that employee's tasks in the response.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
       responses:
         '200':
           description: Projects collection
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProjectResponse'
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectResponse'
+                  - $ref: '#/components/schemas/ProjectListResponse'
   /api/projects/{projectId}:
     get:
       summary: Get project by id
@@ -327,6 +353,55 @@ paths:
                 $ref: '#/components/schemas/ChangeRequestResponse'
         '409':
           description: Concurrency conflict
+  /api/tasks:
+    get:
+      summary: List tasks assigned to an employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: assigneeId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: projectId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: includeProject
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Paged list of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '400':
+          description: Bad request
+        '403':
+          description: Forbidden
 components:
   parameters:
     IdempotencyKey:
@@ -591,6 +666,77 @@ components:
         xmin:
           type: integer
           format: int64
+    ProjectListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResponse'
+    TaskListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+    TaskResponse:
+      type: object
+      required:
+        - taskId
+        - projectId
+        - title
+        - status
+        - estimateHours
+        - createdAt
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+        estimateHours:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        project:
+          $ref: '#/components/schemas/TaskProjectSummary'
+    TaskProjectSummary:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
     ProjectStatus:
       type: string
       enum:

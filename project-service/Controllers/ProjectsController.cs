@@ -3,10 +3,14 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ProjectService.Data;
+using ProjectService.Domain.Entities;
 using ProjectService.Domain.Enums;
 using ProjectService.Domain.Exceptions;
 using ProjectService.Dtos;
 using ProjectService.Extensions;
+using ProjectService.Security;
 using ProjectService.Services;
 
 namespace ProjectService.Controllers;
@@ -16,17 +20,20 @@ namespace ProjectService.Controllers;
 [Produces(MediaTypeNames.Application.Json)]
 public class ProjectsController : ControllerBase
 {
+    private readonly AppDb _db;
     private readonly IProjectWorkflowService _workflowService;
     private readonly IValidator<CreateProjectRequest> _createValidator;
     private readonly IValidator<UpdateProjectStatusRequest> _statusValidator;
     private readonly ILogger<ProjectsController> _logger;
 
     public ProjectsController(
+        AppDb db,
         IProjectWorkflowService workflowService,
         IValidator<CreateProjectRequest> createValidator,
         IValidator<UpdateProjectStatusRequest> statusValidator,
         ILogger<ProjectsController> logger)
     {
+        _db = db;
         _workflowService = workflowService;
         _createValidator = createValidator;
         _statusValidator = statusValidator;
@@ -67,10 +74,93 @@ public class ProjectsController : ControllerBase
     [HttpGet]
     [Authorize]
     [ProducesResponseType(typeof(IEnumerable<ProjectResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetProjects([FromQuery] ProjectStatus? status, [FromQuery] Guid? customerId, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ProjectListResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProjects(
+        [FromQuery] ProjectStatus? status,
+        [FromQuery] Guid? customerId,
+        [FromQuery] Guid? assigneeId,
+        [FromQuery] bool includeTasks = false,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var projects = await _workflowService.GetProjectsAsync(status, customerId, cancellationToken);
-        return Ok(projects.Select(p => p.ToResponse()));
+        if (!assigneeId.HasValue)
+        {
+            if (includeTasks)
+            {
+                return BadRequest("includeTasks requires an assigneeId.");
+            }
+
+            var projects = await _workflowService.GetProjectsAsync(status, customerId, cancellationToken);
+            return Ok(projects.Select(p => p.ToResponse()));
+        }
+
+        if (UserContext.IsCustomer(User))
+        {
+            return Forbid();
+        }
+
+        if (UserContext.IsEmployee(User) && !UserContext.IsManager(User))
+        {
+            var userId = UserContext.UserId(User);
+            if (!userId.HasValue || userId.Value != assigneeId.Value)
+            {
+                return Forbid();
+            }
+        }
+
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var query = _db.Projects
+            .Include(x => x.Tasks)
+            .Include(x => x.Quotes)
+            .Include(x => x.StatusHistory)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        if (customerId.HasValue)
+        {
+            query = query.Where(x => x.CustomerId == customerId.Value);
+        }
+
+        var employeeId = assigneeId.Value;
+        query = query.Where(p => p.Tasks.Any(t => t.AssigneeId == employeeId));
+
+        var total = await query.CountAsync(cancellationToken);
+
+        var projectsPage = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        foreach (var project in projectsPage)
+        {
+            if (includeTasks)
+            {
+                project.Tasks = project.Tasks.Where(t => t.AssigneeId == employeeId).ToList();
+            }
+            else
+            {
+                project.Tasks = new List<TaskItem>();
+            }
+        }
+
+        var response = new ProjectListResponse
+        {
+            Page = page,
+            PageSize = pageSize,
+            Total = total,
+            Items = projectsPage.Select(p => p.ToResponse()).ToList()
+        };
+
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}")]
