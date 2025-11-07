@@ -24,7 +24,7 @@ ConnectionStrings__Postgres="Host=your-neon-host;Database=neondb;Username=projec
 dotnet ef database update
 
 # run service (env variable supplied automatically via .env or shell export)
-dotnet run --urls=http://localhost:8081
+dotnet run --urls=http://localhost:8082
 ```
 
 ## Full stack via Docker Compose
@@ -37,7 +37,7 @@ docker compose up -d --build
 
 Visit:
 
-- Swagger: http://localhost:8081/swagger
+- Swagger: http://localhost:8082/swagger
 - Gateway (proxied): http://localhost:8080/api/projects/...
 - RabbitMQ UI: http://localhost:15672 (guest/guest)
-- Health: http://localhost:8081/healthz
+- Health: http://localhost:8082/healthz
