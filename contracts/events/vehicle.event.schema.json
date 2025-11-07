@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "vehicle.event",
+  "description": "Vehicle lifecycle events emitted by customer-service (created, updated, deleted)",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "CREATED",
+        "UPDATED",
+        "DELETED"
+      ],
+      "description": "Lifecycle transition that triggered the event"
+    },
+    "vehicleId": {
+      "type": "integer"
+    },
+    "customerId": {
+      "type": "integer",
+      "nullable": true
+    },
+    "vin": {
+      "type": "string",
+      "minLength": 11,
+      "maxLength": 17
+    },
+    "licensePlate": {
+      "type": "string"
+    },
+    "make": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 1886,
+      "nullable": true
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "eventId",
+    "type",
+    "vehicleId",
+    "vin",
+    "licensePlate",
+    "year",
+    "occurredAt"
+  ]
+}

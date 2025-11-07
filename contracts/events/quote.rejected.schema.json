@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "quote.rejected",
+  "type": "object",
+  "properties": {
+    "projectId": {"type": "string", "format": "uuid"},
+    "quoteId": {"type": "string", "format": "uuid"},
+    "changeRequestId": {"type": "string", "format": "uuid", "nullable": true},
+    "fromStatus": {"type": "string", "nullable": true},
+    "toStatus": {"type": "string", "nullable": true},
+    "changedBy": {
+      "type": "object",
+      "properties": {
+        "userId": {"type": "string", "format": "uuid"},
+        "role": {"type": "string"}
+      },
+      "required": ["userId", "role"]
+    },
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "metadata": {
+      "type": "object",
+      "nullable": true,
+      "additionalProperties": true
+    },
+    "deltas": {
+      "type": "object",
+      "nullable": true,
+      "additionalProperties": true
+    }
+  },
+  "required": ["projectId", "quoteId", "changedBy", "occurredAt"]
+}
