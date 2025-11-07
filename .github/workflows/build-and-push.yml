@@ -138,8 +138,19 @@ jobs:
               echo "Skipping Maven pre-build for $svc (multi-stage Dockerfile will build inside Docker)"
             fi
 
-            IMAGE=${DOCKERHUB_USERNAME}/${svc}:${SHORT_SHA::8}
-            echo "Building and pushing $IMAGE from $svc"
+            IMAGE_SHA=${DOCKERHUB_USERNAME}/${svc}:${SHORT_SHA::8}
+            
+            # Determine additional tags based on branch
+            ADDITIONAL_TAGS=""
+            if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+              ADDITIONAL_TAGS="--tag ${DOCKERHUB_USERNAME}/${svc}:latest"
+              echo "Building and pushing $IMAGE_SHA and ${DOCKERHUB_USERNAME}/${svc}:latest from $svc"
+            elif [ "${{ github.ref }}" == "refs/heads/dev" ]; then
+              ADDITIONAL_TAGS="--tag ${DOCKERHUB_USERNAME}/${svc}:dev-latest"
+              echo "Building and pushing $IMAGE_SHA and ${DOCKERHUB_USERNAME}/${svc}:dev-latest from $svc"
+            else
+              echo "Building and pushing $IMAGE_SHA from $svc"
+            fi
 
             # Choose Dockerfile and determine build context
             DOCKERFILE=""
@@ -167,11 +178,13 @@ jobs:
               BUILD_CONTEXT="$svc"
             fi
 
+            # shellcheck disable=SC2086
             docker buildx build --platform linux/amd64 --push \
-              --tag "$IMAGE" \
+              --tag "$IMAGE_SHA" \
+              ${ADDITIONAL_TAGS} \
               --file "$DOCKERFILE" \
               "$BUILD_CONTEXT"
 
-            echo "Pushed $IMAGE"
+            echo "Pushed images for $svc"
 
           done
