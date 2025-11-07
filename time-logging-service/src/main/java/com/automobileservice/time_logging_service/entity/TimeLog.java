@@ -36,6 +36,9 @@ public class TimeLog {
     @Column(columnDefinition = "TEXT")
     private String note;
     
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private String approvalStatus = "PENDING"; // PENDING, APPROVED, REJECTED
+    
     @CreationTimestamp
     @Column(name = "logged_at", nullable = false, updatable = false)
     private LocalDateTime loggedAt;
