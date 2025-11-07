@@ -2,9 +2,9 @@ name: Build and push changed services
 
 on:
   push:
-    branches: [ main, dev, ci-cd-test ]
+    branches: [main, dev, ci-cd-test]
   pull_request:
-    branches: [ main, dev, ci-cd-test ]
+    branches: [main, dev, ci-cd-test]
 
 permissions:
   contents: read
@@ -26,12 +26,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up JDK 17 and 21
         uses: actions/setup-java@v4
@@ -39,8 +38,8 @@ jobs:
           java-version: |
             17
             21
-          distribution: 'temurin'
-          cache: 'maven'
+          distribution: "temurin"
+          cache: "maven"
 
       - name: Determine changed top-level dirs
         id: changes
@@ -54,7 +53,7 @@ jobs:
           fi
           echo "BASE_REF=$BASE_REF"
           git fetch --no-tags --prune --depth=50 origin
-          
+
           # Check if this is the first commit or base ref doesn't exist
           if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
             echo "First commit detected - building all services"
@@ -84,13 +83,13 @@ jobs:
               SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
             fi
           fi
-          
+
           echo "Services to process: $SERVICES"
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
 
       - name: Build & push images for changed services
         env:
-          OWNER: void-squad
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           SHORT_SHA: ${{ github.sha }}
         run: |
           set -eu
@@ -139,7 +138,7 @@ jobs:
               echo "Skipping Maven pre-build for $svc (multi-stage Dockerfile will build inside Docker)"
             fi
 
-            IMAGE=ghcr.io/${OWNER}/${svc}:${SHORT_SHA::8}
+            IMAGE=${DOCKERHUB_USERNAME}/${svc}:${SHORT_SHA::8}
             echo "Building and pushing $IMAGE from $svc"
 
             # Choose Dockerfile and determine build context
@@ -174,15 +173,5 @@ jobs:
               "$BUILD_CONTEXT"
 
             echo "Pushed $IMAGE"
-            
-            # Make the image public
-            echo "Making $IMAGE public..."
-            PACKAGE_NAME="${svc}"
-            curl -X PATCH \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE_NAME}" \
-              -d '{"visibility":"public"}' || echo "Note: Could not set visibility (may need org admin rights)"
-          
+
           done
