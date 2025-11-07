@@ -53,6 +53,10 @@ spring:
             - Path=/api/tasks/**
           filters:
             - StripPrefix=1
+        - id: payments-billing-service
+          uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/invoices/**,/webhooks/stripe/**
 
 management:
   endpoints:

@@ -34,6 +34,7 @@ services:
       USER_MANAGEMENT_DB_PASSWORD: ${USER_MANAGEMENT_DB_PASSWORD}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD} # Added from dev
       VECTOR_DB_PASSWORD: ${VECTOR_DB_PASSWORD} # Added from dev
+      PBS_DB_PASSWORD: ${PBS_DB_PASSWORD:-payments_billing_service}
     volumes:
       - ./init-scripts:/scripts:ro
     entrypoint: >
@@ -204,6 +205,7 @@ services:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081} # Auth internal port
       CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8087}
       PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8082} # Project internal port
+      PAYMENTS_BILLING_SERVICE_URL: ${PAYMENTS_BILLING_SERVICE_URL:-http://payments-billing-service:8085}
     ports:
       - '8080:8080'
     depends_on:
@@ -276,6 +278,36 @@ services:
       - rabbitmq
       - postgres-init
       - discovery-service # Added dependency on discovery service
+    networks:
+      - autonova-network
+
+  payments-billing-service:
+    container_name: autonova-payments-billing-service
+    build:
+      context: ..
+      dockerfile: payments-billing-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      SERVER_PORT: ${PBS_SERVER_PORT:-8085}
+      PBS_DB_URL: ${PBS_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/payments_billing_db}
+      PBS_DB_USERNAME: ${PBS_DB_USERNAME:-payments_billing_service}
+      PBS_DB_PASSWORD: ${PBS_DB_PASSWORD:-payments_billing_service}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-sk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+      STRIPE_WEBHOOK_ENDPOINT_SECRET: ${STRIPE_WEBHOOK_ENDPOINT_SECRET:-whsec_endpoint_placeholder}
+      AUTH_JWT_HS256_SECRET: ${AUTH_JWT_HS256_SECRET:-change-me}
+      PBS_INVOICE_EXCHANGE: ${PBS_INVOICE_EXCHANGE:-billing.invoice}
+      PBS_PAYMENT_EXCHANGE: ${PBS_PAYMENT_EXCHANGE:-billing.payment}
+    ports:
+      - '${PBS_SERVER_PORT:-8085}:${PBS_SERVER_PORT:-8085}'
+    depends_on:
+      - postgres-init
+      - rabbitmq
     networks:
       - autonova-network
 
