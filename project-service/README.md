@@ -53,6 +53,7 @@ Key settings consumed by the service:
 - `Rabbit__{HostName,UserName,Password,Exchange,Enabled}` – RabbitMQ connection.
 - `HealthChecks__CustomersUrl`, `HealthChecks__AppointmentsUrl` – optional downstream readiness probes.
 - `Kestrel__Endpoints__Http__Url` – listening URL (defaults to `http://0.0.0.0:8082`).
+- `Eureka__Client__ServiceUrl` – set to your Eureka server (e.g. `http://discovery-service:8761/eureka/`) to enable automatic registration. The service registers itself under `project-service` and publishes `/healthz` + `/readyz` for discovery health checks.
 
 ## Full stack via Docker Compose
 
