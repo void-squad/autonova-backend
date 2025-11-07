@@ -29,7 +29,7 @@ public class NotificationController {
     public Flux<ServerSentEvent<NotificationDto>> stream(@PathVariable UUID userId) {
         return sseHub.subscribe(userId)
                 .map(dto -> ServerSentEvent.<NotificationDto>builder()
-                        .event(dto.type())
+                        .event(dto.eventType())
                         .id(dto.id() == null ? null : dto.id().toString())
                         .data(dto)
                         .build());
@@ -45,5 +45,15 @@ public class NotificationController {
         notificationService.markRead(id);
         return ResponseEntity.noContent().build();
     }
-}
 
+    @GetMapping("/{userId}/unread-count")
+    public ResponseEntity<Long> unreadCount(@PathVariable UUID userId) {
+        return ResponseEntity.ok(notificationService.unreadCount(userId));
+    }
+
+    @PostMapping("/{userId}/read-all")
+    public ResponseEntity<Void> markAllRead(@PathVariable UUID userId) {
+        notificationService.markAllRead(userId);
+        return ResponseEntity.noContent().build();
+    }
+}

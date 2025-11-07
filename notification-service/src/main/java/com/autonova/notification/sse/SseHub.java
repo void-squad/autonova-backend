@@ -5,6 +5,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,7 +17,17 @@ public class SseHub {
         var sink = userSinks.computeIfAbsent(userId, id -> Sinks.many().multicast().onBackpressureBuffer(64, false));
         // Merge with heartbeat to keep connection alive
         Flux<NotificationDto> heartbeat = Flux.interval(Duration.ofSeconds(15))
-                .map(tick -> new NotificationDto(null, userId, "heartbeat", "heartbeat", "keepalive", null, true));
+                .map(tick -> new NotificationDto(
+                        null,
+                        userId,
+                        "heartbeat",
+                        "heartbeat",
+                        "Heartbeat",
+                        "keepalive",
+                        null,
+                        Instant.now(),
+                        true
+                ));
         return Flux.merge(sink.asFlux(), heartbeat);
     }
 
@@ -25,4 +36,3 @@ public class SseHub {
         sink.tryEmitNext(dto);
     }
 }
-
