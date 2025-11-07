@@ -1,6 +1,39 @@
 @ProjectService_HostAddress = http://localhost:8082
+@AuthToken = eyJhbGciOi...
+@ProjectId = 00000000-0000-0000-0000-000000000000
+@ChangeRequestId = 00000000-0000-0000-0000-000000000000
 
-GET {{ProjectService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Create Project
+POST {{ProjectService_HostAddress}}/api/projects
+Authorization: Bearer {{AuthToken}}
+Content-Type: application/json
+X-Idempotency-Key: {{$guid}}
 
-###
+{
+  "customerId": "{{$guid}}",
+  "title": "EV Fleet Modernization"
+}
+
+### Create Change Request
+POST {{ProjectService_HostAddress}}/api/projects/{{ProjectId}}/change-requests
+Authorization: Bearer {{AuthToken}}
+Content-Type: application/json
+X-Idempotency-Key: {{$guid}}
+
+{
+  "title": "Add mobile companion",
+  "description": "Client approved additional scope for the mobile app.",
+  "proposedPriceDelta": 12500,
+  "proposedExtraHours": 120,
+  "proposedNewDueDate": "{{today+30d}}"
+}
+
+### Approve Change Request
+POST {{ProjectService_HostAddress}}/api/change-requests/{{ChangeRequestId}}/approve
+Authorization: Bearer {{AuthToken}}
+Content-Type: application/json
+X-Idempotency-Key: {{$guid}}
+
+{
+  "rowVersion": 1
+}

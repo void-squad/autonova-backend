@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "project.updated",
+  "title": "project.change-request.applied",
   "type": "object",
   "properties": {
     "projectId": {"type": "string", "format": "uuid"},
     "quoteId": {"type": "string", "format": "uuid", "nullable": true},
-    "changeRequestId": {"type": "string", "format": "uuid", "nullable": true},
+    "changeRequestId": {"type": "string", "format": "uuid"},
     "fromStatus": {"type": "string", "nullable": true},
     "toStatus": {"type": "string", "nullable": true},
     "changedBy": {
@@ -25,8 +25,13 @@
     "deltas": {
       "type": "object",
       "nullable": true,
+      "properties": {
+        "proposedPriceDelta": {"type": "number", "nullable": true},
+        "proposedExtraHours": {"type": "integer", "nullable": true},
+        "proposedNewDueDate": {"type": "string", "format": "date", "nullable": true}
+      },
       "additionalProperties": true
     }
   },
-  "required": ["projectId", "changedBy", "occurredAt"]
+  "required": ["projectId", "changeRequestId", "changedBy", "occurredAt"]
 }

@@ -14,7 +14,10 @@ public class AppDbFactory : IDesignTimeDbContextFactory<AppDb>
 
         var cs = config.GetConnectionString("Postgres");
         var options = new DbContextOptionsBuilder<AppDb>()
-            .UseNpgsql(cs)
+            .UseNpgsql(cs, o =>
+            {
+                o.MigrationsHistoryTable("__EFMigrationsHistory", "project");
+            })
             .Options;
 
         return new AppDb(options);

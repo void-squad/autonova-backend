@@ -34,9 +34,15 @@ spring:
           predicates:
             - Path=/api/customers/**
         - id: project-service
-          uri: ${PROJECT_SERVICE_URL:http://localhost:8085}
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/projects/**
+        - id: project-change-requests
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/change-requests/**
+          filters:
+            - StripPrefix=1
 
 management:
   endpoints:
