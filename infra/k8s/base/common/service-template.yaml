@@ -1,0 +1,15 @@
+# Reusable ClusterIP service template
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-service
+  labels:
+    app: example-service
+spec:
+  type: ClusterIP
+  selector:
+    app: example-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
