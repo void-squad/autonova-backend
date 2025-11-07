@@ -98,7 +98,7 @@ services:
       context: ../auth-service
       dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
     ports:
-      - '8082:8081' # Map host 8082 to container 8081
+      - '8081:8081' # Map host 8082 to container 8081
     environment:
       # Database Configuration (using cloud Neon PostgreSQL)
       DB_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/user_management_db

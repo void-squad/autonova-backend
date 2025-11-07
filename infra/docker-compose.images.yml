@@ -91,7 +91,7 @@ services:
     container_name: autonova-auth-service
     image: jalinahirushan02/auth-service:${IMAGE_TAG:-latest}
     ports:
-      - '8082:8081' # Map host 8082 to container 8081
+      - '8081:8081'
     environment:
       # Database Configuration (using cloud Neon PostgreSQL)
       DB_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/user_management_db
