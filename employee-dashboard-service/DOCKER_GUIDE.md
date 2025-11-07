@@ -25,7 +25,7 @@ docker run -d \
   -e CUSTOMER_SERVICE_URL=http://customer-service:8081 \
   -e PROJECT_SERVICE_URL=http://project-service:8082 \
   -e PROGRESS_MONITORING_SERVICE_URL=http://progress-monitoring-service:8083 \
-  -e PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8085 \
+  -e PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8069 \
   -e SPRING_PROFILES_ACTIVE=docker \
   employee-dashboard-bff:latest
 ```
@@ -149,7 +149,7 @@ To integrate with the main `infra/docker-compose.yml`:
       - CUSTOMER_SERVICE_URL=http://customer-service:8081
       - PROJECT_SERVICE_URL=http://project-service:8082
       - PROGRESS_MONITORING_SERVICE_URL=http://progress-monitoring-service:8083
-      - PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8085
+      - PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8069
       - NOTIFICATION_SERVICE_URL=http://notification-service:8086
       - TIME_LOGGING_SERVICE_URL=http://time-logging-service:8087
       - APPOINTMENT_BOOKING_SERVICE_URL=http://appointment-booking-service:8088

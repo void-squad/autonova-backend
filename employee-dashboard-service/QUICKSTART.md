@@ -152,7 +152,7 @@ Simply update the client services to call real endpoints instead of returning mo
 | `CUSTOMER_SERVICE_URL` | No | http://localhost:8081 | Customer service endpoint |
 | `PROJECT_SERVICE_URL` | No | http://localhost:8082 | Project service endpoint |
 | `PROGRESS_MONITORING_SERVICE_URL` | No | http://localhost:8083 | Progress service endpoint |
-| `PAYMENTS_BILLING_SERVICE_URL` | No | http://localhost:8085 | Payments service endpoint |
+| `PAYMENTS_BILLING_SERVICE_URL` | No | http://localhost:8069 | Payments service endpoint |
 
 ## 🩺 Health Check
 
