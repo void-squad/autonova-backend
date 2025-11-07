@@ -170,13 +170,24 @@ public class TimeLogController {
     }
     
     /**
-     * Get all pending time logs for admin approval
+     * Get pending time logs for admin approval
      * GET /api/time-logs/pending
      */
     @GetMapping("/pending")
     public ResponseEntity<List<TimeLogResponse>> getPendingTimeLogs() {
         log.info("REST request to get all pending time logs");
         List<TimeLogResponse> response = timeLogService.getPendingTimeLogs();
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Get all time logs (admin only)
+     * GET /api/time-logs
+     */
+    @GetMapping
+    public ResponseEntity<List<TimeLogResponse>> getAllTimeLogs() {
+        log.info("REST request to get all time logs");
+        List<TimeLogResponse> response = timeLogService.getAllTimeLogs();
         return ResponseEntity.ok(response);
     }
     

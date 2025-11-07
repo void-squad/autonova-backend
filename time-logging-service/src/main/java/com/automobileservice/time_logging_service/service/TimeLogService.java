@@ -101,6 +101,12 @@ public interface TimeLogService {
     EfficiencyMetricsResponse getEfficiencyMetrics(String employeeId);
     
     /**
+     * Get all time logs (for admin)
+     * @return List of all time logs
+     */
+    List<TimeLogResponse> getAllTimeLogs();
+    
+    /**
      * Get all pending time logs (for admin approval)
      * @return List of pending time logs
      */

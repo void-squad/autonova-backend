@@ -450,6 +450,16 @@ public class TimeLogServiceImpl implements TimeLogService {
     
     @Override
     @Transactional(readOnly = true)
+    public List<TimeLogResponse> getAllTimeLogs() {
+        log.info("Getting all time logs");
+        List<TimeLog> allLogs = timeLogRepository.findAll();
+        return allLogs.stream()
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
     public List<TimeLogResponse> getPendingTimeLogs() {
         log.info("Getting all pending time logs");
         List<TimeLog> pendingLogs = timeLogRepository.findByApprovalStatusOrderByLoggedAtDesc("PENDING");
