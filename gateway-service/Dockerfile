@@ -20,10 +20,14 @@ COPY gateway-service/src ./src
 # Build the application
 RUN ./mvnw clean package -DskipTests
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-# Create non-root user
-RUN addgroup -S spring && adduser -S spring -G spring
+# Install runtime tools and add non-root user (compatible with Debian/Ubuntu base)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends wget \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system spring \
+  && useradd --system --gid spring --shell /sbin/nologin spring
 USER spring:spring
 # Copy JAR from build stage
 COPY --from=build /app/target/*.jar app.jar
