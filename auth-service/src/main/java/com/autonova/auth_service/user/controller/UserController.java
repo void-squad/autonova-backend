@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -64,14 +65,74 @@ public class UserController {
 
     /**
      * GET all users - Only ADMIN can view all users
+     * Supports optional query parameters for filtering:
+     * - search: Search in userName, email, contactOne
+     * - role: Filter by role (ADMIN, EMPLOYEE, CUSTOMER)
+     * - status: Filter by enabled status (active, inactive)
      */
     @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        List<UserResponse> users = userService.getAllUsers().stream()
+    public ResponseEntity<List<UserResponse>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
+        
+        List<User> users = userService.getAllUsers();
+        
+        // Apply filters
+        if (search != null && !search.trim().isEmpty()) {
+            String searchLower = search.toLowerCase();
+            users = users.stream()
+                    .filter(user -> 
+                        (user.getUserName() != null && user.getUserName().toLowerCase().contains(searchLower)) ||
+                        (user.getEmail() != null && user.getEmail().toLowerCase().contains(searchLower)) ||
+                        (user.getContactOne() != null && user.getContactOne().contains(searchLower))
+                    )
+                    .toList();
+        }
+        
+        if (role != null && !role.trim().isEmpty() && !role.equalsIgnoreCase("all")) {
+            try {
+                Role roleEnum = Role.valueOf(role.toUpperCase());
+                users = users.stream()
+                        .filter(user -> user.getRole() == roleEnum)
+                        .toList();
+            } catch (IllegalArgumentException e) {
+                // Invalid role, ignore filter
+            }
+        }
+        
+        if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("all")) {
+            boolean enabled = status.equalsIgnoreCase("active");
+            users = users.stream()
+                    .filter(user -> user.isEnabled() == enabled)
+                    .toList();
+        }
+        
+        List<UserResponse> userResponses = users.stream()
                 .map(UserMapper::toResponse)
                 .toList();
-        return ResponseEntity.ok(users);
+        
+        return ResponseEntity.ok(userResponses);
+    }
+
+    /**
+     * GET user statistics - Only ADMIN can view
+     * Returns counts for total users, active users, and users by role
+     */
+    @PreAuthorize(PermissionConstants.CAN_VIEW_ALL_USERS)
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> getUserStats() {
+        List<User> allUsers = userService.getAllUsers();
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalUsers", allUsers.size());
+        stats.put("activeUsers", allUsers.stream().filter(User::isEnabled).count());
+        stats.put("admins", allUsers.stream().filter(u -> u.getRole() == Role.ADMIN).count());
+        stats.put("employees", allUsers.stream().filter(u -> u.getRole() == Role.EMPLOYEE).count());
+        stats.put("customers", allUsers.stream().filter(u -> u.getRole() == Role.CUSTOMER).count());
+        
+        return ResponseEntity.ok(stats);
     }
 
     /**
@@ -208,6 +269,33 @@ public class UserController {
             
             Role newRole = Role.valueOf(roleStr.toUpperCase());
             User updatedUser = userService.updateUserRole(id, newRole);
+            return ResponseEntity.ok(UserMapper.toResponse(updatedUser));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * PATCH - Toggle user status (enable/disable) - ADMIN only
+     * This endpoint allows admins to enable or disable user accounts
+     */
+    @PreAuthorize(PermissionConstants.ADMIN_ONLY)
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> statusRequest) {
+        try {
+            Boolean enabled = statusRequest.get("enabled");
+            if (enabled == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse("Status (enabled) is required"));
+            }
+            
+            User user = userService.getUserById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
+            
+            user.setEnabled(enabled);
+            User updatedUser = userService.updateUser(id, user);
+            
             return ResponseEntity.ok(UserMapper.toResponse(updatedUser));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
