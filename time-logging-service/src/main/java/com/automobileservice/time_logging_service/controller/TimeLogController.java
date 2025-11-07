@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/time-logs")
@@ -165,6 +166,42 @@ public class TimeLogController {
     public ResponseEntity<EfficiencyMetricsResponse> getEfficiencyMetrics(@PathVariable String employeeId) {
         log.info("REST request to get efficiency metrics for employee: {}", employeeId);
         EfficiencyMetricsResponse response = timeLogService.getEfficiencyMetrics(employeeId);
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Get all pending time logs for admin approval
+     * GET /api/time-logs/pending
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<List<TimeLogResponse>> getPendingTimeLogs() {
+        log.info("REST request to get all pending time logs");
+        List<TimeLogResponse> response = timeLogService.getPendingTimeLogs();
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Approve a time log (admin only)
+     * PATCH /api/time-logs/{id}/approve
+     */
+    @PatchMapping("/{id}/approve")
+    public ResponseEntity<TimeLogResponse> approveTimeLog(@PathVariable String id) {
+        log.info("REST request to approve time log: {}", id);
+        TimeLogResponse response = timeLogService.approveTimeLog(id);
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Reject a time log (admin only)
+     * PATCH /api/time-logs/{id}/reject
+     */
+    @PatchMapping("/{id}/reject")
+    public ResponseEntity<TimeLogResponse> rejectTimeLog(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.getOrDefault("reason", "No reason provided") : "No reason provided";
+        log.info("REST request to reject time log: {} with reason: {}", id, reason);
+        TimeLogResponse response = timeLogService.rejectTimeLog(id, reason);
         return ResponseEntity.ok(response);
     }
 }
