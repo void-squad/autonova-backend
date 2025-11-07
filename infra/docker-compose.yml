@@ -203,7 +203,7 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081} # Auth internal port
       CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8087}
-      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8081} # Project internal port
+      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8082} # Project internal port
     ports:
       - '8080:8080'
     depends_on:
@@ -222,9 +222,9 @@ services:
       Rabbit__UserName: guest
       Rabbit__Password: guest
       Rabbit__Exchange: autonova.events
-      ASPNETCORE_URLS: http://+:8081
+      ASPNETCORE_URLS: http://+:8082
     ports:
-      - '8081:8081'
+      - '8082:8082'
     depends_on:
       - postgres-init
       - rabbitmq
