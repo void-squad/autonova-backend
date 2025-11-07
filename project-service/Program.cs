@@ -1,15 +1,22 @@
 using System.IO;
 using System.Linq;
+using System.Net.Mime;
+using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using ProjectService.Data;
 using ProjectService.Dtos;
+using ProjectService.HealthChecks;
 using ProjectService.Messaging;
 using ProjectService.Services;
+using ProjectService.Swagger;
 using ProjectService.Validators;
 
 LoadDotEnv();
@@ -26,6 +33,8 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Project Service API",
         Version = "v1"
     });
+    options.OperationFilter<RequestExampleOperationFilter>();
+    options.MapType<DateOnly>(() => new OpenApiSchema { Type = "string", Format = "date" });
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -62,7 +71,43 @@ builder.Services.AddDbContext<AppDb>(options =>
     });
 });
 
-builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient("healthchecks")
+    .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(5));
+
+var healthChecksBuilder = builder.Services.AddHealthChecks();
+healthChecksBuilder.AddCheck("postgres", () =>
+{
+    try
+    {
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
+        return HealthCheckResult.Healthy();
+    }
+    catch (Exception ex)
+    {
+        return HealthCheckResult.Unhealthy(ex.Message);
+    }
+}, tags: new[] { "ready" });
+
+var customersUrl = builder.Configuration["HealthChecks:CustomersUrl"];
+if (!string.IsNullOrWhiteSpace(customersUrl))
+{
+    healthChecksBuilder.Add(new HealthCheckRegistration(
+        "customers-api",
+        sp => new UrlHealthCheck(customersUrl!, sp.GetRequiredService<IHttpClientFactory>()),
+        HealthStatus.Degraded,
+        new[] { "ready" }));
+}
+
+var appointmentsUrl = builder.Configuration["HealthChecks:AppointmentsUrl"];
+if (!string.IsNullOrWhiteSpace(appointmentsUrl))
+{
+    healthChecksBuilder.Add(new HealthCheckRegistration(
+        "appointments-api",
+        sp => new UrlHealthCheck(appointmentsUrl!, sp.GetRequiredService<IHttpClientFactory>()),
+        HealthStatus.Degraded,
+        new[] { "ready" }));
+}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -88,6 +133,9 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy("Customer", policy =>
         policy.RequireRole("customer"));
+
+    options.AddPolicy("Manager", policy =>
+        policy.RequireRole("manager"));
 });
 
 builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
@@ -97,13 +145,12 @@ builder.Services.AddHostedService<OutboxDispatcher>();
 
 var app = builder.Build();
 
-// log that we are going to apply migrations
 app.Logger.LogInformation("Applying database migrations...");
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDb>();
-    db.Database.Migrate(); // applies all pending migrations
+    db.Database.Migrate();
 }
 
 app.Logger.LogInformation("Database migrations applied successfully.");
@@ -117,8 +164,43 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/healthz").AllowAnonymous();
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    Predicate = _ => false
+}).AllowAnonymous();
+
+app.MapHealthChecks("/readyz", new HealthCheckOptions
+{
+    Predicate = _ => true,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    },
+    ResponseWriter = WriteHealthReportAsync
+}).AllowAnonymous();
+
 app.Run();
+
+static async Task WriteHealthReportAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = MediaTypeNames.Application.Json;
+    var payload = new
+    {
+        status = report.Status.ToString(),
+        totalDuration = report.TotalDuration,
+        results = report.Entries.Select(entry => new
+        {
+            name = entry.Key,
+            status = entry.Value.Status.ToString(),
+            duration = entry.Value.Duration,
+            error = entry.Value.Exception?.Message
+        })
+    };
+
+    await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+}
 
 static void LoadDotEnv()
 {

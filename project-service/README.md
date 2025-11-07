@@ -27,6 +27,28 @@ dotnet ef database update
 dotnet run --urls=http://localhost:8082
 ```
 
+### Idempotent + Change Request endpoints
+
+All mutating endpoints accept the optional `X-Idempotency-Key` header (max 64 chars) and transparently handle retries. New change request surface area:
+
+- `POST /api/projects/{projectId}/change-requests`
+- `GET /api/projects/{projectId}/change-requests`
+- `GET /api/change-requests/{changeRequestId}`
+- `POST /api/change-requests/{changeRequestId}/approve`
+- `POST /api/change-requests/{changeRequestId}/reject`
+- `POST /api/change-requests/{changeRequestId}/apply`
+- `GET /api/projects/{projectId}/status-history`
+
+### Environment variables
+
+Key settings consumed by the service:
+
+- `ConnectionStrings__Postgres` – Neon connection string (required).
+- `Auth__Authority` / `Auth__ValidateAudience` – JWT authority configuration.
+- `Rabbit__{HostName,UserName,Password,Exchange,Enabled}` – RabbitMQ connection.
+- `HealthChecks__CustomersUrl`, `HealthChecks__AppointmentsUrl` – optional downstream readiness probes.
+- `Kestrel__Endpoints__Http__Url` – listening URL (defaults to `http://0.0.0.0:8082`).
+
 ## Full stack via Docker Compose
 
 ```bash
@@ -41,3 +63,4 @@ Visit:
 - Gateway (proxied): http://localhost:8080/api/projects/...
 - RabbitMQ UI: http://localhost:15672 (guest/guest)
 - Health: http://localhost:8082/healthz
+- Ready: http://localhost:8082/readyz

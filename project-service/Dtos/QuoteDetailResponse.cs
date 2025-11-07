@@ -10,4 +10,9 @@ public class QuoteDetailResponse
     public QuoteStatus Status { get; set; }
     public DateTimeOffset IssuedAt { get; set; }
     public DateTimeOffset? ApprovedAt { get; set; }
+    public DateTimeOffset? RejectedAt { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public Guid? RejectedBy { get; set; }
+    public string? ClientRequestId { get; set; }
+    public uint xmin { get; set; }
 }

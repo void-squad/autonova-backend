@@ -51,7 +51,9 @@ public class ProjectsController : ControllerBase
         try
         {
             var actorId = User.GetUserId();
-            var project = await _workflowService.CreateProjectAsync(request, actorId, cancellationToken);
+            var actorRole = User.GetPrimaryRole();
+            var clientRequestId = Request.GetIdempotencyKey();
+            var project = await _workflowService.CreateProjectAsync(request, actorId, actorRole, clientRequestId, cancellationToken);
             var full = await _workflowService.GetProjectAsync(project.ProjectId, cancellationToken) ?? project;
             var response = full.ToResponse();
             return CreatedAtAction(nameof(GetProjectById), new { id = response.ProjectId }, response);
@@ -104,7 +106,10 @@ public class ProjectsController : ControllerBase
 
         try
         {
-            var project = await _workflowService.UpdateStatusAsync(id, request.NewStatus, User.GetUserId(), cancellationToken);
+            var actorId = User.GetUserId();
+            var actorRole = User.GetPrimaryRole();
+            var clientRequestId = Request.GetIdempotencyKey();
+            var project = await _workflowService.UpdateStatusAsync(id, request.NewStatus, actorId, actorRole, clientRequestId, cancellationToken);
             var hydrated = await _workflowService.GetProjectAsync(project.ProjectId, cancellationToken) ?? project;
             return Ok(hydrated.ToResponse());
         }
@@ -112,5 +117,24 @@ public class ProjectsController : ControllerBase
         {
             return Problem(statusCode: ex.StatusCode, detail: ex.Message);
         }
+    }
+
+    [HttpGet("{id:guid}/status-history")]
+    [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<ProjectResponse.StatusHistoryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStatusHistory(Guid id, CancellationToken cancellationToken)
+    {
+        var history = await _workflowService.GetStatusHistoryAsync(id, cancellationToken);
+        var response = history.Select(h => new ProjectResponse.StatusHistoryResponse
+        {
+            Id = h.Id,
+            FromStatus = h.FromStatus,
+            ToStatus = h.ToStatus,
+            ChangedBy = h.ChangedBy,
+            ChangedAt = h.ChangedAt,
+            Note = h.Note
+        });
+
+        return Ok(response);
     }
 }
