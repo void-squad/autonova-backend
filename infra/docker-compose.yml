@@ -222,6 +222,7 @@ services:
       Rabbit__UserName: guest
       Rabbit__Password: guest
       Rabbit__Exchange: autonova.events
+      Eureka__Client__ServiceUrl: http://discovery-service:8761/eureka/
       ASPNETCORE_URLS: http://+:8082
     ports:
       - '8082:8082'
