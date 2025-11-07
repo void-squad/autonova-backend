@@ -1,0 +1,174 @@
+version: "3.9"
+services:
+  postgres-init:
+    image: postgres:17
+    environment:
+      PGHOST: ${POSTGRES_HOST}
+      PGPORT: ${POSTGRES_PORT}
+      PGDATABASE: ${PGDATABASE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
+      PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
+      EMPLOYEE_DASHBOARD_DB_PASSWORD: ${EMPLOYEE_DASHBOARD_DB_PASSWORD}
+      TIME_LOGGING_DB_PASSWORD: ${TIME_LOGGING_DB_PASSWORD}
+      USER_MANAGEMENT_DB_PASSWORD: ${USER_MANAGEMENT_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      VECTOR_DB_PASSWORD: ${VECTOR_DB_PASSWORD}
+    volumes:
+      - ./init-scripts:/scripts:ro
+    entrypoint: >
+      bash -c "
+        echo 'Waiting for PostgreSQL at $PGHOST:$PGPORT...';
+        until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do
+          sleep 2;
+        done;
+        bash /scripts/pgvector-init.sh;
+        bash /scripts/db-init.sh
+      "
+    restart: "no"
+
+  rabbitmq:
+    container_name: autonova-rabbitmq
+    image: rabbitmq:4.1.4-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      retries: 5
+    networks:
+      - autonova-network
+
+  discovery-service:
+    image: ghcr.io/void-squad/discovery-service:${IMAGE_TAG:-latest}
+    container_name: autonova-discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    networks:
+      - autonova-network
+
+  auth-service:
+    image: ghcr.io/void-squad/auth-service:${IMAGE_TAG:-latest}
+    container_name: autonova-auth-service
+    ports:
+      - "8082:8081"
+    environment:
+      DB_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/user_management_db
+      DB_USERNAME: auth_user
+      DB_PASSWORD: ${USER_MANAGEMENT_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_USERNAME: ${EMAIL_USERNAME}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8081
+    depends_on:
+      - postgres-init
+      - rabbitmq
+      - discovery-service
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - autonova-network
+
+  gateway-service:
+    image: ghcr.io/void-squad/gateway-service:${IMAGE_TAG:-latest}
+    container_name: autonova-gateway-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8083}
+      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8081}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-service
+    networks:
+      - autonova-network
+
+  project-service:
+    image: ghcr.io/void-squad/project-service:${IMAGE_TAG:-latest}
+    container_name: autonova-project-service
+    environment:
+      ConnectionStrings__Postgres: Host=${POSTGRES_HOST};Database=projects_db;Username=project_service;Password=${PROJECTS_DB_PASSWORD}
+      Auth__Authority: http://auth-service:8081
+      Rabbit__HostName: rabbitmq
+      Rabbit__UserName: guest
+      Rabbit__Password: guest
+      Rabbit__Exchange: autonova.events
+      ASPNETCORE_URLS: http://+:8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres-init
+      - rabbitmq
+      - auth-service
+      - discovery-service
+    networks:
+      - autonova-network
+
+  progress-monitoring:
+    image: ghcr.io/void-squad/progress-monitoring-service:${IMAGE_TAG:-latest}
+    container_name: autonova-progress-monitoring
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      APP_RABBIT_EXCHANGE: autonova.events
+      APP_RABBIT_QUEUE: progress.project.queue
+      APP_RABBIT_ROUTING_KEY: project.*
+      JAVA_OPTS: -Xms256m -Xmx512m
+    ports:
+      - "8086:8080"
+    depends_on:
+      - rabbitmq
+      - discovery-service
+    networks:
+      - autonova-network
+
+  notification-service:
+    image: ghcr.io/void-squad/notification-service:${IMAGE_TAG:-latest}
+    container_name: autonova-notification-service
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      APP_RABBIT_EXCHANGE: autonova.events
+      APP_RABBIT_QUEUE: notification.events.queue
+      APP_RABBIT_ROUTING_KEY: "#"
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_USER: notification_service
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+    ports:
+      - "8084:8084"
+    depends_on:
+      - rabbitmq
+      - postgres-init
+      - discovery-service
+    networks:
+      - autonova-network
+
+volumes:
+  postgres_data:
+    name: autonova_postgres_data
+
+networks:
+  autonova-network:
+    driver: bridge
