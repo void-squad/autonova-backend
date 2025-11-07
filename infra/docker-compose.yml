@@ -88,9 +88,9 @@ services:
     container_name: autonova-auth-service
     build:
       context: ../auth-service
-      dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
+      dockerfile: Dockerfile.prebuilt
     ports:
-      - "8082:8081" # Map host 8082 to container 8081
+      - "8081:8081" # Auth service on host 8081 -> container 8081
     environment:
       # Database Configuration (using cloud Neon PostgreSQL)
       DB_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/user_management_db
@@ -170,9 +170,9 @@ services:
       Rabbit__UserName: guest
       Rabbit__Password: guest
       Rabbit__Exchange: autonova.events
-      ASPNETCORE_URLS: http://+:8081
+      ASPNETCORE_URLS: http://+:8082
     ports:
-      - "8081:8081"
+      - "8082:8082"
     depends_on:
       - postgres-init
       - rabbitmq
@@ -193,7 +193,7 @@ services:
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - "8086:8080" # Used 8086 from dev, mapping to container 8080
+      - "8086:8086" # Used 8086 from dev, mapping to container 8080
     depends_on:
       - rabbitmq
       - discovery-service # Added dependency on discovery service
@@ -218,7 +218,7 @@ services:
       # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
       DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
-      - "8084:8084"
+      - "8085:8085"
     depends_on:
       - rabbitmq
       - postgres-init
