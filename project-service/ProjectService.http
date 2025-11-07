@@ -37,3 +37,11 @@ X-Idempotency-Key: {{$guid}}
 {
   "rowVersion": 1
 }
+
+### Projects By Assignee
+GET {{ProjectService_HostAddress}}/api/projects?assigneeId={{ProjectId}}&includeTasks=true&page=1&pageSize=10
+Authorization: Bearer {{AuthToken}}
+
+### Tasks By Assignee
+GET {{ProjectService_HostAddress}}/api/tasks?assigneeId={{ProjectId}}&status=InProgress&page=1&pageSize=25
+Authorization: Bearer {{AuthToken}}

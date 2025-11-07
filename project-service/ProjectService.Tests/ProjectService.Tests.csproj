@@ -21,4 +21,22 @@
   <ItemGroup>
     <ProjectReference Include="..\ProjectService.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\appsettings.json" Link="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <Target Name="CopyProjectServiceArtifacts" AfterTargets="Build">
+    <PropertyGroup>
+      <ProjectServiceOutputDir>..\bin\$(Configuration)\net8.0\</ProjectServiceOutputDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_Artifacts Include="$(ProjectServiceOutputDir)ProjectService.runtimeconfig.json" />
+      <_Artifacts Include="$(ProjectServiceOutputDir)ProjectService.deps.json" />
+      <ExistingArtifacts Include="@(_Artifacts)" Condition="Exists('%(Identity)')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ExistingArtifacts)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -18,6 +18,7 @@ using ProjectService.Messaging;
 using ProjectService.Services;
 using ProjectService.Swagger;
 using ProjectService.Validators;
+using Steeltoe.Discovery.Eureka;
 
 LoadDotEnv();
 
@@ -142,6 +143,7 @@ builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabb
 builder.Services.AddScoped<IProjectWorkflowService, ProjectWorkflowService>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectRequestValidator>();
 builder.Services.AddHostedService<OutboxDispatcher>();
+builder.Services.AddEurekaDiscoveryClient();
 
 var app = builder.Build();
 

@@ -41,8 +41,22 @@ spring:
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/change-requests/**
+        - id: employee-dashboard-service
+          uri: ${EMPLOYEE_DASHBOARD_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/employee-dashboard/**
           filters:
             - StripPrefix=1
+        - id: project-tasks
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/tasks/**
+          filters:
+            - StripPrefix=1
+        - id: payments-billing-service
+          uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
+          predicates:
+            - Path=/api/invoices/**,/webhooks/stripe/**
 
 management:
   endpoints:
