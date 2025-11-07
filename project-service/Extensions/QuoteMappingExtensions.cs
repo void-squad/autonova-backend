@@ -12,6 +12,11 @@ public static class QuoteMappingExtensions
         Total = quote.Total,
         Status = quote.Status,
         IssuedAt = quote.IssuedAt,
-        ApprovedAt = quote.ApprovedAt
+        ApprovedAt = quote.ApprovedAt,
+        RejectedAt = quote.RejectedAt,
+        ApprovedBy = quote.ApprovedBy,
+        RejectedBy = quote.RejectedBy,
+        ClientRequestId = quote.ClientRequestId,
+        xmin = quote.xmin
     };
 }

@@ -201,7 +201,7 @@ Once running, access services at:
 | Auth Service API | http://localhost:8082 | - |
 | Health Check | http://localhost:8082/actuator/health | - |
 | RabbitMQ Management | http://localhost:15672 | guest / guest |
-| Project Service | http://localhost:8081 | - |
+| Project Service | http://localhost:8082 | - |
 
 ---
 

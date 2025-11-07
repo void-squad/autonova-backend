@@ -3,7 +3,7 @@ info:
   title: Project Service API
   version: "1.0.0"
 servers:
-  - url: http://localhost:8081
+  - url: http://localhost:8082
     description: Local Project Service
 security:
   - bearerAuth: []
@@ -13,12 +13,17 @@ paths:
       summary: Create a project
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateProjectRequest'
+            example:
+              customerId: 11111111-2222-3333-4444-555555555555
+              title: EV Fleet Modernization
       responses:
         '201':
           description: Project created
@@ -38,15 +43,41 @@ paths:
           schema:
             type: string
             format: uuid
+        - in: query
+          name: assigneeId
+          schema:
+            type: string
+            format: uuid
+          description: When set, returns only projects with tasks assigned to the specified employee.
+        - in: query
+          name: includeTasks
+          schema:
+            type: boolean
+          description: When true and assigneeId is provided, includes only that employee's tasks in the response.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
       responses:
         '200':
           description: Projects collection
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProjectResponse'
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectResponse'
+                  - $ref: '#/components/schemas/ProjectListResponse'
   /api/projects/{projectId}:
     get:
       summary: Get project by id
@@ -64,6 +95,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectResponse'
+        '404':
+          description: Not found
   /api/projects/{projectId}/status:
     patch:
       summary: Update project status
@@ -74,6 +107,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -87,6 +121,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectResponse'
+        '409':
+          description: Invalid status transition
+  /api/projects/{projectId}/status-history:
+    get:
+      summary: Get status history for a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status history entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusHistoryResponse'
   /api/projects/{projectId}/quotes:
     post:
       summary: Create project quote
@@ -97,6 +152,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -120,6 +176,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Approved quote
@@ -127,6 +184,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuoteDetailResponse'
+        '409':
+          description: Conflict
   /api/quotes/{quoteId}/reject:
     post:
       summary: Reject a quote
@@ -137,6 +196,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Rejected quote
@@ -144,7 +204,214 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuoteDetailResponse'
+        '409':
+          description: Conflict
+  /api/projects/{projectId}/change-requests:
+    post:
+      summary: Create change request
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChangeRequestRequest'
+            example:
+              title: Extend scope for mobile app
+              description: Add native capabilities requested by the client.
+              proposedPriceDelta: 12500
+              proposedExtraHours: 120
+              proposedNewDueDate: 2025-02-01
+      responses:
+        '201':
+          description: Change request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+    get:
+      summary: List change requests for a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Change requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChangeRequestResponse'
+  /api/change-requests/{changeRequestId}:
+    get:
+      summary: Get change request
+      parameters:
+        - in: path
+          name: changeRequestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Change request details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '404':
+          description: Not found
+  /api/change-requests/{changeRequestId}/approve:
+    post:
+      summary: Approve change request
+      parameters:
+        - in: path
+          name: changeRequestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRequestDecisionRequest'
+            example:
+              rowVersion: 1
+      responses:
+        '200':
+          description: Approved change request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '409':
+          description: Concurrency conflict
+  /api/change-requests/{changeRequestId}/reject:
+    post:
+      summary: Reject change request
+      parameters:
+        - in: path
+          name: changeRequestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRequestDecisionRequest'
+      responses:
+        '200':
+          description: Rejected change request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '409':
+          description: Concurrency conflict
+  /api/change-requests/{changeRequestId}/apply:
+    post:
+      summary: Apply change request
+      parameters:
+        - in: path
+          name: changeRequestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRequestDecisionRequest'
+      responses:
+        '200':
+          description: Applied change request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '409':
+          description: Concurrency conflict
+  /api/tasks:
+    get:
+      summary: List tasks assigned to an employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: assigneeId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: projectId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: includeProject
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Paged list of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '400':
+          description: Bad request
+        '403':
+          description: Forbidden
 components:
+  parameters:
+    IdempotencyKey:
+      name: X-Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 64
+      description: Optional idempotency key for safely retrying requests.
   securitySchemes:
     bearerAuth:
       type: http
@@ -179,6 +446,33 @@ components:
           type: number
           format: decimal
           minimum: 0.01
+    CreateChangeRequestRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 4000
+        proposedPriceDelta:
+          type: number
+          format: decimal
+        proposedExtraHours:
+          type: integer
+        proposedNewDueDate:
+          type: string
+          format: date
+    ChangeRequestDecisionRequest:
+      type: object
+      required:
+        - rowVersion
+      properties:
+        rowVersion:
+          type: integer
+          format: int64
     ProjectResponse:
       type: object
       required:
@@ -208,6 +502,13 @@ components:
         updatedAt:
           type: string
           format: date-time
+        budget:
+          type: number
+          format: decimal
+        dueDate:
+          type: string
+          format: date
+          nullable: true
         tasks:
           type: array
           items:
@@ -263,6 +564,9 @@ components:
         changedAt:
           type: string
           format: date-time
+        note:
+          type: string
+          nullable: true
     QuoteDetailResponse:
       type: object
       required:
@@ -290,6 +594,149 @@ components:
           type: string
           format: date-time
           nullable: true
+        rejectedAt:
+          type: string
+          format: date-time
+          nullable: true
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        rejectedBy:
+          type: string
+          format: uuid
+          nullable: true
+        clientRequestId:
+          type: string
+          nullable: true
+        xmin:
+          type: integer
+          format: int64
+    ChangeRequestResponse:
+      type: object
+      required:
+        - changeRequestId
+        - projectId
+        - title
+        - status
+        - createdBy
+        - createdAt
+      properties:
+        changeRequestId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        proposedPriceDelta:
+          type: number
+          format: decimal
+          nullable: true
+        proposedExtraHours:
+          type: integer
+          nullable: true
+        proposedNewDueDate:
+          type: string
+          format: date
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ChangeRequestStatus'
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        decidedBy:
+          type: string
+          format: uuid
+          nullable: true
+        decidedAt:
+          type: string
+          format: date-time
+          nullable: true
+        clientRequestId:
+          type: string
+          nullable: true
+        xmin:
+          type: integer
+          format: int64
+    ProjectListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResponse'
+    TaskListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+    TaskResponse:
+      type: object
+      required:
+        - taskId
+        - projectId
+        - title
+        - status
+        - estimateHours
+        - createdAt
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+        estimateHours:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        project:
+          $ref: '#/components/schemas/TaskProjectSummary'
+    TaskProjectSummary:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
     ProjectStatus:
       type: string
       enum:
@@ -305,3 +752,11 @@ components:
         - Draft
         - Approved
         - Rejected
+    ChangeRequestStatus:
+      type: string
+      enum:
+        - Submitted
+        - Quoted
+        - Approved
+        - Rejected
+        - Applied

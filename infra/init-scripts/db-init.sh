@@ -40,6 +40,7 @@ SERVICES=(
     "vector_db:chatbot_service:VECTOR_DB_PASSWORD"
     "notifications_db:notification_service:NOTIFICATION_DB_PASSWORD"
     "user_management_db:user_management_service:USER_MANAGEMENT_DB_PASSWORD"
+    "payments_billing_db:payments_billing_service:PBS_DB_PASSWORD"
 
     # Add dbs for serivices as needed
 )

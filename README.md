@@ -31,7 +31,7 @@ This repository contains the backend microservices for the Autonova project (Jav
 
    This will build the local services and start RabbitMQ (Postgres lives in Neon). Services and ports:
    - gateway-service: 8080
-   - project-service: 8081
+   - project-service: 8082
    - auth-service: 8082
    - RabbitMQ management: 15672
 
@@ -62,7 +62,7 @@ Run services locally (without Docker)
   cd project-service
   dotnet restore
   dotnet build
-  dotnet run --urls "http://localhost:8081"
+  dotnet run --urls "http://localhost:8082"
 
 ### 3. Configure Neon database access
 
