@@ -137,7 +137,7 @@ Docker Compose will automatically load variables from `.env` file.
 ### **Image Layers**
 
 ```
-Base: eclipse-temurin:17-jre-alpine (~150MB)
+Base: eclipse-temurin:17-jre-jammy (~150MB)
 ├── dumb-init (~20KB)
 ├── Non-root user setup
 ├── Application JAR (~50MB)

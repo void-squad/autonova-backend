@@ -2,14 +2,16 @@
 # Use this when you build the JAR locally first: mvn clean package -DskipTests
 # This approach is much faster and produces smaller images
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init wget
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init wget && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S spring && \
-    adduser -u 1001 -S spring -G spring
+RUN groupadd -g 1001 spring && \
+    useradd -u 1001 -g spring -s /usr/sbin/nologin -d /nonexistent spring
 
 # Set working directory
 WORKDIR /app
