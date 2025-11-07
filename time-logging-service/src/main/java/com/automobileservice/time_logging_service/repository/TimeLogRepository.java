@@ -13,6 +13,9 @@ import java.util.List;
 @Repository
 public interface TimeLogRepository extends JpaRepository<TimeLog, String> {
     
+    // Find all time logs ordered by most recent
+    List<TimeLog> findAllByOrderByLoggedAtDesc();
+    
     // Find all time logs for a specific employee, ordered by most recent
     List<TimeLog> findByEmployeeUserIdOrderByLoggedAtDesc(String employeeId);
     

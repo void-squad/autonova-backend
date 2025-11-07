@@ -452,7 +452,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     @Transactional(readOnly = true)
     public List<TimeLogResponse> getAllTimeLogs() {
         log.info("Getting all time logs");
-        List<TimeLog> allLogs = timeLogRepository.findAll();
+        List<TimeLog> allLogs = timeLogRepository.findAllByOrderByLoggedAtDesc();
         return allLogs.stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
