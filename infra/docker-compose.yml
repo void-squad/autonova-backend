@@ -47,16 +47,16 @@ services:
         echo 'Starting database initialization via db-init.sh';
         bash /scripts/db-init.sh
       "
-    restart: 'no'
+    restart: "no"
 
   rabbitmq:
     container_name: autonova-rabbitmq
     image: rabbitmq:4.1.4-management
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
-      test: ['CMD', 'rabbitmqctl', 'status']
+      test: ["CMD", "rabbitmqctl", "status"]
       interval: 5s
       retries: 5
     networks:
@@ -72,18 +72,18 @@ services:
       context: ..
       dockerfile: discovery-service/Dockerfile
     ports:
-      - '8761:8761'
+      - "8761:8761"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8761/actuator/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8761/actuator/health",
         ]
       interval: 30s
       timeout: 3s
@@ -95,10 +95,10 @@ services:
   auth-service:
     container_name: autonova-auth-service
     build:
-      context: ../auth-service
-      dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
+      context: ..
+      dockerfile: auth-service/Dockerfile
     ports:
-      - '8082:8081' # Map host 8082 to container 8081
+      - "8082:8081" # Map host 8082 to container 8081
     environment:
       # Database Configuration (using cloud Neon PostgreSQL)
       DB_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/user_management_db
@@ -131,12 +131,12 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8081/actuator/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8081/actuator/health",
         ]
       interval: 30s
       timeout: 10s
@@ -152,10 +152,10 @@ services:
       context: ..
       dockerfile: customer-service/Dockerfile
     ports:
-      - '8087:8087'
+      - "8087:8087"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      CUSTOMER_SERVICE_DB_URL: '${CUSTOMER_SERVICE_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/customer_service}'
+      CUSTOMER_SERVICE_DB_URL: "${CUSTOMER_SERVICE_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/customer_service}"
       CUSTOMER_SERVICE_DB_USERNAME: ${CUSTOMER_SERVICE_DB_USERNAME:-customer_service}
       CUSTOMER_SERVICE_DB_PASSWORD: ${CUSTOMER_SERVICE_DB_PASSWORD:-customer_service}
       CUSTOMER_SERVICE_PORT: 8087
@@ -163,7 +163,7 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      EUREKA_SERVER_URL: '${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}'
+      EUREKA_SERVER_URL: "${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}"
       CUSTOMER_EVENTS_EXCHANGE: ${CUSTOMER_EVENTS_EXCHANGE:-customer.events}
       AUTH_EVENTS_EXCHANGE: ${AUTH_EVENTS_EXCHANGE:-auth.events}
       AUTH_EVENTS_LOGIN_QUEUE: ${AUTH_EVENTS_LOGIN_QUEUE:-customer-service.auth.user-login}
@@ -176,12 +176,12 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8087/actuator/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8087/actuator/health",
         ]
       interval: 30s
       timeout: 10s
@@ -205,7 +205,7 @@ services:
       CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8087}
       PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8081} # Project internal port
     ports:
-      - '8080:8080'
+      - "8080:8080"
     depends_on:
       - discovery-service
     networks:
@@ -224,7 +224,7 @@ services:
       Rabbit__Exchange: autonova.events
       ASPNETCORE_URLS: http://+:8081
     ports:
-      - '8081:8081'
+      - "8081:8081"
     depends_on:
       - postgres-init
       - rabbitmq
@@ -245,7 +245,7 @@ services:
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - '8086:8080' # Used 8086 from dev, mapping to container 8080
+      - "8086:8080" # Used 8086 from dev, mapping to container 8080
     depends_on:
       - rabbitmq
       - discovery-service # Added dependency on discovery service
@@ -262,7 +262,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       APP_RABBIT_EXCHANGE: autonova.events
       APP_RABBIT_QUEUE: notification.events.queue
-      APP_RABBIT_ROUTING_KEY: '#'
+      APP_RABBIT_ROUTING_KEY: "#"
       DB_HOST: ${POSTGRES_HOST}
       DB_PORT: ${POSTGRES_PORT}
       DB_USER: notification_service
@@ -270,11 +270,50 @@ services:
       # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
       DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
-      - '8084:8084'
+      - "8084:8084"
     depends_on:
       - rabbitmq
       - postgres-init
       - discovery-service # Added dependency on discovery service
+    networks:
+      - autonova-network
+
+  # --- Employee Dashboard Service ---
+  employee-dashboard-service:
+    container_name: autonova-employee-dashboard-service
+    build:
+      context: ..
+      dockerfile: employee-dashboard-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_NAME: employee_dashboard_db
+      DB_USERNAME: employee_dashboard_user
+      DB_PASSWORD: ${EMPLOYEE_DASHBOARD_DB_PASSWORD}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      SERVER_PORT: 8084
+      EUREKA_SERVER_URL: "${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}"
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8085:8084"
+    depends_on:
+      - postgres-init
+      - discovery-service
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8084/actuator/health",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
     networks:
       - autonova-network
 

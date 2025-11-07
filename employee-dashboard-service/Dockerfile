@@ -2,14 +2,19 @@
 
 # Stage 1: Build
 FROM maven:3.9-eclipse-temurin-17 AS build
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy pom.xml and download dependencies
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
+# Copy parent pom so the module's relativePath resolves
+COPY pom.xml /pom.xml
+
+# Copy service pom
+COPY employee-dashboard-service/pom.xml pom.xml
+
+# Download dependencies (best effort)
+RUN mvn dependency:go-offline -B || true
 
 # Copy source code and build
-COPY src ./src
+COPY employee-dashboard-service/src ./src
 RUN mvn clean package -DskipTests
 
 # Stage 2: Runtime
@@ -21,7 +26,7 @@ RUN groupadd -r spring && useradd -r -g spring spring
 USER spring:spring
 
 # Copy JAR from build stage
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /workspace/target/*.jar app.jar
 
 # Expose port
 EXPOSE 8084
