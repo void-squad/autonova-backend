@@ -95,8 +95,12 @@ services:
   auth-service:
     container_name: autonova-auth-service
     build:
-      context: ../auth-service
-      dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
+#      context: ../auth-service
+#      dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
+#      dockerfile: Dockerfile
+
+      context: ..  # This points to project root (one level up from infra/)
+      dockerfile: auth-service/Dockerfile
     ports:
       - '8081:8081' # Map host 8082 to container 8081
     environment:
