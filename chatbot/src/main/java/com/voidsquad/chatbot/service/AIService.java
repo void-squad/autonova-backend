@@ -42,6 +42,11 @@ public class AIService {
         }
     }
 
+    public String requestHandler(String userPrompt){
+
+        return "";
+    }
+
 
 //    public void send(String message) {
 //        rabbitTemplate.convertAndSend(

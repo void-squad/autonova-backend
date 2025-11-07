@@ -24,14 +24,12 @@ public class ChatbotController {
     private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
     private final SimpMessagingTemplate messaging;
     private final AIService aiService;
-    private final WorkflowStepRepository workflowStepRepository;
     private final WorkflowStepService workflowStepService;
+
 
     public ChatbotController(SimpMessagingTemplate messaging, AIService aiService, WorkflowStepRepository workflowStepRepository, EmbeddingService embeddingService, WorkflowStepService workflowStepService){
         this.aiService = aiService;
         this.messaging = messaging;
-        this.workflowStepRepository = workflowStepRepository;
-        this.embeddingService = embeddingService;
         this.workflowStepService = workflowStepService;
     }
 
@@ -83,16 +81,27 @@ public class ChatbotController {
         return "msg sent";
     }
 
-    private final EmbeddingService embeddingService;
+    @GetMapping("/v1/workflowSteps")
+    public Iterable<WorkflowStep> getAllWorkflowSteps(
+            @Param("keyword") String keyword
+    ) {
+        return workflowStepService.findSimilarSteps(keyword,10);
+    }
 
-    @GetMapping("/v1/test")
-    public String test(){
+
+    @PostMapping("/v1/workflowStep")
+    public String test(
+            @RequestParam("WorkflowName") String workflowName,
+            @RequestParam("WorkflowDescription") String workflowDescription
+                       ) {
+        log.info("Creating workflow step: " + workflowName);
+        log.info("Description: " + workflowDescription);
         WorkflowStep workflowStep = new WorkflowStep();
-        workflowStep.setName("test");
-        workflowStep.setDescription("this is a test workflow");
-        workflowStep.setEmbedding(embeddingService.generateEmbedding("test"+"this is a test workflow"));
+        workflowStep.setName(workflowName);
+        workflowStep.setDescription(workflowDescription);
         workflowStepService.saveWorkflowStep(workflowStep);
-        return "test ok";
+        log.info("Workflow step saved with ID: " + workflowStep.getId());
+        return "Saved";
     }
 
 }

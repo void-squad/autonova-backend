@@ -7,6 +7,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -53,5 +54,14 @@ public class WorkflowStepService {
         step.setEmbedding(embedding); // 384-dimensional vector from all-minilm
 
         return workflowStepRepository.save(step);
+    }
+
+    public List<WorkflowStep> findSimilarSteps(float[] embedding, int limit) {
+        return workflowStepRepository.findSimilarSteps(embedding, limit);
+    }
+
+    public List<WorkflowStep> findSimilarSteps(String text, int limit) {
+        float[] embedding = embeddingService.generateEmbedding(text);
+        return findSimilarSteps(embedding, limit);
     }
 }
