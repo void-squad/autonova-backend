@@ -41,6 +41,10 @@ spring:
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/change-requests/**
+        - id: employee-dashboard-service
+          uri: ${EMPLOYEE_DASHBOARD_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/employee-dashboard/**
           filters:
             - StripPrefix=1
 
