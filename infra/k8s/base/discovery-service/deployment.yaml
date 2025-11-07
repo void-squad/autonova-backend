@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-service
+  labels:
+    app: discovery-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: discovery-service
+  template:
+    metadata:
+      labels:
+        app: discovery-service
+    spec:
+      containers:
+        - name: discovery-service
+          image: jalinahirushan02/discovery-service:dev-latest
+          ports:
+            - containerPort: 8761
+          envFrom:
+            - secretRef:
+                name: autonova-env
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"

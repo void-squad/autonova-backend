@@ -1,0 +1,39 @@
+# Reusable deployment template for microservices
+# Copy and adapt this when creating new deployments.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-service
+  labels:
+    app: example-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: example-service
+  template:
+    metadata:
+      labels:
+        app: example-service
+    spec:
+      containers:
+        - name: example-service
+          image: jalinahirushan02/example-service:dev-latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: autonova-env
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
