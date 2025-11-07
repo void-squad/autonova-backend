@@ -3,8 +3,8 @@ name: Build and push changed services
 on:
   push:
     branches: [main, dev, ci-cd-test]
-  pull_request:
-    branches: [main, dev, ci-cd-test]
+#  pull_request:
+#    branches: [main, dev, ci-cd-test]
 
 permissions:
   contents: read
