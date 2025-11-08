@@ -4,17 +4,20 @@ import com.autonova.progressmonitoring.dto.CreateStatusRequest;
 import com.autonova.progressmonitoring.dto.ProjectMessageDto;
 import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import com.autonova.progressmonitoring.service.ProjectMessageService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Slice;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,7 +26,6 @@ import java.util.UUID;
 public class ProjectMessageController {
 
     private static final Logger log = LoggerFactory.getLogger(ProjectMessageController.class);
-
     private final ProjectMessageService service;
     private final EventPublisher publisher;
 
@@ -35,47 +37,104 @@ public class ProjectMessageController {
     @GetMapping("/{projectId}/messages")
     public ResponseEntity<List<ProjectMessageDto>> getMessages(@PathVariable String projectId) {
         UUID id;
-        try {
-            id = UUID.fromString(projectId);
-        } catch (IllegalArgumentException ex) {
-            log.warn("Invalid projectId UUID: {}", projectId);
-            return ResponseEntity.badRequest().build();
-        }
-
+        try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
         List<ProjectMessageDto> messages = service.getMessagesForProjectDto(id);
         return ResponseEntity.ok(messages);
+    }
+
+    // New paginated timeline endpoint (page index, size) newest first
+    @GetMapping("/{projectId}/messages/page")
+    public ResponseEntity<Slice<ProjectMessageDto>> getMessagesPage(@PathVariable String projectId,
+                                                                    @RequestParam(defaultValue = "0") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        UUID id;
+        try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
+        Slice<ProjectMessageDto> slice = service.getMessagesPage(id, page, size);
+        return ResponseEntity.ok(slice);
+    }
+
+    // Cursor-style: older than createdAt timestamp
+    @GetMapping("/{projectId}/messages/before")
+    public ResponseEntity<Slice<ProjectMessageDto>> getMessagesBefore(@PathVariable String projectId,
+                                                                      @RequestParam OffsetDateTime before,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        UUID id;
+        try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
+        Slice<ProjectMessageDto> slice = service.getMessagesBefore(id, before, size);
+        return ResponseEntity.ok(slice);
+    }
+
+    // Cursor-style: newer than createdAt timestamp (ascending order)
+    @GetMapping("/{projectId}/messages/after")
+    public ResponseEntity<Slice<ProjectMessageDto>> getMessagesAfter(@PathVariable String projectId,
+                                                                     @RequestParam OffsetDateTime after,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        UUID id;
+        try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
+        Slice<ProjectMessageDto> slice = service.getMessagesAfter(id, after, size);
+        return ResponseEntity.ok(slice);
     }
 
     @PostMapping("/{projectId}/messages")
     public ResponseEntity<ProjectMessageDto> postStatusMessage(@PathVariable String projectId,
                                                                @RequestBody CreateStatusRequest request) {
         UUID id;
-        try {
-            id = UUID.fromString(projectId);
-        } catch (IllegalArgumentException ex) {
-            log.warn("Invalid projectId UUID: {}", projectId);
-            return ResponseEntity.badRequest().build();
-        }
+        try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
+        if (request.getMessage() == null || request.getMessage().isBlank()) { return ResponseEntity.badRequest().build(); }
 
-        if (request.getMessage() == null || request.getMessage().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
+        ProjectMessageDto saved = service.saveMessage(ProjectMessageDto.builder()
+                .projectId(id)
+                .category(request.getCategory())
+                .message(request.getMessage())
+                .payload(request.getPayload())
+                .occurredAt(request.getOccurredAt())
+                .attachmentUrl(request.getAttachmentUrl())
+                .attachmentContentType(request.getAttachmentContentType())
+                .attachmentFilename(request.getAttachmentFilename())
+                .attachmentSize(request.getAttachmentSize())
+                .build());
 
-        ProjectMessageDto saved = service.saveMessage(id,
-                request.getCategory(),
-                request.getMessage(),
-                request.getPayload(),
-                request.getOccurredAt());
-
-        try {
-            // notify subscribers about the human-friendly status update
-            publisher.publishMessageToProject(projectId, saved.getMessage());
-        } catch (Exception ex) {
-            // don't fail the request if publishing fails; log and return created
-            log.warn("Failed to publish status message for project {}", projectId, ex);
-        }
-
+        try { publisher.publishMessageToProject(projectId, saved.getMessage()); } catch (Exception ex) { log.warn("Failed to publish status message for project {}", projectId, ex); }
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
-}
 
+    // Multipart upload endpoint for manual progress image
+    @PostMapping(value = "/{projectId}/messages/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProjectMessageDto> uploadAndCreateMessage(@PathVariable String projectId,
+                                                                    @RequestPart("file") MultipartFile file,
+                                                                    @RequestPart("message") String message,
+                                                                    @RequestPart(value = "category", required = false) String category) {
+        UUID id;
+        try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
+        if (file.isEmpty()) return ResponseEntity.badRequest().build();
+        if (message == null || message.isBlank()) return ResponseEntity.badRequest().build();
+
+        // Store file locally (could be swapped for S3, etc.)
+        try {
+            Path storageDir = Path.of("uploads");
+            Files.createDirectories(storageDir);
+            String sanitized = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            Path target = storageDir.resolve(sanitized);
+            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+            String url = "/uploads/" + sanitized; // would need static resource mapping in real deployment
+
+            ProjectMessageDto saved = service.saveMessage(ProjectMessageDto.builder()
+                    .projectId(id)
+                    .category(category)
+                    .message(message)
+                    .payload(null)
+                    .occurredAt(OffsetDateTime.now())
+                    .attachmentUrl(url)
+                    .attachmentContentType(file.getContentType())
+                    .attachmentFilename(file.getOriginalFilename())
+                    .attachmentSize(file.getSize())
+                    .build());
+
+            try { publisher.publishMessageToProject(projectId, saved.getMessage()); } catch (Exception ex) { log.warn("Failed to publish status message for project {}", projectId, ex); }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (IOException e) {
+            log.error("File upload failed", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+}
