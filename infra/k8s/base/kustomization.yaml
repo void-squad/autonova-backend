@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: autonova
+
+resources:
+  - namespace.yaml
+
+  # Common templates (kept for reference / reuse)
+  - common/deployment-template.yaml
+  - common/service-template.yaml
+
+  # Core infra
+  - postgres/init-scripts-configmap.yaml
+  - postgres/postgres-init-job.yaml
+
+  - rabbitmq/rabbitmq-deployment.yaml
+  - rabbitmq/rabbitmq-service.yaml
+
+  # Application services
+  - discovery-service/deployment.yaml
+  - discovery-service/service.yaml
+
+  - auth-service/deployment.yaml
+  - auth-service/service.yaml
+
+  - customer-service/deployment.yaml
+  - customer-service/service.yaml
+
+  - gateway-service/deployment.yaml
+  - gateway-service/service.yaml
+
+  - project-service/deployment.yaml
+  - project-service/service.yaml
+
+  - progress-monitoring-service/deployment.yaml
+  - progress-monitoring-service/service.yaml
+
+  - notification-service/deployment.yaml
+  - notification-service/service.yaml
+
+  - payments-billing-service/deployment.yaml
+  - payments-billing-service/service.yaml
+
+  # Frontend (from docker-compose.dev.images.yml)
+  - frontend/web-deployment.yaml
+  - frontend/web-service.yaml
+
+images:
+  # Image tags will be overridden in overlays/dev
+  - name: jalinahirushan02/auth-service
+    newTag: dev-latest
+  - name: jalinahirushan02/customer-service
+    newTag: dev-latest
+  - name: jalinahirushan02/gateway-service
+    newTag: dev-latest
+  - name: jalinahirushan02/discovery-service
+    newTag: dev-latest
+  - name: jalinahirushan02/project-service
+    newTag: dev-latest
+  - name: jalinahirushan02/progress-monitoring-service
+    newTag: dev-latest
+  - name: jalinahirushan02/notification-service
+    newTag: dev-latest
+  - name: jalinahirushan02/payments-billing-service
+    newTag: dev-latest
+  - name: sachinthalk/autonova-frontend-v1
+    newTag: dev-latest
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize

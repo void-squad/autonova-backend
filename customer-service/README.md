@@ -38,7 +38,7 @@ The service reads configuration primarily from `src/main/resources/application.y
 | `CUSTOMER_SERVICE_DB_URL`      | JDBC URL for PostgreSQL     | `jdbc:postgresql://localhost:5432/customer_service` |
 | `CUSTOMER_SERVICE_DB_USERNAME` | Database username           | `customer_service`                                  |
 | `CUSTOMER_SERVICE_DB_PASSWORD` | Database password           | `customer_service`                                  |
-| `CUSTOMER_SERVICE_PORT`        | HTTP port                   | `8083`                                              |
+| `CUSTOMER_SERVICE_PORT`        | HTTP port                   | `8087`                                              |
 | `EUREKA_SERVER_URL`            | Eureka discovery endpoint   | `http://localhost:8761/eureka/`                     |
 | `RABBITMQ_HOST`                | RabbitMQ host               | `localhost`                                         |
 | `RABBITMQ_PORT`                | RabbitMQ port               | `5672`                                              |

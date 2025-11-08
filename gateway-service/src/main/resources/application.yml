@@ -30,13 +30,33 @@ spring:
           predicates:
             - Path=/api/users,/api/users/**
         - id: customer-service
-          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
         - id: project-service
-          uri: ${PROJECT_SERVICE_URL:http://localhost:8085}
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/projects/**
+        - id: project-change-requests
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/change-requests/**
+        - id: employee-dashboard-service
+          uri: ${EMPLOYEE_DASHBOARD_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/employee-dashboard/**
+          filters:
+            - StripPrefix=1
+        - id: project-tasks
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/tasks/**
+          filters:
+            - StripPrefix=1
+        - id: payments-billing-service
+          uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
+          predicates:
+            - Path=/api/invoices/**,/webhooks/stripe/**
 
 management:
   endpoints:
@@ -46,4 +66,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-

@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  employee-dashboard-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: employee-dashboard-bff
+    ports:
+      - "8084:8084"
+    environment:
+      # JWT Configuration (should match auth-service)
+      - JWT_SECRET=${JWT_SECRET:-your-256-bit-secret-key-here-change-this-in-production}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+
+      # Service URLs
+      - CUSTOMER_SERVICE_URL=http://customer-service:8081
+      - PROJECT_SERVICE_URL=http://project-service:8082
+      - PROGRESS_MONITORING_SERVICE_URL=http://progress-monitoring-service:8083
+      - PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8069
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8086
+      - TIME_LOGGING_SERVICE_URL=http://time-logging-service:8087
+      - APPOINTMENT_BOOKING_SERVICE_URL=http://appointment-booking-service:8088
+
+      # Spring Boot Configuration
+      - SPRING_PROFILES_ACTIVE=docker
+
+      # JVM Options (can be adjusted based on container resources)
+      - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - autonova-network
+
+networks:
+  autonova-network:
+    driver: bridge

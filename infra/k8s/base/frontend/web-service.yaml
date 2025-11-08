@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  type: ClusterIP
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  # This service exposes the frontend inside the cluster. To access locally:
+  # kubectl -n autonova port-forward svc/web 8080:80

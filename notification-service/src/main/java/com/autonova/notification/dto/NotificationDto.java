@@ -7,9 +7,10 @@ public record NotificationDto(
         UUID id,
         UUID userId,
         String type,
+        String eventType,
         String title,
         String message,
+        String messageId,
         Instant createdAt,
         boolean read
 ) {}
-
