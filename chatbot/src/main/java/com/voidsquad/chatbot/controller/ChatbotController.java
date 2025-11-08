@@ -81,6 +81,12 @@ public class ChatbotController {
         return "msg sent";
     }
 
+    @GetMapping("v1/simpleAI")
+    public String simpleAIResponse(@Param("prompt") String prompt){
+        return aiService.requestHandler(prompt);
+
+    }
+
     @GetMapping("/v1/workflowSteps")
     public Iterable<WorkflowStep> getAllWorkflowSteps(
             @Param("keyword") String keyword

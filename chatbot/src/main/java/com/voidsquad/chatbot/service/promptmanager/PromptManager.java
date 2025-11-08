@@ -29,6 +29,8 @@ public class PromptManager {
     private ProcessingType getStrategyType(PromptStrategy strategy) {
         if (strategy instanceof ToolCallStrategy) return ProcessingType.TOOL_CALL_IDENTIFICATION;
         if (strategy instanceof FinalOutputStrategy) return ProcessingType.FINAL_OUTPUT_GENERATION;
+        // Simple chat quick-reply strategy
+        if (strategy.getClass().getSimpleName().equals("SimpleChatStrategy")) return ProcessingType.SIMPLE_CHAT;
         // Add other mappings
         throw new IllegalArgumentException("Unknown strategy type");
     }
@@ -50,5 +52,10 @@ public class PromptManager {
     private PromptStrategy getStrategy(ProcessingType type) {
         return Optional.ofNullable(strategies.get(type))
                 .orElseThrow(() -> new IllegalArgumentException("No strategy for type: " + type));
+    }
+
+    public com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult postProcess(ProcessingType type, String llmOutput) {
+        PromptStrategy strategy = getStrategy(type);
+        return strategy.postProcess(llmOutput);
     }
 }

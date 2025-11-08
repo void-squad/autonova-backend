@@ -43,12 +43,22 @@ public class LanguageProcessor {
             String llmOutput = callLanguageModel(systemPrompt, userPrompt, config);
 
             // Post-process
-            PromptStrategy strategy = getStrategyForType(request.type());
-            return strategy.postProcess(llmOutput);
+            return promptManager.postProcess(request.type(), llmOutput);
 
         } catch (Exception e) {
             throw new RuntimeException("Language processing failed", e);
         }
+    }
+
+    public ProcessingResult evaluateSimpleReply(String userPrompt, String vectorContext, String userRole) {
+        ProcessingRequest request = new ProcessingRequest(
+                userPrompt,
+                vectorContext,
+                ProcessingType.SIMPLE_CHAT,
+                Map.of("userRole", userRole)
+        );
+
+        return processWithCustomSystemPrompt(request, vectorContext);
     }
 
     public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole, String useFullTools) {
@@ -82,7 +92,7 @@ public class LanguageProcessor {
     }
 
     private PromptStrategy getStrategyForType(ProcessingType type) {
-        // This would be implemented in PromptManager
-        return null; // Implementation detail
+        // Deprecated - PromptManager now exposes postProcess; keep for backward compatibility
+        return null;
     }
 }
