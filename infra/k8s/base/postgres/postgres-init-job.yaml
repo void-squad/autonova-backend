@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init
+  labels:
+    app: postgres-init
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: postgres-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: postgres-init
+          image: postgres:17
+          command: ["bash","-c"]
+          args:
+            - |
+              set -e
+              echo "Waiting for PostgreSQL host to be reachable..."
+              # Use env from secret for PGHOST and POSTGRES_USER
+              until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$POSTGRES_USER"; do
+                echo "Waiting for $PGHOST:$PGPORT..."
+                sleep 2
+              done
+              echo "Running pgvector-init.sh..."
+              bash /scripts/pgvector-init.sh || true
+              echo "Running db-init.sh..."
+              bash /scripts/db-init.sh
+          envFrom:
+            - secretRef:
+                name: autonova-env
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /scripts
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts

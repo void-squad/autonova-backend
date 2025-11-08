@@ -37,7 +37,7 @@ Created client services for:
 - Customer Service (port 8081)
 - Project Service (port 8082)
 - Progress Monitoring Service (port 8083)
-- Payments & Billing Service (port 8085)
+- Payments & Billing Service (port 8069)
 - Notification Service (port 8086)
 - Time Logging Service (port 8087)
 - Appointment Booking Service (port 8088)
@@ -117,7 +117,7 @@ JWT_EXPIRATION=86400000
 CUSTOMER_SERVICE_URL=http://customer-service:8081
 PROJECT_SERVICE_URL=http://project-service:8082
 PROGRESS_MONITORING_SERVICE_URL=http://progress-monitoring-service:8083
-PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8085
+PAYMENTS_BILLING_SERVICE_URL=http://payments-billing-service:8069
 NOTIFICATION_SERVICE_URL=http://notification-service:8086
 TIME_LOGGING_SERVICE_URL=http://time-logging-service:8087
 APPOINTMENT_BOOKING_SERVICE_URL=http://appointment-booking-service:8088
@@ -312,7 +312,7 @@ GET /actuator/metrics         - Application metrics
        ├─────► Customer Service (8081)
        ├─────► Project Service (8082)
        ├─────► Progress Monitoring (8083)
-       ├─────► Payments & Billing (8085)
+       ├─────► Payments & Billing (8069)
        ├─────► Notification Service (8086)
        ├─────► Time Logging (8087)
        └─────► Appointment Booking (8088)

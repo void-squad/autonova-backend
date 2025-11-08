@@ -91,6 +91,7 @@ CREATE TABLE time_logs (
     employee_id VARCHAR(36) NOT NULL,
     hours DECIMAL(5, 2) NOT NULL CHECK (hours > 0),
     note TEXT,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'APPROVED', 'REJECTED'
     logged_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -104,5 +105,6 @@ CREATE INDEX idx_time_logs_employee ON time_logs(employee_id);
 CREATE INDEX idx_time_logs_project ON time_logs(project_id);
 CREATE INDEX idx_time_logs_task ON time_logs(task_id);
 CREATE INDEX idx_time_logs_logged_at ON time_logs(logged_at);
+CREATE INDEX idx_time_logs_approval_status ON time_logs(approval_status);
 CREATE INDEX idx_project_tasks_assigned ON project_tasks(assigned_employee_id);
 CREATE INDEX idx_projects_customer ON projects(customer_id);
