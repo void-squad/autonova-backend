@@ -2,39 +2,50 @@ package com.voidsquad.chatbot.service.promptmanager.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voidsquad.chatbot.service.language.LanguageProcessor;
 import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
 import com.voidsquad.chatbot.service.promptmanager.core.OutputFormat;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingType;
 import com.voidsquad.chatbot.service.promptmanager.core.PromptConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
 public class SimpleChatStrategy implements PromptStrategy {
 
+    private static final Logger log = LogManager.getLogger(LanguageProcessor.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ResourcePatternResolver resourcePatternResolver;
+
+    public SimpleChatStrategy(ResourcePatternResolver resourcePatternResolver) {
+        this.resourcePatternResolver = resourcePatternResolver;
+    }
 
     @Override
     public PromptConfig getConfig() {
         return new PromptConfig(
                 """
-You are a concise quick-reply assistant. Decide if the user's request
-can be answered immediately using only the provided short context and general knowledge.
-If so, produce a short helpful answer. If not, indicate that a longer workflow is required.
+You are a concise AI assistant. Always respond strictly in JSON format only.
 
 RESPONSE RULES:
-- Output MUST be valid JSON with the exact structure: {"isSimple": true|false, "data": "..."}
-- If a simple factual answer is possible (one or two sentences), set isSimple to true and put the answer in data.
-- If additional tool calls, retrievals or multi-step reasoning are required, set isSimple to false and keep data brief (optional reasoning).
+- Output MUST be valid JSON with exactly this structure: {"isSimple": true|false, "data": "..."}
+- No extra text, no quotes, no explanations outside the JSON object.
+- If any answer can be given, set the isSimple to true and provide the answer in "data" (20-40 words).
+- If the answer is not answerable and need more context about the company local data, set "isSimple": false and leave "data" as an empty string.
+- Under no circumstances output any text outside the JSON object.
                 """,
                 """
 User Request: {userPrompt}
 
 Relevant Static Context: {context}
 
-Decide whether a simple response suffices. Output only the required JSON.
+answer to the user request as per the RESPONSE RULES above.
                 """,
                 OutputFormat.JSON,
                 0.0,
@@ -49,10 +60,6 @@ Decide whether a simple response suffices. Output only the required JSON.
                 .replace("{context}", context != null ? context : "");
     }
 
-    @Override
-    public String buildSystemPrompt(String systemContext) {
-        return getConfig().systemPrompt();
-    }
 
     @Override
     public ProcessingResult postProcess(String llmOutput) {

@@ -13,6 +13,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.Map;
@@ -84,7 +85,6 @@ public class ChatbotController {
     @GetMapping("v1/simpleAI")
     public String simpleAIResponse(@Param("prompt") String prompt){
         return aiService.requestHandler(prompt);
-
     }
 
     @GetMapping("/v1/workflowSteps")
@@ -110,4 +110,28 @@ public class ChatbotController {
         return "Saved";
     }
 
+    @PostMapping("/v1/staticInfo" )
+    public String addStaticInfo(
+            @RequestParam("topic") String topic,
+            @RequestParam("description") String description
+    ) {
+        log.info("Adding static info: " + topic);
+        aiService.addStaticInfo(topic, description);
+        return "Static info added";
+    }
+
+    @PostMapping("/v1/staticInfo/bulk" )
+    public String addBulkStaticInfo(
+            @RequestParam("file") MultipartFile file
+    ) {
+        log.info("Adding bulk static info from file");
+        try {
+            var staticInfoList = aiService.ReadStaticInfoFromCSV(file);
+            aiService.addBulkStaticInfo(staticInfoList);
+            return "Bulk static info added: " + staticInfoList.size() + " entries.";
+        } catch (Exception e) {
+            log.error("Error adding bulk static info: " + e.getMessage());
+            return "Error adding bulk static info: " + e.getMessage();
+        }
+    }
 }

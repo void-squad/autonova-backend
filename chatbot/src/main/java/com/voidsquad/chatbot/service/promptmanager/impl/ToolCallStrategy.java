@@ -28,8 +28,6 @@ You are a tool identification expert. Analyze the user request and available con
             - collectFeedbacks(): Collects customer feedback data
             - collectComplains(): Gathers customer complaints data
             
-            CONTEXT-SPECIFIC TOOLS (from vector database):
-            {systemContext}
             
             IMPORTANT RULES:
             1. Use basic tools only for contact info, feedback, or complaint requests
@@ -74,12 +72,6 @@ You are a tool identification expert. Analyze the user request and available con
                 .replace("{userPrompt}", userInput)
                 .replace("{context}", context)
                 .replace("{userRole}", userRole);
-    }
-
-    @Override
-    public String buildSystemPrompt(String systemContext) {
-        return getConfig().systemPrompt()
-                .replace("{systemContext}", systemContext != null ? systemContext : "No additional context tools provided");
     }
 
     @Override

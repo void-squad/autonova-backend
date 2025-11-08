@@ -9,5 +9,4 @@ public interface PromptStrategy {
     PromptConfig getConfig();
     String buildUserPrompt(String userInput, String context, Map<String, Object> params);
     ProcessingResult postProcess(String llmOutput);
-    String buildSystemPrompt(String systemContext);
 }

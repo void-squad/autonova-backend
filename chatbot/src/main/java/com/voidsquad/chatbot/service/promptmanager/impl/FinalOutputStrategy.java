@@ -55,12 +55,6 @@ public class FinalOutputStrategy implements PromptStrategy {
     }
 
     @Override
-    public String buildSystemPrompt(String systemContext) {
-        return getConfig().systemPrompt()
-                .replace("{systemContext}", systemContext != null ? systemContext : "No additional context tools provided");
-    }
-
-    @Override
     public ProcessingResult postProcess(String llmOutput) {
         // Additional formatting or validation
         String formattedOutput = formatBusinessResponse(llmOutput);
