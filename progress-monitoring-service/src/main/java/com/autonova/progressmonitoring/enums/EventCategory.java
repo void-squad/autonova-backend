@@ -13,7 +13,8 @@ public enum EventCategory {
     APPROVED("approved", "approved"),
     REJECTED("rejected", "rejected"),
     COMPLETED("completed", "completed"),
-    UPDATED("updated", "updated");
+    UPDATED("updated", "updated"),
+    APPLIED("applied", "applied"); // e.g. change-request applied
 
     private final String category;
     private final String verb;
@@ -49,10 +50,10 @@ public enum EventCategory {
             if (rk.contains(".approved") || rk.contains("approved")) return APPROVED;
             if (rk.contains(".rejected") || rk.contains("rejected")) return REJECTED;
             if (rk.contains(".completed") || rk.contains("completed")) return COMPLETED;
+            if (rk.contains(".applied") || rk.contains("applied")) return APPLIED;
             if (rk.contains(".updated") || rk.contains("updated")) return UPDATED;
         }
 
         return UPDATED;
     }
 }
-

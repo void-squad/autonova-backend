@@ -10,6 +10,7 @@ import java.util.Optional;
 
 /**
  * Simple mapper that converts event category -> default message using EventCategory enum.
+ * Enhanced to produce specific messages for change-request and quote events.
  */
 @Component
 public class DefaultEventMessageMapper implements EventMessageMapper {
@@ -31,6 +32,28 @@ public class DefaultEventMessageMapper implements EventMessageMapper {
         String when = tryFormatTime(timeStr).orElse("now");
 
         EventCategory category = EventCategory.resolve(routingKey, payloadJson);
+        String verb = category.verb();
+
+        // Specialized handling based on routing key
+        if (routingKey != null) {
+            String rkLower = routingKey.toLowerCase();
+            if (rkLower.startsWith("project.change-request")) {
+                String id = extractId(payloadJson, "changeRequestId");
+                if (id != null) {
+                    return String.format("Change Request %s %s (%s)", shorten(id), verb, when);
+                } else {
+                    return String.format("Change Request %s (%s)", verb, when);
+                }
+            }
+            if (rkLower.startsWith("quote.")) {
+                String id = extractId(payloadJson, "quoteId");
+                if (id != null) {
+                    return String.format("Quote %s %s (%s)", shorten(id), verb, when);
+                } else {
+                    return String.format("Quote %s (%s)", verb, when);
+                }
+            }
+        }
 
         // Project/title shortcuts
         String title = null;
@@ -39,7 +62,6 @@ public class DefaultEventMessageMapper implements EventMessageMapper {
             else if (payloadJson.has("quoteId")) title = "Quote " + payloadJson.get("quoteId").asText();
         }
 
-        String verb = category.verb();
         if (title != null) {
             return String.format("%s %s (%s)", title, verb, when);
         } else {
@@ -53,7 +75,21 @@ public class DefaultEventMessageMapper implements EventMessageMapper {
             var odt = OffsetDateTime.parse(timeStr);
             return Optional.of(odt.toLocalDateTime().toString());
         } catch (DateTimeParseException ex) {
-            return Optional.ofNullable(timeStr);
+            return Optional.of(timeStr); // timeStr is known non-null here
         }
+    }
+
+    private static String extractId(JsonNode payloadJson, String field) {
+        if (payloadJson != null && payloadJson.has(field)) {
+            return payloadJson.get(field).asText(null);
+        }
+        return null;
+    }
+
+    private static String shorten(String id) {
+        // shorten UUID for display (first 8 chars) else return as-is
+        if (id == null) return null;
+        if (id.length() >= 8) return id.substring(0, 8);
+        return id;
     }
 }

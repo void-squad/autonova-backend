@@ -24,6 +24,14 @@ spring:
     password: ${POSTGRES_PASSWORD:${SPRING_DATASOURCE_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
 
+
+app:
+  rabbit:
+    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
+    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
+    routing-keys: ${APP_RABBIT_ROUTING_KEYS:project.*,quote.*,project.change-request.*}
+
+
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
