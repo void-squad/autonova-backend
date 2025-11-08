@@ -23,13 +23,13 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public Flux<NotificationDto> streamForUser(UUID userId) {
+    public Flux<NotificationDto> streamForUser(Long userId) {
         // Stub: In a real implementation, this would use a reactive source (e.g., SSE, messaging)
         return Flux.fromIterable(latestForUser(userId));
     }
 
     @Override
-    public List<NotificationDto> latestForUser(UUID userId) {
+    public List<NotificationDto> latestForUser(Long userId) {
         List<Notification> notifications = notificationRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
         return notifications.stream().map(this::toDto).collect(Collectors.toList());
     }
@@ -64,13 +64,13 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public long unreadCount(UUID userId) {
+    public long unreadCount(Long userId) {
         return notificationRepository.countByUserIdAndReadFlagFalse(userId);
     }
 
     @Override
     @Transactional
-    public void markAllRead(UUID userId) {
+    public void markAllRead(Long userId) {
         notificationRepository.markAllReadByUserId(userId);
     }
 
