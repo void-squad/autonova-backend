@@ -5,6 +5,7 @@ import com.autonova.notification.dto.NotificationDto;
 import com.autonova.notification.repo.NotificationRepository;
 import com.autonova.notification.sse.SseHub;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -22,13 +23,13 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public Flux<NotificationDto> streamForUser(UUID userId) {
+    public Flux<NotificationDto> streamForUser(Long userId) {
         // Stub: In a real implementation, this would use a reactive source (e.g., SSE, messaging)
         return Flux.fromIterable(latestForUser(userId));
     }
 
     @Override
-    public List<NotificationDto> latestForUser(UUID userId) {
+    public List<NotificationDto> latestForUser(Long userId) {
         List<Notification> notifications = notificationRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
         return notifications.stream().map(this::toDto).collect(Collectors.toList());
     }
@@ -45,8 +46,32 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void create(Notification notification) {
+        // Idempotency: skip if messageId+userId already exists
+        if (notification.getMessageId() != null && notification.getUserId() != null &&
+                notificationRepository.existsByMessageIdAndUserId(notification.getMessageId(), notification.getUserId())) {
+            return;
+        }
         Notification saved = notificationRepository.save(notification);
         sseHub.publish(toDto(saved));
+    }
+
+    @Override
+    public void createAll(List<Notification> notifications) {
+        for (Notification n : notifications) {
+            create(n); // reuse idempotency logic
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long unreadCount(Long userId) {
+        return notificationRepository.countByUserIdAndReadFlagFalse(userId);
+    }
+
+    @Override
+    @Transactional
+    public void markAllRead(Long userId) {
+        notificationRepository.markAllReadByUserId(userId);
     }
 
     private NotificationDto toDto(Notification n) {
@@ -54,8 +79,10 @@ public class NotificationServiceImpl implements NotificationService {
                 n.getId(),
                 n.getUserId(),
                 n.getType(),
+                n.getEventType(),
                 n.getTitle(),
                 n.getMessage(),
+                n.getMessageId(),
                 n.getCreatedAt(),
                 n.isReadFlag()
         );

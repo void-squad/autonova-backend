@@ -25,11 +25,12 @@ public class JwtService {
     private long expiration;
 
     // Generate JWT token with user details
-    public String generateToken(Long userId, String email, String role) {
+    public String generateToken(Long userId, String email, String role, String firstName) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("email", email);
         claims.put("role", role);
+        claims.put("firstName", firstName != null ? firstName : "");
         
         return createToken(claims, email);
     }
@@ -65,6 +66,11 @@ public class JwtService {
     // Extract role from token
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    // Extract first name from token
+    public String extractFirstName(String token) {
+        return extractClaim(token, claims -> claims.get("firstName", String.class));
     }
 
     // Extract expiration date

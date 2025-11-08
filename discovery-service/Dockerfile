@@ -4,16 +4,24 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml
-COPY .mvn .mvn
-COPY mvnw .
-COPY pom.xml .
+# When docker build context is the repository root, copy the discovery service
+# files from the repo into the image. Also copy the parent pom.xml from the
+# repository root to /pom.xml so the module's parent.relativePath (../pom.xml)
+# resolves correctly during the Maven build.
 
-# Download dependencies
+# Copy the parent/root pom so Maven can resolve the aggregator parent
+COPY pom.xml /pom.xml
+
+# Copy service-specific mvnw, .mvn and pom
+COPY discovery-service/.mvn .mvn
+COPY discovery-service/mvnw mvnw
+COPY discovery-service/pom.xml pom.xml
+
+# Download dependencies (use wrapper)
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
 
 # Copy source code
-COPY src ./src
+COPY discovery-service/src ./src
 
 # Build the application
 RUN ./mvnw clean package -DskipTests
