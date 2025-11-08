@@ -10,8 +10,6 @@ eureka:
 spring:
   application:
     name: chatbot
-  profiles:
-    active: docker
 
 management:
   endpoints:
