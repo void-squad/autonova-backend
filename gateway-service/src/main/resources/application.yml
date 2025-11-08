@@ -8,7 +8,7 @@ spring:
       globalcors:
         add-to-simple-url-handler-mapping: true
         corsConfigurations:
-          '[/**]':
+          "[/**]":
             allowedOrigins:
               - http://localhost:5173
             allowedMethods:
@@ -18,7 +18,7 @@ spring:
               - DELETE
               - PATCH
               - OPTIONS
-            allowedHeaders: '*'
+            allowedHeaders: "*"
             allowCredentials: true
       routes:
         - id: auth-service
@@ -30,13 +30,29 @@ spring:
           predicates:
             - Path=/api/users,/api/users/**
         - id: customer-service
-          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8083}
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
         - id: project-service
-          uri: ${PROJECT_SERVICE_URL:http://localhost:8085}
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/projects/**
+        - id: project-change-requests
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/change-requests/**
+        - id: employee-dashboard-service
+          uri: ${EMPLOYEE_DASHBOARD_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/employee-dashboard/**
+          filters:
+            - StripPrefix=1
+        - id: project-tasks
+          uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/tasks/**
+          filters:
+            - StripPrefix=1
 
 management:
   endpoints:
@@ -46,4 +62,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-
