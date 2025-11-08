@@ -31,6 +31,7 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
         this.mapper = mapper;
         this.messageMapper = messageMapper;
         this.messageService = messageService;
+        log.debug("ProjectEventProcessorImpl initialized and ready");
     }
 
     @Override
@@ -56,20 +57,20 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
                         try {
                             occurredAt = OffsetDateTime.parse(node.get("occurredAt").asText());
                         } catch (DateTimeParseException ex) {
-                            log.debug("Could not parse occurredAt timestamp, proceeding with null value", ex);
+                            log.error("Could not parse occurredAt timestamp, proceeding with null value", ex);
                         }
                     }
                     // derive category using EventCategory enum for consistency
                     String category = EventCategory.resolve(routingKey, node).name();
                     messageService.saveMessage(projectId, category, messageText, body, occurredAt);
                 } catch (Exception ex) {
-                    log.debug("Failed to persist project message for project {}: {}", projectIdText, ex.getMessage(), ex);
+                    log.error("Failed to persist project message for project {}: {}", projectIdText, ex.getMessage(), ex);
                 }
 
                 return;
             }
         } catch (Exception ex) {
-            log.debug("Failed to parse message body as JSON to extract projectId", ex);
+            log.error("Failed to parse message body as JSON to extract projectId", ex);
         }
 
         // fallback: broadcast raw payload and a generic message
