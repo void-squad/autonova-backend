@@ -179,6 +179,21 @@ public class VehicleService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer profile not found"));
     }
 
+    /**
+     * Public method to fetch vehicle details for cross-service consumption.
+     * Used by other services (e.g., Project Service) to display vehicle information.
+     * 
+     * @param vehicleId the vehicle identifier
+     * @return VehicleDetailsDto with essential fields (id, licensePlate, make, model, year)
+     * @throws ResponseStatusException 404 if vehicle not found
+     */
+    @Transactional(readOnly = true)
+    public com.autonova.customer.dto.VehicleDetailsDto getVehicleDetails(Long vehicleId) {
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
+        return CustomerMapper.toVehicleDetailsDto(vehicle);
+    }
+
     private ResponseStatusException translateIntegrityViolation(DataIntegrityViolationException ex) {
         String detail = ex.getMostSpecificCause() != null
                 ? ex.getMostSpecificCause().getMessage()
