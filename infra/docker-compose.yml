@@ -283,7 +283,7 @@ services:
       # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
       DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
-      - '8084:8084'
+      - "8085:8085"
     depends_on:
       - rabbitmq
       - postgres-init

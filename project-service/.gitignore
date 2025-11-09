@@ -10,6 +10,7 @@ obj/
 # Secrets and configs
 appsettings.Development.json
 appsettings.Local.json
+.env
 
 # EF Core tool state
 *Migrations/obj/
