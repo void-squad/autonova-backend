@@ -72,11 +72,12 @@ public class TimeLogServiceImpl implements TimeLogService {
         timeLog.setTask(task);
         timeLog.setHours(request.getHours());
         timeLog.setNote(request.getNote());
+        timeLog.setApprovalStatus("PENDING"); // Default status
         timeLog.setLoggedAt(LocalDateTime.now());
         
         TimeLog savedTimeLog = timeLogRepository.save(timeLog);
         
-        // Update task actual hours
+        // Update task actual hours (using approved logs only)
         updateTaskActualHours(task);
         
         log.info("Time log created successfully: {}", savedTimeLog.getId());
@@ -192,7 +193,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getTotalHoursByEmployee(String employeeId) {
-        return timeLogRepository.getTotalHoursByEmployee(employeeId);
+        return timeLogRepository.getTotalApprovedHoursByEmployee(employeeId);
     }
     
     @Override
@@ -201,7 +202,7 @@ public class TimeLogServiceImpl implements TimeLogService {
         Employee employee = employeeRepository.findById(employeeId)
             .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
         
-        BigDecimal totalHours = timeLogRepository.getTotalHoursByEmployee(employeeId);
+        BigDecimal totalHours = timeLogRepository.getTotalApprovedHoursByEmployee(employeeId);
         BigDecimal totalEarnings = totalHours.multiply(employee.getHourlyRate());
         
         return EmployeeSummaryResponse.builder()
@@ -228,9 +229,9 @@ public class TimeLogServiceImpl implements TimeLogService {
     public WeeklySummaryResponse getWeeklySummary(String employeeId) {
         log.info("Getting weekly summary for employee: {}", employeeId);
         
-        // Get time logs for the past 7 days
+        // Get approved time logs for the past 7 days
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        List<TimeLog> timeLogs = timeLogRepository.findByEmployeeUserIdAndLoggedAtAfter(employeeId, sevenDaysAgo);
+        List<TimeLog> timeLogs = timeLogRepository.findApprovedByEmployeeUserIdAndLoggedAtAfter(employeeId, sevenDaysAgo);
         
         // Calculate daily hours
         Map<LocalDate, BigDecimal> dailyHoursMap = new HashMap<>();
@@ -360,9 +361,9 @@ public class TimeLogServiceImpl implements TimeLogService {
     public EfficiencyMetricsResponse getEfficiencyMetrics(String employeeId) {
         log.info("Getting efficiency metrics for employee: {}", employeeId);
         
-        // Get completed tasks in the past month
+        // Get approved completed tasks in the past month
         LocalDateTime oneMonthAgo = LocalDateTime.now().minusMonths(1);
-        List<TimeLog> timeLogs = timeLogRepository.findByEmployeeUserIdAndLoggedAtAfter(employeeId, oneMonthAgo);
+        List<TimeLog> timeLogs = timeLogRepository.findApprovedByEmployeeUserIdAndLoggedAtAfter(employeeId, oneMonthAgo);
         
         // Get unique completed tasks
         Set<String> completedTaskIds = timeLogs.stream()
@@ -415,12 +416,12 @@ public class TimeLogServiceImpl implements TimeLogService {
         BigDecimal efficiency = onTimePercentage.multiply(new BigDecimal("0.6"))
             .add(new BigDecimal("100").subtract(overEstimatePercentage).multiply(new BigDecimal("0.4")));
         
-        // Calculate weekly trend (compare this week vs last week)
+        // Calculate weekly trend (compare this week vs last week) - approved only
         LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
         LocalDateTime twoWeeksAgo = LocalDateTime.now().minusWeeks(2);
         
-        List<TimeLog> thisWeekLogs = timeLogRepository.findByEmployeeUserIdAndLoggedAtBetween(employeeId, oneWeekAgo, LocalDateTime.now());
-        List<TimeLog> lastWeekLogs = timeLogRepository.findByEmployeeUserIdAndLoggedAtBetween(employeeId, twoWeeksAgo, oneWeekAgo);
+        List<TimeLog> thisWeekLogs = timeLogRepository.findApprovedByEmployeeUserIdAndLoggedAtBetween(employeeId, oneWeekAgo, LocalDateTime.now());
+        List<TimeLog> lastWeekLogs = timeLogRepository.findApprovedByEmployeeUserIdAndLoggedAtBetween(employeeId, twoWeeksAgo, oneWeekAgo);
         
         BigDecimal thisWeekHours = thisWeekLogs.stream()
             .map(TimeLog::getHours)
@@ -444,12 +445,91 @@ public class TimeLogServiceImpl implements TimeLogService {
                 .overEstimate(overEstimatePercentage)
                 .avgTaskTime(avgTaskTime)
                 .build())
-            .build();
+                .build();
     }
     
-    // Helper method to update task actual hours
+    @Override
+    @Transactional(readOnly = true)
+    public List<TimeLogResponse> getAllTimeLogs() {
+        log.info("Getting all time logs");
+        List<TimeLog> allLogs = timeLogRepository.findAllByOrderByLoggedAtDesc();
+        return allLogs.stream()
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<TimeLogResponse> getPendingTimeLogs() {
+        log.info("Getting all pending time logs");
+        List<TimeLog> pendingLogs = timeLogRepository.findByApprovalStatusOrderByLoggedAtDesc("PENDING");
+        return pendingLogs.stream()
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public TimeLogResponse approveTimeLog(String id) {
+        log.info("Approving time log: {}", id);
+        
+        TimeLog timeLog = timeLogRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("TimeLog", "id", id));
+        
+        if ("APPROVED".equals(timeLog.getApprovalStatus())) {
+            throw new BusinessRuleException("Time log is already approved");
+        }
+        
+        if ("REJECTED".equals(timeLog.getApprovalStatus())) {
+            throw new BusinessRuleException("Cannot approve a rejected time log");
+        }
+        
+        timeLog.setApprovalStatus("APPROVED");
+        TimeLog updatedLog = timeLogRepository.save(timeLog);
+        
+        // Recalculate task actual hours with the newly approved log
+        updateTaskActualHours(timeLog.getTask());
+        
+        log.info("Time log approved successfully: {}", id);
+        return mapToResponse(updatedLog);
+    }
+    
+    @Override
+    public TimeLogResponse rejectTimeLog(String id, String reason) {
+        log.info("Rejecting time log: {} with reason: {}", id, reason);
+        
+        TimeLog timeLog = timeLogRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("TimeLog", "id", id));
+        
+        if ("APPROVED".equals(timeLog.getApprovalStatus())) {
+            // If already approved, remove from task hours calculation
+            timeLog.setApprovalStatus("REJECTED");
+            timeLog.setNote((timeLog.getNote() != null ? timeLog.getNote() + "\n" : "") + 
+                "REJECTION REASON: " + reason);
+            TimeLog updatedLog = timeLogRepository.save(timeLog);
+            
+            // Recalculate task actual hours after rejection
+            updateTaskActualHours(timeLog.getTask());
+            
+            log.info("Previously approved time log rejected: {}", id);
+            return mapToResponse(updatedLog);
+        }
+        
+        if ("REJECTED".equals(timeLog.getApprovalStatus())) {
+            throw new BusinessRuleException("Time log is already rejected");
+        }
+        
+        timeLog.setApprovalStatus("REJECTED");
+        timeLog.setNote((timeLog.getNote() != null ? timeLog.getNote() + "\n" : "") + 
+            "REJECTION REASON: " + reason);
+        TimeLog updatedLog = timeLogRepository.save(timeLog);
+        
+        log.info("Time log rejected successfully: {}", id);
+        return mapToResponse(updatedLog);
+    }
+    
+    // Helper method to update task actual hours (approved logs only)
     private void updateTaskActualHours(ProjectTask task) {
-        BigDecimal totalHours = timeLogRepository.getTotalHoursByTask(task.getId());
+        BigDecimal totalHours = timeLogRepository.getTotalApprovedHoursByTask(task.getId());
         task.setActualHours(totalHours);
         projectTaskRepository.save(task);
         log.debug("Updated task {} actual hours to {}", task.getId(), totalHours);
@@ -468,6 +548,7 @@ public class TimeLogServiceImpl implements TimeLogService {
                          timeLog.getEmployee().getUser().getLastName())
             .hours(timeLog.getHours())
             .note(timeLog.getNote())
+            .approvalStatus(timeLog.getApprovalStatus())
             .loggedAt(timeLog.getLoggedAt())
             .build();
     }

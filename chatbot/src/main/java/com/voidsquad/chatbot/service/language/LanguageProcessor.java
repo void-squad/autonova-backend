@@ -1,0 +1,124 @@
+package com.voidsquad.chatbot.service.language;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voidsquad.chatbot.service.AIService;
+import com.voidsquad.chatbot.service.promptmanager.PromptManager;
+import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
+import com.voidsquad.chatbot.service.promptmanager.core.ProcessingRequest;
+import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
+import com.voidsquad.chatbot.service.promptmanager.core.ProcessingType;
+import com.voidsquad.chatbot.service.promptmanager.core.PromptConfig;
+import lombok.extern.log4j.Log4j2;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
+
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+
+@Service
+public class LanguageProcessor {
+
+    private final PromptManager promptManager;
+    private final ChatClient chatClient;
+    private final ObjectMapper objectMapper;
+    private static final Logger log = LogManager.getLogger(LanguageProcessor.class);
+
+    public LanguageProcessor(PromptManager promptManager,
+                             ChatClient.Builder chatClientBuilder,
+                             ObjectMapper objectMapper) {
+        this.promptManager = promptManager;
+        this.chatClient = (chatClientBuilder != null) ? chatClientBuilder.build() : null;
+        this.objectMapper = objectMapper;
+    }
+
+    private String sanitizeInput(String input) {
+        String tmp = input
+                .replace("{", "%7B")
+                .replace("}", "%7D")
+                .replace("|", "%7C")
+                .trim();
+        return tmp;
+    }
+
+    private ProcessingResult processWithCustomSystemPrompt(ProcessingRequest request) {
+        try {
+            // Build user prompt
+            log.info("Processing request of type: " + request.type());
+            String userPrompt = promptManager.buildUserPrompt(request);
+            log.info("User prompt built: " + userPrompt);
+            // Get config for temperature/maxTokens
+            PromptConfig config = promptManager.getPromptConfig(request.type());
+            log.info("Prompt config retrieved: " + config.systemPrompt() , config.outputFormat(), config.userPromptTemplate(), config.maxTokens());
+
+            // Call LLM with custom system prompt
+            String llmOutput = callLanguageModel(sanitizeInput(config.systemPrompt()), sanitizeInput(userPrompt), config);
+            log.info("LLM output received==> " + llmOutput);
+
+            // Post-process
+            return promptManager.postProcess(request.type(), llmOutput);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Language processing failed", e);
+        }
+    }
+
+    public ProcessingResult evaluateSimpleReply(String userPrompt, String vectorContext, String userRole) {
+        ProcessingRequest request = new ProcessingRequest(
+                userPrompt,
+                vectorContext,
+                ProcessingType.SIMPLE_CHAT,
+                Map.of("userRole", userRole)
+        );
+
+        return processWithCustomSystemPrompt(request);
+    }
+
+    public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole, String useFullTools) {
+        ProcessingRequest request = new ProcessingRequest(
+                userPrompt,
+                vectorContext,
+                ProcessingType.TOOL_CALL_IDENTIFICATION,
+                Map.of("userRole", userRole)
+        );
+        return processWithCustomSystemPrompt(request);
+    }
+
+    public ProcessingResult finalOutputPrepWithData(String userPrompt, String extractedContext, String userInfo) {
+        ProcessingRequest request = new ProcessingRequest(
+                userPrompt,
+                extractedContext,
+                ProcessingType.FINAL_OUTPUT_GENERATION,
+                Map.of("userInfo", userInfo)
+        );
+        return processWithCustomSystemPrompt(request);
+    }
+
+    private String callLanguageModel(String systemPrompt, String userPrompt, PromptConfig config) {
+        log.info("Calling language model with system prompt and user prompt");
+        log.info("System Prompt: " + systemPrompt);
+        log.info("User Prompt: " + userPrompt);
+        ChatResponse response = chatClient.prompt()
+                .system(systemPrompt)
+                .user(userPrompt)
+                .call()
+                .chatResponse();
+
+        log.info("Language model call completed");
+
+        if (response != null) {
+            log.info("Received response from language model");
+            return response.getResult().getOutput().getText();
+        } else {
+            log.warn("No response from language model");
+            return "No response from model";
+        }
+    }
+
+    private PromptStrategy getStrategyForType(ProcessingType type) {
+        // Deprecated - PromptManager now exposes postProcess; keep for backward compatibility
+        return null;
+    }
+}

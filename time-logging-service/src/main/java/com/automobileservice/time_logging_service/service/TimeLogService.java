@@ -99,4 +99,31 @@ public interface TimeLogService {
      * @return Efficiency metrics and productivity data
      */
     EfficiencyMetricsResponse getEfficiencyMetrics(String employeeId);
+    
+    /**
+     * Get all time logs (for admin)
+     * @return List of all time logs
+     */
+    List<TimeLogResponse> getAllTimeLogs();
+    
+    /**
+     * Get all pending time logs (for admin approval)
+     * @return List of pending time logs
+     */
+    List<TimeLogResponse> getPendingTimeLogs();
+    
+    /**
+     * Approve a time log
+     * @param id Time log ID
+     * @return Updated time log
+     */
+    TimeLogResponse approveTimeLog(String id);
+    
+    /**
+     * Reject a time log
+     * @param id Time log ID
+     * @param reason Rejection reason
+     * @return Updated time log
+     */
+    TimeLogResponse rejectTimeLog(String id, String reason);
 }
