@@ -5,8 +5,10 @@ namespace ProjectService.Domain.Entities;
 
 public class Project
 {
+    public long Id { get; set; }
     public Guid ProjectId { get; set; }
     public Guid CustomerId { get; set; }
+    public Guid VehicleId { get; set; }
     public string Title { get; set; } = string.Empty;
     public ProjectStatus Status { get; set; } = ProjectStatus.Requested;
     public DateTimeOffset CreatedAt { get; set; }

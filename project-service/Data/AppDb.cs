@@ -21,9 +21,13 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         modelBuilder.Entity<Project>(entity =>
         {
             entity.HasKey(e => e.ProjectId);
+            entity.Property(e => e.Id)
+                  .ValueGeneratedOnAdd();
             entity.Property(e => e.Title)
                   .IsRequired()
                   .HasMaxLength(200);
+            entity.Property(e => e.VehicleId)
+                  .IsRequired();
             entity.Property(e => e.Status)
                   .HasConversion<string>()
                   .IsRequired();
@@ -70,6 +74,10 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
                   .HasDatabaseName("UX_Projects_ClientRequestId")
                   .IsUnique()
                   .HasFilter("\"ClientRequestId\" IS NOT NULL");
+
+            entity.HasIndex(e => e.Id)
+                  .HasDatabaseName("IX_Projects_Id")
+                  .IsUnique();
         });
 
         modelBuilder.Entity<TaskItem>(entity =>

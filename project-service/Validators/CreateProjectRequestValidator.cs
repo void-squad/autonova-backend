@@ -10,6 +10,9 @@ public class CreateProjectRequestValidator : AbstractValidator<CreateProjectRequ
         RuleFor(x => x.CustomerId)
             .NotEmpty();
 
+        RuleFor(x => x.VehicleId)
+            .NotEmpty();
+
         RuleFor(x => x.Title)
             .NotEmpty()
             .MaximumLength(120);

@@ -21,6 +21,67 @@ public class TasksController : ControllerBase
         _db = db;
     }
 
+    [HttpGet("employee/{assigneeId:guid}")]
+    [ProducesResponseType(typeof(IEnumerable<TaskAssignmentResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<TaskAssignmentResponse>>> GetTasksForEmployee(Guid assigneeId, CancellationToken cancellationToken = default)
+    {
+        if (UserContext.IsEmployee(User) && !UserContext.IsManager(User))
+        {
+            var userId = UserContext.UserId(User);
+            if (!userId.HasValue || userId.Value != assigneeId)
+            {
+                return Forbid();
+            }
+        }
+
+        var tasks = await _db.Tasks
+            .AsNoTracking()
+            .Where(t => t.AssigneeId == assigneeId)
+            .OrderBy(t => t.Title)
+            .ToListAsync(cancellationToken);
+
+        return Ok(tasks.Select(t => t.ToAssignmentResponse()));
+    }
+
+    [HttpGet("project/{projectId:guid}")]
+    [ProducesResponseType(typeof(IEnumerable<TaskAssignmentResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<TaskAssignmentResponse>>> GetTasksByProject(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        var tasks = await _db.Tasks
+            .AsNoTracking()
+            .Where(t => t.ProjectId == projectId)
+            .OrderBy(t => t.Title)
+            .ToListAsync(cancellationToken);
+
+        return Ok(tasks.Select(t => t.ToAssignmentResponse()));
+    }
+
+    [HttpGet("{taskId:guid}")]
+    [ProducesResponseType(typeof(TaskAssignmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TaskAssignmentResponse>> GetTaskById(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        var task = await _db.Tasks
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TaskId == taskId, cancellationToken);
+
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (UserContext.IsEmployee(User) && !UserContext.IsManager(User))
+        {
+            var userId = UserContext.UserId(User);
+            if (!userId.HasValue || task.AssigneeId != userId.Value)
+            {
+                return Forbid();
+            }
+        }
+
+        return Ok(task.ToAssignmentResponse());
+    }
+
     [HttpGet]
     public async Task<ActionResult<TaskListResponse>> Get(
         [FromQuery] Guid? assigneeId,

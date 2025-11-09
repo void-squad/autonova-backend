@@ -40,6 +40,40 @@ public class ProjectsController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet("employee/{assigneeId:guid}")]
+    [Authorize(Policy = "EmployeeOrManager")]
+    [ProducesResponseType(typeof(IEnumerable<EmployeeProjectResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<EmployeeProjectResponse>>> GetProjectsForEmployee(Guid assigneeId, CancellationToken cancellationToken)
+    {
+        if (UserContext.IsEmployee(User) && !UserContext.IsManager(User))
+        {
+            var userId = UserContext.UserId(User);
+            if (!userId.HasValue || userId.Value != assigneeId)
+            {
+                return Forbid();
+            }
+        }
+
+        var projects = await _db.Projects
+            .AsNoTracking()
+            .Where(p => p.Tasks.Any(t => t.AssigneeId == assigneeId))
+            .OrderBy(p => p.DueDate == null)
+            .ThenBy(p => p.DueDate)
+            .ThenByDescending(p => p.CreatedAt)
+            .Select(p => new EmployeeProjectResponse
+            {
+                Id = p.Id,
+                ProjectId = p.ProjectId,
+                VehicleId = p.VehicleId,
+                Title = p.Title,
+                Status = p.Status,
+                DueDate = p.DueDate
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(projects);
+    }
+
     [HttpPost]
     [Authorize(Policy = "Customer")]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status201Created)]

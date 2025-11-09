@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -15,6 +16,7 @@ using ProjectService.Data;
 using ProjectService.Dtos;
 using ProjectService.HealthChecks;
 using ProjectService.Messaging;
+using ProjectService.Seeding;
 using ProjectService.Services;
 using ProjectService.Swagger;
 using ProjectService.Validators;
@@ -25,7 +27,10 @@ LoadDotEnv();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -141,6 +146,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
 builder.Services.AddScoped<IProjectWorkflowService, ProjectWorkflowService>();
+builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectRequestValidator>();
 builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddEurekaDiscoveryClient();
@@ -152,10 +158,12 @@ app.Logger.LogInformation("Applying database migrations...");
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDb>();
-    db.Database.Migrate();
-}
+    await db.Database.MigrateAsync();
+    app.Logger.LogInformation("Database migrations applied successfully.");
 
-app.Logger.LogInformation("Database migrations applied successfully.");
+    var seeder = scope.ServiceProvider.GetRequiredService<DemoDataSeeder>();
+    await seeder.SeedAsync();
+}
 
 app.UseExceptionHandler();
 

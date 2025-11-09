@@ -31,4 +31,17 @@ public static class TaskMapping
 
         return response;
     }
+
+    public static TaskAssignmentResponse ToAssignmentResponse(this TaskItem entity)
+    {
+        return new TaskAssignmentResponse
+        {
+            TaskId = entity.TaskId,
+            ProjectId = entity.ProjectId,
+            Title = entity.Title,
+            EstimateHours = entity.EstimateHours,
+            AssigneeId = entity.AssigneeId,
+            Status = entity.Status
+        };
+    }
 }

@@ -73,6 +73,7 @@ public class ProjectWorkflowService : IProjectWorkflowService
         {
             ProjectId = Guid.NewGuid(),
             CustomerId = request.CustomerId,
+            VehicleId = request.VehicleId,
             Title = title,
             Status = ProjectStatus.Requested,
             CreatedAt = now,
