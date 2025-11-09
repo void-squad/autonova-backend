@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ProjectService.Data;
@@ -11,9 +12,11 @@ using ProjectService.Data;
 namespace ProjectService.Migrations
 {
     [DbContext(typeof(AppDb))]
-    partial class AppDbModelSnapshot : ModelSnapshot
+    [Migration("20251109042303_ProjectVehicleId")]
+    partial class ProjectVehicleId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -140,8 +143,8 @@ namespace ProjectService.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<long>("CustomerId")
-                        .HasColumnType("bigint");
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
@@ -290,8 +293,8 @@ namespace ProjectService.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<long?>("AssigneeId")
-                        .HasColumnType("bigint");
+                    b.Property<Guid?>("AssigneeId")
+                        .HasColumnType("uuid");
 
                     b.Property<decimal>("EstimateHours")
                         .HasColumnType("numeric(10,2)");

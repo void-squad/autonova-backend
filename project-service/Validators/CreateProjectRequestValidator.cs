@@ -8,6 +8,9 @@ public class CreateProjectRequestValidator : AbstractValidator<CreateProjectRequ
     public CreateProjectRequestValidator()
     {
         RuleFor(x => x.CustomerId)
+            .GreaterThan(0);
+
+        RuleFor(x => x.VehicleId)
             .NotEmpty();
 
         RuleFor(x => x.Title)

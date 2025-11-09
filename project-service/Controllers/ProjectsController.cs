@@ -10,7 +10,6 @@ using ProjectService.Domain.Enums;
 using ProjectService.Domain.Exceptions;
 using ProjectService.Dtos;
 using ProjectService.Extensions;
-using ProjectService.Security;
 using ProjectService.Services;
 
 namespace ProjectService.Controllers;
@@ -40,8 +39,33 @@ public class ProjectsController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet("employee/{assigneeId:long}")]
+    [Authorize(Policy = "AdminOnly")]
+    [ProducesResponseType(typeof(IEnumerable<EmployeeProjectResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<EmployeeProjectResponse>>> GetProjectsForEmployee(long assigneeId, CancellationToken cancellationToken)
+    {
+        var projects = await _db.Projects
+            .AsNoTracking()
+            .Where(p => p.Tasks.Any(t => t.AssigneeId == assigneeId))
+            .OrderBy(p => p.DueDate == null)
+            .ThenBy(p => p.DueDate)
+            .ThenByDescending(p => p.CreatedAt)
+            .Select(p => new EmployeeProjectResponse
+            {
+                Id = p.Id,
+                ProjectId = p.ProjectId,
+                VehicleId = p.VehicleId,
+                Title = p.Title,
+                Status = p.Status,
+                DueDate = p.DueDate
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(projects);
+    }
+
     [HttpPost]
-    [Authorize(Policy = "Customer")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
     {
@@ -77,8 +101,8 @@ public class ProjectsController : ControllerBase
     [ProducesResponseType(typeof(ProjectListResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProjects(
         [FromQuery] ProjectStatus? status,
-        [FromQuery] Guid? customerId,
-        [FromQuery] Guid? assigneeId,
+        [FromQuery] long? customerId,
+        [FromQuery] long? assigneeId,
         [FromQuery] bool includeTasks = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -93,20 +117,6 @@ public class ProjectsController : ControllerBase
 
             var projects = await _workflowService.GetProjectsAsync(status, customerId, cancellationToken);
             return Ok(projects.Select(p => p.ToResponse()));
-        }
-
-        if (UserContext.IsCustomer(User))
-        {
-            return Forbid();
-        }
-
-        if (UserContext.IsEmployee(User) && !UserContext.IsManager(User))
-        {
-            var userId = UserContext.UserId(User);
-            if (!userId.HasValue || userId.Value != assigneeId.Value)
-            {
-                return Forbid();
-            }
         }
 
         page = Math.Max(1, page);
@@ -179,7 +189,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/status")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateProjectStatusRequest request, CancellationToken cancellationToken)

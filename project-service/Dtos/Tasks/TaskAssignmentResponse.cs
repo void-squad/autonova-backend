@@ -1,6 +1,6 @@
-namespace ProjectService.Domain.Entities;
+namespace ProjectService.Dtos.Tasks;
 
-public class TaskItem
+public class TaskAssignmentResponse
 {
     public Guid TaskId { get; set; }
     public Guid ProjectId { get; set; }
@@ -8,6 +8,4 @@ public class TaskItem
     public decimal EstimateHours { get; set; }
     public long? AssigneeId { get; set; }
     public string Status { get; set; } = string.Empty;
-
-    public Project? Project { get; set; }
 }

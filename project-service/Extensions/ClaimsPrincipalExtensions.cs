@@ -38,6 +38,11 @@ public static class ClaimsPrincipalExtensions
             .Where(r => r.Length > 0)
             .ToList();
 
+        if (roles.Contains("admin"))
+        {
+            return "admin";
+        }
+
         if (roles.Contains("manager"))
         {
             return "manager";

@@ -42,14 +42,17 @@ public static class ProjectMappingExtensions
 
         return new ProjectResponse
         {
+            Id = project.Id,
             ProjectId = project.ProjectId,
             CustomerId = project.CustomerId,
+            VehicleId = project.VehicleId,
             Title = project.Title,
             Status = project.Status,
             CreatedAt = project.CreatedAt,
             UpdatedAt = project.UpdatedAt,
             Budget = project.Budget,
             DueDate = project.DueDate,
+            ClientRequestId = project.ClientRequestId,
             Tasks = tasks,
             Quotes = quotes,
             StatusHistory = history
