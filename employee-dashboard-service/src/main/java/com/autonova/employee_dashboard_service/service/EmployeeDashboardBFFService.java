@@ -1,19 +1,24 @@
 package com.autonova.employee_dashboard_service.service;
 
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
+import com.autonova.employee_dashboard_service.dto.project.ProjectDto;
+import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * BFF Service - Backend For Frontend
  * Aggregates data from multiple microservices for the employee dashboard
+ * This service makes parallel calls to multiple services and combines the results
  */
 @Slf4j
 @Service
@@ -21,28 +26,82 @@ import java.util.List;
 public class EmployeeDashboardBFFService {
 
     private final WebClient.Builder webClientBuilder;
+    private final ProjectServiceClient projectServiceClient;
 
     /**
-     * Main method to aggregate all dashboard data
-     * Currently returns mock data until services are implemented
+     * Main method to aggregate all dashboard data from multiple microservices
+     * Makes parallel calls to different services and combines the results
+     * 
+     * @param userId User ID from JWT token
+     * @param userEmail User email from JWT token
+     * @param userRole User role from JWT token
+     * @param token JWT token for service-to-service authentication
+     * @return Complete dashboard data
      */
-    public EmployeeDashboardResponse getEmployeeDashboard(Long userId, String userEmail, String userRole) {
-        log.info("Fetching dashboard data for user: {} (ID: {})", userEmail, userId);
+    public Mono<EmployeeDashboardResponse> getEmployeeDashboard(Long userId, String userEmail, String userRole, String token) {
+        log.info("Fetching aggregated dashboard data for user: {} (ID: {})", userEmail, userId);
 
-        // In the future, these will be parallel calls to different services
-        EmployeeDashboardResponse.EmployeeInfo employeeInfo = getEmployeeInfo(userId, userEmail, userRole);
-        EmployeeDashboardResponse.DashboardStats stats = getDashboardStats(userId);
-        List<EmployeeDashboardResponse.RecentActivity> activities = getRecentActivities(userId);
-        List<EmployeeDashboardResponse.UpcomingTask> tasks = getUpcomingTasks(userId);
-        List<EmployeeDashboardResponse.ProjectSummary> projects = getActiveProjects(userId);
+        String userIdString = userId.toString();
 
-        return EmployeeDashboardResponse.builder()
-                .employeeInfo(employeeInfo)
-                .stats(stats)
-                .recentActivities(activities)
-                .upcomingTasks(tasks)
-                .activeProjects(projects)
-                .build();
+        // Make parallel calls to different services
+        Mono<EmployeeDashboardResponse.EmployeeInfo> employeeInfoMono = 
+            Mono.just(getEmployeeInfo(userId, userEmail, userRole));
+        
+        Mono<List<ProjectDto>> projectsMono = 
+            projectServiceClient.getProjectsByAssignee(userIdString, true, 1, 20, token);
+        
+        Mono<TaskListResponse> tasksMono = 
+            projectServiceClient.getTasksByAssignee(userIdString, "InProgress", 1, 50, token);
+        
+        Mono<List<EmployeeDashboardResponse.RecentActivity>> activitiesMono = 
+            Mono.just(getRecentActivities(userId));
+        
+        // TODO: Add calls to other services when they're ready:
+        // - Time logging service
+        // - Notification service
+        // - Appointment service
+        
+        // Combine all results
+        return Mono.zip(employeeInfoMono, projectsMono, tasksMono, activitiesMono)
+                .map(tuple -> {
+                    EmployeeDashboardResponse.EmployeeInfo employeeInfo = tuple.getT1();
+                    List<ProjectDto> projects = tuple.getT2();
+                    TaskListResponse tasksResponse = tuple.getT3();
+                    List<EmployeeDashboardResponse.RecentActivity> activities = tuple.getT4();
+
+                    // Convert projects to project summaries
+                    List<EmployeeDashboardResponse.ProjectSummary> projectSummaries = 
+                        convertToProjectSummaries(projects);
+
+                    // Convert tasks to upcoming tasks
+                    List<EmployeeDashboardResponse.UpcomingTask> upcomingTasks = 
+                        convertToUpcomingTasks(tasksResponse.getItems());
+
+                    // Calculate stats from real data
+                    EmployeeDashboardResponse.DashboardStats stats = 
+                        calculateStats(projects, tasksResponse);
+
+                    return EmployeeDashboardResponse.builder()
+                            .employeeInfo(employeeInfo)
+                            .stats(stats)
+                            .recentActivities(activities)
+                            .upcomingTasks(upcomingTasks)
+                            .activeProjects(projectSummaries)
+                            .build();
+                })
+                .doOnSuccess(response -> log.info("Successfully aggregated dashboard data for user: {}", userId))
+                .doOnError(error -> log.error("Error aggregating dashboard data for user {}: {}", userId, error.getMessage()))
+                .onErrorResume(error -> {
+                    // Fallback to partial data if some services fail
+                    log.warn("Returning partial dashboard data due to error: {}", error.getMessage());
+                    return Mono.just(EmployeeDashboardResponse.builder()
+                            .employeeInfo(getEmployeeInfo(userId, userEmail, userRole))
+                            .stats(getDashboardStats(userId))
+                            .recentActivities(getRecentActivities(userId))
+                            .upcomingTasks(getUpcomingTasks(userId))
+                            .activeProjects(getActiveProjects(userId))
+                            .build());
+                });
     }
 
     /**
@@ -63,19 +122,42 @@ public class EmployeeDashboardBFFService {
     }
 
     /**
-     * Get dashboard statistics
-     * TODO: Aggregate from project-service, appointment-service, payment-service, customer-service
+     * Calculate dashboard statistics from real data
+     */
+    private EmployeeDashboardResponse.DashboardStats calculateStats(List<ProjectDto> projects, TaskListResponse tasksResponse) {
+        log.debug("Calculating dashboard stats from real data");
+        
+        int activeProjects = (int) projects.stream()
+                .filter(p -> "InProgress".equalsIgnoreCase(p.getStatus()) || 
+                            "PendingApproval".equalsIgnoreCase(p.getStatus()))
+                .count();
+        
+        int completedTasks = (int) tasksResponse.getItems().stream()
+                .filter(t -> "Completed".equalsIgnoreCase(t.getStatus()))
+                .count();
+        
+        return EmployeeDashboardResponse.DashboardStats.builder()
+                .totalActiveProjects(activeProjects)
+                .pendingAppointments(0) // TODO: Get from appointment service
+                .completedTasksThisWeek(completedTasks)
+                .totalRevenueThisMonth(0.0) // TODO: Get from payment service
+                .totalCustomers(0) // TODO: Get from customer service
+                .build();
+    }
+
+    /**
+     * Get dashboard statistics (fallback with mock data)
      */
     private EmployeeDashboardResponse.DashboardStats getDashboardStats(Long userId) {
         log.debug("Fetching dashboard stats for user: {}", userId);
         
-        // Mock data for now
+        // Mock data for fallback
         return EmployeeDashboardResponse.DashboardStats.builder()
-                .totalActiveProjects(5)
-                .pendingAppointments(3)
-                .completedTasksThisWeek(12)
-                .totalRevenueThisMonth(45000.00)
-                .totalCustomers(28)
+                .totalActiveProjects(0)
+                .pendingAppointments(0)
+                .completedTasksThisWeek(0)
+                .totalRevenueThisMonth(0.0)
+                .totalCustomers(0)
                 .build();
     }
 
@@ -203,42 +285,86 @@ public class EmployeeDashboardBFFService {
     }
 
     /**
-     * Future method to call project service
-     * Will be implemented when project-service endpoints are available
+     * Convert ProjectDto list to ProjectSummary list
      */
-    private void callProjectService(Long userId) {
-        // Example WebClient call (commented out for now)
-        /*
-        WebClient webClient = webClientBuilder
-                .baseUrl("http://project-service")
-                .build();
+    private List<EmployeeDashboardResponse.ProjectSummary> convertToProjectSummaries(List<ProjectDto> projects) {
+        return projects.stream()
+                .map(project -> EmployeeDashboardResponse.ProjectSummary.builder()
+                        .projectId(project.getProjectId())
+                        .projectName(project.getTitle())
+                        .customerName("Customer") // TODO: Get from customer service
+                        .status(project.getStatus())
+                        .startDate(project.getCreatedAt() != null ? 
+                                  project.getCreatedAt().toLocalDate().toString() : null)
+                        .expectedCompletionDate(project.getDueDate() != null ? 
+                                               project.getDueDate().toString() : null)
+                        .progressPercentage(calculateProjectProgress(project))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Convert TaskDto list to UpcomingTask list
+     */
+    private List<EmployeeDashboardResponse.UpcomingTask> convertToUpcomingTasks(List<com.autonova.employee_dashboard_service.dto.task.TaskDto> tasks) {
+        return tasks.stream()
+                .limit(10) // Only show top 10 upcoming tasks
+                .map(task -> EmployeeDashboardResponse.UpcomingTask.builder()
+                        .id(task.getTaskId())
+                        .title(task.getTitle())
+                        .description(task.getDescription())
+                        .dueDate("TBD") // TODO: Get due date from task
+                        .priority("MEDIUM") // TODO: Get priority from task
+                        .projectId(task.getProjectId())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Calculate project progress percentage based on completed tasks
+     */
+    private int calculateProjectProgress(ProjectDto project) {
+        if (project.getTasks() == null || project.getTasks().isEmpty()) {
+            return 0;
+        }
         
-        return webClient.get()
-                .uri("/api/projects/employee/{userId}", userId)
-                .retrieve()
-                .bodyToMono(ProjectResponse.class)
-                .block();
-        */
+        long totalTasks = project.getTasks().size();
+        long completedTasks = project.getTasks().stream()
+                .filter(task -> "Completed".equalsIgnoreCase(task.getStatus()))
+                .count();
+        
+        return (int) ((completedTasks * 100) / totalTasks);
     }
 
     /**
-     * Future method to call customer service
+     * TODO: Call time-logging service
+     * Will be implemented when time-logging-service is ready
      */
-    private void callCustomerService(Long userId) {
-        // Will be implemented when customer-service is ready
+    private void callTimeLoggingService(Long userId, String token) {
+        // Future implementation
     }
 
     /**
-     * Future method to call appointment service
+     * TODO: Call notification service
+     * Will be implemented when notification-service is ready
      */
-    private void callAppointmentService(Long userId) {
-        // Will be implemented when appointment-service is ready
+    private void callNotificationService(Long userId, String token) {
+        // Future implementation
     }
 
     /**
-     * Future method to call payment service
+     * TODO: Call appointment service
+     * Will be implemented when appointment-service is ready
      */
-    private void callPaymentService(Long userId) {
-        // Will be implemented when payment-service is ready
+    private void callAppointmentService(Long userId, String token) {
+        // Future implementation
+    }
+
+    /**
+     * TODO: Call payment/billing service
+     * Will be implemented when payment-service is ready
+     */
+    private void callPaymentService(Long userId, String token) {
+        // Future implementation
     }
 }

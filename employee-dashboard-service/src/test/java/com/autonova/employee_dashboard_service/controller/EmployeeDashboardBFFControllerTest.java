@@ -69,13 +69,14 @@ class EmployeeDashboardBFFControllerTest {
                 .activeProjects(new ArrayList<>())
                 .build();
 
-        when(bffService.getEmployeeDashboard(anyLong(), anyString(), anyString()))
-                .thenReturn(mockResponse);
+        when(bffService.getEmployeeDashboard(anyLong(), anyString(), anyString(), anyString()))
+                .thenReturn(reactor.core.publisher.Mono.just(mockResponse));
 
         // When/Then
         mockMvc.perform(get("/api/employee/dashboard")
                         .requestAttr("userId", 123L)
                         .requestAttr("userRole", "EMPLOYEE")
+                        .header("Authorization", "Bearer test-token")
                         .with(csrf()))
                 .andExpect(status().isOk());
     }

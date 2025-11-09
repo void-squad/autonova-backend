@@ -26,19 +26,21 @@ class EmployeeDashboardBFFServiceTest {
     private Long testUserId;
     private String testUserEmail;
     private String testUserRole;
+    private String testToken;
 
     @BeforeEach
     void setUp() {
         testUserId = 123L;
         testUserEmail = "test.employee@autonova.com";
         testUserRole = "EMPLOYEE";
+        testToken = "Bearer test-token";
     }
 
     @Test
     @DisplayName("Should return complete dashboard response with all sections")
     void shouldReturnCompleteDashboardResponse() {
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         assertNotNull(response, "Dashboard response should not be null");
@@ -53,7 +55,7 @@ class EmployeeDashboardBFFServiceTest {
     @DisplayName("Should return correct employee info")
     void shouldReturnCorrectEmployeeInfo() {
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         EmployeeDashboardResponse.EmployeeInfo info = response.getEmployeeInfo();
@@ -68,7 +70,7 @@ class EmployeeDashboardBFFServiceTest {
     @DisplayName("Should return valid dashboard stats")
     void shouldReturnValidDashboardStats() {
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         EmployeeDashboardResponse.DashboardStats stats = response.getStats();
@@ -83,7 +85,7 @@ class EmployeeDashboardBFFServiceTest {
     @DisplayName("Should return recent activities list")
     void shouldReturnRecentActivities() {
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         assertThat(response.getRecentActivities()).isNotEmpty();
@@ -100,7 +102,7 @@ class EmployeeDashboardBFFServiceTest {
     @DisplayName("Should return upcoming tasks list")
     void shouldReturnUpcomingTasks() {
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         assertThat(response.getUpcomingTasks()).isNotEmpty();
@@ -116,7 +118,7 @@ class EmployeeDashboardBFFServiceTest {
     @DisplayName("Should return active projects list")
     void shouldReturnActiveProjects() {
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         assertThat(response.getActiveProjects()).isNotEmpty();
@@ -134,7 +136,7 @@ class EmployeeDashboardBFFServiceTest {
         String managerRole = "MANAGER";
 
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, managerRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, managerRole, testToken).block();
 
         // Then
         assertNotNull(response);
@@ -148,7 +150,7 @@ class EmployeeDashboardBFFServiceTest {
         Long differentUserId = 999L;
 
         // When
-        EmployeeDashboardResponse response = service.getEmployeeDashboard(differentUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(differentUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         assertNotNull(response);
@@ -160,7 +162,7 @@ class EmployeeDashboardBFFServiceTest {
     void shouldHandleNullUserId() {
         // When/Then - should not throw exception
         assertDoesNotThrow(() -> 
-            service.getEmployeeDashboard(null, testUserEmail, testUserRole)
+            service.getEmployeeDashboard(null, testUserEmail, testUserRole, testToken).block()
         );
     }
 
@@ -168,8 +170,8 @@ class EmployeeDashboardBFFServiceTest {
     @DisplayName("Should return consistent data structure across multiple calls")
     void shouldReturnConsistentDataStructure() {
         // When
-        EmployeeDashboardResponse response1 = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
-        EmployeeDashboardResponse response2 = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole);
+        EmployeeDashboardResponse response1 = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
+        EmployeeDashboardResponse response2 = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
         assertThat(response1.getRecentActivities()).hasSameSizeAs(response2.getRecentActivities());
