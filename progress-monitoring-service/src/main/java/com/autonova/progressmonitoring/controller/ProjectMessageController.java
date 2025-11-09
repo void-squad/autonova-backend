@@ -4,6 +4,9 @@ import com.autonova.progressmonitoring.dto.CreateStatusRequest;
 import com.autonova.progressmonitoring.dto.ProjectMessageDto;
 import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import com.autonova.progressmonitoring.service.ProjectMessageService;
+import com.autonova.progressmonitoring.factory.ProjectMessageFactory;
+import com.autonova.progressmonitoring.storage.AttachmentStorage;
+import com.autonova.progressmonitoring.storage.StoredAttachment;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -13,10 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -28,10 +27,12 @@ public class ProjectMessageController {
     private static final Logger log = LoggerFactory.getLogger(ProjectMessageController.class);
     private final ProjectMessageService service;
     private final EventPublisher publisher;
+    private final AttachmentStorage attachmentStorage;
 
-    public ProjectMessageController(ProjectMessageService service, EventPublisher publisher) {
+    public ProjectMessageController(ProjectMessageService service, EventPublisher publisher, AttachmentStorage attachmentStorage) {
         this.service = service;
         this.publisher = publisher;
+        this.attachmentStorage = attachmentStorage;
     }
 
     @GetMapping("/{projectId}/messages")
@@ -82,17 +83,17 @@ public class ProjectMessageController {
         try { id = UUID.fromString(projectId); } catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().build(); }
         if (request.getMessage() == null || request.getMessage().isBlank()) { return ResponseEntity.badRequest().build(); }
 
-        ProjectMessageDto saved = service.saveMessage(ProjectMessageDto.builder()
-                .projectId(id)
-                .category(request.getCategory())
-                .message(request.getMessage())
-                .payload(request.getPayload())
-                .occurredAt(request.getOccurredAt())
-                .attachmentUrl(request.getAttachmentUrl())
-                .attachmentContentType(request.getAttachmentContentType())
-                .attachmentFilename(request.getAttachmentFilename())
-                .attachmentSize(request.getAttachmentSize())
-                .build());
+        ProjectMessageDto saved = service.saveMessage(
+                ProjectMessageFactory.fromManual(id,
+                        request.getCategory(),
+                        request.getMessage(),
+                        request.getPayload(),
+                        request.getOccurredAt(),
+                        request.getAttachmentUrl(),
+                        request.getAttachmentContentType(),
+                        request.getAttachmentFilename(),
+                        request.getAttachmentSize())
+        );
 
         try { publisher.publishMessageToProject(projectId, saved.getMessage()); } catch (Exception ex) { log.warn("Failed to publish status message for project {}", projectId, ex); }
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -109,32 +110,10 @@ public class ProjectMessageController {
         if (file.isEmpty()) return ResponseEntity.badRequest().build();
         if (message == null || message.isBlank()) return ResponseEntity.badRequest().build();
 
-        // Store file locally (could be swapped for S3, etc.)
-        try {
-            Path storageDir = Path.of("uploads");
-            Files.createDirectories(storageDir);
-            String sanitized = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            Path target = storageDir.resolve(sanitized);
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-            String url = "/uploads/" + sanitized; // would need static resource mapping in real deployment
+        StoredAttachment att = attachmentStorage.store(file);
+        ProjectMessageDto saved = service.saveMessage(ProjectMessageFactory.fromManualWithAttachment(id, category, message, att));
 
-            ProjectMessageDto saved = service.saveMessage(ProjectMessageDto.builder()
-                    .projectId(id)
-                    .category(category)
-                    .message(message)
-                    .payload(null)
-                    .occurredAt(OffsetDateTime.now())
-                    .attachmentUrl(url)
-                    .attachmentContentType(file.getContentType())
-                    .attachmentFilename(file.getOriginalFilename())
-                    .attachmentSize(file.getSize())
-                    .build());
-
-            try { publisher.publishMessageToProject(projectId, saved.getMessage()); } catch (Exception ex) { log.warn("Failed to publish status message for project {}", projectId, ex); }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-        } catch (IOException e) {
-            log.error("File upload failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        try { publisher.publishMessageToProject(projectId, saved.getMessage()); } catch (Exception ex) { log.warn("Failed to publish status message for project {}", projectId, ex); }
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }

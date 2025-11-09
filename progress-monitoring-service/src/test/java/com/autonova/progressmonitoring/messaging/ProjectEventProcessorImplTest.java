@@ -1,5 +1,6 @@
 package com.autonova.progressmonitoring.messaging;
 
+import com.autonova.progressmonitoring.messaging.adapter.DomainEventAdapter;
 import com.autonova.progressmonitoring.messaging.mapper.DefaultEventMessageMapper;
 import com.autonova.progressmonitoring.messaging.mapper.EventMessageMapper;
 import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
@@ -37,7 +38,6 @@ class ProjectEventProcessorImplTest {
     void setUp() {
         openMocks(this);
         mapper = new ObjectMapper();
-        // use the default mapper implementation in tests
         EventMessageMapper messageMapper = new DefaultEventMessageMapper();
         processor = new ProjectEventProcessorImpl(publisher, mapper, messageMapper, messageService);
     }

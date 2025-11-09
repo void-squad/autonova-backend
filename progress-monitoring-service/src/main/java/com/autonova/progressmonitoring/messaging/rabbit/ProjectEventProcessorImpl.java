@@ -1,6 +1,8 @@
 package com.autonova.progressmonitoring.messaging.rabbit;
 
 import com.autonova.progressmonitoring.enums.EventCategory;
+import com.autonova.progressmonitoring.factory.ProjectMessageFactory;
+import com.autonova.progressmonitoring.messaging.adapter.DomainEventAdapter;
 import com.autonova.progressmonitoring.messaging.mapper.EventMessageMapper;
 import com.autonova.progressmonitoring.messaging.publisher.EventPublisher;
 import com.autonova.progressmonitoring.service.ProjectMessageService;
@@ -25,12 +27,19 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
     private final ObjectMapper mapper;
     private final EventMessageMapper messageMapper;
     private final ProjectMessageService messageService;
+    private final DomainEventAdapter domainEventAdapter;
 
+    // Backward-compatible constructor (without DomainEventAdapter)
     public ProjectEventProcessorImpl(EventPublisher publisher, ObjectMapper mapper, EventMessageMapper messageMapper, ProjectMessageService messageService) {
+        this(publisher, mapper, messageMapper, messageService, null);
+    }
+
+    public ProjectEventProcessorImpl(EventPublisher publisher, ObjectMapper mapper, EventMessageMapper messageMapper, ProjectMessageService messageService, DomainEventAdapter domainEventAdapter) {
         this.publisher = publisher;
         this.mapper = mapper;
         this.messageMapper = messageMapper;
         this.messageService = messageService;
+        this.domainEventAdapter = domainEventAdapter;
         log.debug("ProjectEventProcessorImpl initialized and ready");
     }
 
@@ -42,35 +51,41 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
 
         try {
             JsonNode node = mapper.readTree(body);
-            String messageText = messageMapper.mapToMessage(routingKey, node);
-
-            if (node.has("projectId")) {
-                var projectIdText = node.get("projectId").asText();
-                publisher.publishToProject(projectIdText, body);
-                publisher.publishMessageToProject(projectIdText, messageText);
-
-                // persist message
-                try {
-                    UUID projectId = UUID.fromString(projectIdText);
-                    OffsetDateTime occurredAt = null;
-                    if (node.has("occurredAt")) {
-                        try {
-                            occurredAt = OffsetDateTime.parse(node.get("occurredAt").asText());
-                        } catch (DateTimeParseException ex) {
-                            log.error("Could not parse occurredAt timestamp, proceeding with null value", ex);
-                        }
+            if (domainEventAdapter != null) {
+                var adapted = domainEventAdapter.adapt(routingKey, node);
+                if (adapted.projectId() != null) {
+                    publisher.publishToProject(adapted.projectId(), adapted.rawPayload());
+                    publisher.publishMessageToProject(adapted.projectId(), adapted.friendlyMessage());
+                    try {
+                        UUID projectId = UUID.fromString(adapted.projectId());
+                        messageService.saveMessage(ProjectMessageFactory.fromEvent(projectId, adapted.category(), adapted.friendlyMessage(), adapted.rawPayload(), adapted.occurredAt()));
+                    } catch (Exception ex) {
+                        log.error("Failed to persist adapted project message for project {}: {}", adapted.projectId(), ex.getMessage(), ex);
                     }
-                    // derive category using EventCategory enum for consistency
-                    String category = EventCategory.resolve(routingKey, node).name();
-                    messageService.saveMessage(projectId, category, messageText, body, occurredAt);
-                } catch (Exception ex) {
-                    log.error("Failed to persist project message for project {}: {}", projectIdText, ex.getMessage(), ex);
+                    return;
                 }
-
-                return;
+            } else { // fallback original logic without adapter
+                String messageText = messageMapper.mapToMessage(routingKey, node);
+                if (node.has("projectId")) {
+                    var projectIdText = node.get("projectId").asText();
+                    publisher.publishToProject(projectIdText, body);
+                    publisher.publishMessageToProject(projectIdText, messageText);
+                    try {
+                        UUID projectId = UUID.fromString(projectIdText);
+                        OffsetDateTime occurredAt = null;
+                        if (node.has("occurredAt")) {
+                            try { occurredAt = OffsetDateTime.parse(node.get("occurredAt").asText()); } catch (DateTimeParseException ex) { log.error("Could not parse occurredAt timestamp", ex); }
+                        }
+                        String category = EventCategory.resolve(routingKey, node).name();
+                        messageService.saveMessage(projectId, category, messageText, body, occurredAt);
+                    } catch (Exception ex) {
+                        log.error("Failed to persist project message for project {}: {}", projectIdText, ex.getMessage(), ex);
+                    }
+                    return;
+                }
             }
         } catch (Exception ex) {
-            log.error("Failed to parse message body as JSON to extract projectId", ex);
+            log.error("Failed to parse or process message body as JSON", ex);
         }
 
         // fallback: broadcast raw payload and a generic message
