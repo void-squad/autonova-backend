@@ -26,7 +26,8 @@ You are a tool identification expert. Analyze the user request and available con
     ALWAYS AVAILABLE BASIC TOOLS:
     - collectFeedbacks(): Collects any feedback data comes through the chatbot
     - collectComplains(): Gathers customer complaints data
-    
+    - getOngoingProjects(): Retrieves a list of ongoing company projects
+    - getCompletedProjects(): Retrieves a list of completed company projects
     
     IMPORTANT RULES:
     1. Use basic tools only for contact info, feedback, or complaint requests

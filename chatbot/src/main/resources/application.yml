@@ -14,6 +14,23 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  cloud:
+      gateway:
+        routes:
+          - id: chatbot-api
+            uri: http://chatbot:8097
+            predicates:
+              - Path=/chatbot/**         
+            filters:
+              - StripPrefix=1            
+              - AddRequestHeader=X-Forwarded-Host, "#{request.headers.Host[0]}"
+          - id: chatbot-actuator
+            uri: http://chatbot:8098
+            predicates:
+              - Path=/actuator/**
+            filters:
+              - AddRequestHeader=X-Gateway-Token, ${GATEWAY_ACTUATOR_SECRET}
+
   datasource:
     url: {$DB_URL:jdbc:postgresql://localhost:5432/vector_db}
     username: {$DB_USERNAME:postgres}

@@ -1,14 +1,12 @@
 package com.voidsquad.chatbot.service.language;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.voidsquad.chatbot.service.AIService;
 import com.voidsquad.chatbot.service.promptmanager.PromptManager;
 import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingRequest;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingType;
 import com.voidsquad.chatbot.service.promptmanager.core.PromptConfig;
-import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
@@ -43,7 +41,7 @@ public class LanguageProcessor {
         return tmp;
     }
 
-    private ProcessingResult processWithCustomSystemPrompt(ProcessingRequest request) {
+    private ProcessingResult processUserMessage(ProcessingRequest request) {
         try {
             // Build user prompt
             log.info("Processing request of type: " + request.type());
@@ -73,7 +71,7 @@ public class LanguageProcessor {
                 Map.of("userRole", userRole)
         );
 
-        return processWithCustomSystemPrompt(request);
+        return processUserMessage(request);
     }
 
     public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole, String useFullTools) {
@@ -83,7 +81,7 @@ public class LanguageProcessor {
                 ProcessingType.TOOL_CALL_IDENTIFICATION,
                 Map.of("userRole", userRole)
         );
-        return processWithCustomSystemPrompt(request);
+        return processUserMessage(request);
     }
 
     public ProcessingResult finalOutputPrepWithData(String userPrompt, String extractedContext, String userInfo) {
@@ -93,7 +91,7 @@ public class LanguageProcessor {
                 ProcessingType.FINAL_OUTPUT_GENERATION,
                 Map.of("userInfo", userInfo)
         );
-        return processWithCustomSystemPrompt(request);
+        return processUserMessage(request);
     }
 
     private String callLanguageModel(String systemPrompt, String userPrompt, PromptConfig config) {
