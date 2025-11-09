@@ -45,23 +45,67 @@ jobs:
           # If this run was triggered manually with force_all=true, build all services
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_all }}" = "true" ]; then
             echo "Manual dispatch requested full build (force_all=true)"
-            SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+            # Build list of top-level directories that look like buildable services.
+            # Only include directories that contain a Dockerfile (or prebuilt), a docker/Dockerfile, or a pom.xml
+            SERVICES=$(for d in */ ; do
+              d=${d%/}
+              case "$d" in
+                .|..|.git|.github|infra|docs|contracts|http|scripts|target|README.md|pom.xml|.idea)
+                  continue
+                  ;;
+              esac
+              if [ -f "$d/Dockerfile" ] || [ -f "$d/Dockerfile.prebuilt" ] || [ -f "$d/docker/Dockerfile" ] || [ -f "$d/pom.xml" ]; then
+                printf "%s " "$d"
+              fi
+            done)
           fi
 
-          if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+            if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
             echo "First commit detected - building all services"
-            SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+            SERVICES=$(for d in */ ; do
+              d=${d%/}
+              case "$d" in
+                .|..|.git|.github|infra|docs|contracts|http|scripts|target|README.md|pom.xml|.idea)
+                  continue
+                  ;;
+              esac
+              if [ -f "$d/Dockerfile" ] || [ -f "$d/Dockerfile.prebuilt" ] || [ -f "$d/docker/Dockerfile" ] || [ -f "$d/pom.xml" ]; then
+                printf "%s " "$d"
+              fi
+            done)
           else
             CHANGED_FILES=$(git diff --name-only "$BASE_REF" "${{ github.sha }}" || true)
             echo "Changed files:"
             echo "$CHANGED_FILES"
             # If the .github directory was changed, treat this as a change to CI config
             # and build all services.
-            if echo "$CHANGED_FILES" | grep -qE '^.github(/|$)'; then
+              if echo "$CHANGED_FILES" | grep -qE '^.github(/|$)'; then
               echo ".github/ changed - triggering a full build of all services"
-              SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+              SERVICES=$(for d in */ ; do
+                d=${d%/}
+                case "$d" in
+                  .|..|.git|.github|infra|docs|contracts|http|scripts|target|README.md|pom.xml|.idea)
+                    continue
+                    ;;
+                esac
+                if [ -f "$d/Dockerfile" ] || [ -f "$d/Dockerfile.prebuilt" ] || [ -f "$d/docker/Dockerfile" ] || [ -f "$d/pom.xml" ]; then
+                  printf "%s " "$d"
+                fi
+              done)
             else
-              SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')
+              # Only consider the top-level directory portion of changed files, then filter
+              RAW_SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u)
+              SERVICES=""
+              for svc in $RAW_SERVICES; do
+                case "$svc" in
+                  .|..|.git|.github|infra|docs|contracts|http|scripts|target|README.md|pom.xml|.idea)
+                    continue
+                    ;;
+                esac
+                if [ -d "$svc" ] && ( [ -f "$svc/Dockerfile" ] || [ -f "$svc/Dockerfile.prebuilt" ] || [ -f "$svc/docker/Dockerfile" ] || [ -f "$svc/pom.xml" ] ); then
+                  SERVICES="$SERVICES $svc"
+                fi
+              done
             fi
 
             FILTERED_SERVICES=""
