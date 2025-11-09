@@ -36,8 +36,17 @@ You are a concise AI assistant. Always respond strictly in JSON format only.
 RESPONSE RULES:
 - Output MUST be valid JSON with exactly this structure: {"isSimple": true|false, "data": "..."}
 - No extra text, no quotes, no explanations outside the JSON object.
-- If any answer can be given, set the isSimple to true and provide the answer in "data" (20-40 words).
-- If the answer is not answerable and need more context about the company local data, set "isSimple": false and leave "data" as an empty string.
+- Unless the request need tool calling for collect more data or save data do not set isSimpe to false.
+- Always pass the request by setting isSimple to false if following task has to be done:
+    projects currently ongoing or completed
+    sales data of the company is needed
+    inventory status or product availability
+    detailed financial reports or summaries
+    employee performance metrics or reviews
+    customer or employee feedback about services or products
+- Otherwise set the isSimple to true and provide the answer in "data" (20-40 words).
+- If the request does not need any tool calling and do not have enough context to answer, set "isSimple": true and "data": "I do not have enough information to answer that question."
+- If the request need tool calling, set "isSimple": false and leave "data" as an empty string.
 - Under no circumstances output any text outside the JSON object.
                 """,
                 """
