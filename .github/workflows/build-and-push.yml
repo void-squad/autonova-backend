@@ -5,6 +5,12 @@ on:
     branches: [main, dev, update-ci-cd]
 #  pull_request:
 #    branches: [main, dev, update-ci-cd]
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'When true, force building all services'
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
@@ -36,6 +42,12 @@ jobs:
           echo "BASE_REF=$BASE_REF"
           git fetch --no-tags --prune --depth=50 origin
 
+          # If this run was triggered manually with force_all=true, build all services
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_all }}" = "true" ]; then
+            echo "Manual dispatch requested full build (force_all=true)"
+            SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+          fi
+
           if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
             echo "First commit detected - building all services"
             SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
@@ -43,12 +55,19 @@ jobs:
             CHANGED_FILES=$(git diff --name-only "$BASE_REF" "${{ github.sha }}" || true)
             echo "Changed files:"
             echo "$CHANGED_FILES"
-            SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')
+            # If the .github directory was changed, treat this as a change to CI config
+            # and build all services.
+            if echo "$CHANGED_FILES" | grep -qE '^.github(/|$)'; then
+              echo ".github/ changed - triggering a full build of all services"
+              SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+            else
+              SERVICES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')
+            fi
 
             FILTERED_SERVICES=""
             for svc in $SERVICES; do
               case "$svc" in
-                .github|infra|docs|contracts|http|scripts|target|README.md|pom.xml)
+                infra|docs|contracts|http|scripts|target|README.md|pom.xml)
                   ;;
                 *)
                   FILTERED_SERVICES="$FILTERED_SERVICES $svc"
@@ -57,8 +76,14 @@ jobs:
             done
 
             if [ -z "$FILTERED_SERVICES" ] && [ -n "$SERVICES" ]; then
-              echo "Only non-service directories changed (likely adding CI/CD) - building all services"
-              SERVICES=$(find . -maxdepth 1 -type d ! -name '.' ! -name '..' ! -name '.git' ! -name '.github' ! -name 'infra' ! -name 'docs' ! -name 'contracts' ! -name 'http' ! -name 'scripts' ! -name 'target' -exec basename {} \; | tr '\n' ' ')
+              # Only non-service top-level directories changed (for example: infra, docs)
+              # Note: changes under .github are handled earlier and will trigger a full build.
+              # Previously we built all services in this case (useful for first CI runs). That
+              # caused edits under CI/docs dirs to trigger a full rebuild. Change behavior: do not
+              # trigger any builds for purely CI/docs infra changes. If you want to force a
+              # full rebuild, use workflow_dispatch.
+              echo "Only non-service directories changed (e.g. infra/docs) - skipping builds"
+              SERVICES=""
             fi
           fi
 
