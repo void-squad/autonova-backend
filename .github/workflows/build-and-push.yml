@@ -89,11 +89,11 @@ jobs:
 
           # Convert to a JSON array for the matrix
           python - <<'PY'
-import json,sys,subprocess
-svc_str = """$SERVICES"""
-items = [s for s in svc_str.split() if s]
-print(json.dumps(items))
-PY
+          import json,sys,subprocess
+          svc_str = """$SERVICES"""
+          items = [s for s in svc_str.split() if s]
+          print(json.dumps(items))
+          PY
           | tee services.json
 
           SERVICES_JSON=$(cat services.json)
