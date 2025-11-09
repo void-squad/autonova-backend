@@ -88,13 +88,8 @@ jobs:
           fi
 
           # Convert to a JSON array for the matrix
-          python - <<'PY'
-          import json,sys,subprocess
-          svc_str = """$SERVICES"""
-          items = [s for s in svc_str.split() if s]
-          print(json.dumps(items))
-          PY
-          | tee services.json
+          # Use a single-line python -c to avoid heredoc indentation issues inside the YAML run block
+          python -c "import json,sys;svc_str='${SERVICES}';print(json.dumps([s for s in svc_str.split() if s]))" | tee services.json
 
           SERVICES_JSON=$(cat services.json)
           echo "Services JSON: $SERVICES_JSON"
