@@ -1,21 +1,21 @@
 services:
   # Local DB commented out as we are using Neon/Postgres Cloud
-  # postgres:
-  #  container_name: autonova-postgres
-  #  image: postgres:17
-  #  environment:
-  #    POSTGRES_USER: ${POSTGRES_USER}
-  #    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  #    PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
-  #    PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
-  #  ports:
-  #    - "5432:5432"
-  #  volumes:
-  #    - postgres_data:/var/lib/postgresql/data
-  #  healthcheck:
-  #    test: ["CMD-SHELL", "pg_isready -U postgres"]
-  #    interval: 5s
-  #    retries: 5
+#  postgres:
+#   container_name: autonova-postgres
+#   image: postgres:17
+#   environment:
+#     POSTGRES_USER: ${POSTGRES_USER}
+#     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#     PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD}
+#     PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
+#   ports:
+#     - "5432:5432"
+#   volumes:
+#     - postgres_data:/var/lib/postgresql/data
+#   healthcheck:
+#     test: ["CMD-SHELL", "pg_isready -U postgres"]
+#     interval: 5s
+#     retries: 5
 
   postgres-init:
     image: postgres:17
@@ -37,17 +37,9 @@ services:
       PBS_DB_PASSWORD: ${PBS_DB_PASSWORD:-payments_billing_service}
     volumes:
       - ./init-scripts:/scripts:ro
-    entrypoint: >
-      bash -c "
-        echo 'Waiting for PostgreSQL at $PGHOST:$PGPORT...';
-        until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do
-          sleep 2;
-        done;
-        echo 'Starting pgvector extension setup...'; # Added from dev
-        bash /scripts/pgvector-init.sh; # Added from dev
-        echo 'Starting database initialization via db-init.sh';
-        bash /scripts/db-init.sh
-      "
+    # Run mounted init scripts after stripping Windows CRLFs and using bash
+    # Use $$ to escape environment variable interpolation inside the compose file.
+    entrypoint: ["sh", "-c", "echo 'Waiting for PostgreSQL at $PGHOST:$PGPORT...'; until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do sleep 2; done; echo 'Starting pgvector extension setup...'; tr -d '\\r' </scripts/pgvector-init.sh | bash -s --; echo 'Starting database initialization via db-init.sh'; tr -d '\\r' </scripts/db-init.sh | bash -s --"]
     restart: 'no'
 
   rabbitmq:
@@ -60,6 +52,20 @@ services:
       test: ['CMD', 'rabbitmqctl', 'status']
       interval: 5s
       retries: 5
+    networks:
+      - autonova-network
+
+  # Ollama local model server for LLM testing
+  ollama:
+    container_name: autonova-ollama
+    image: ollama/ollama:latest
+    ports:
+      - '11434:11434'
+    volumes:
+      - ./ollama-data:/root/.ollama
+      - ./init-scripts:/scripts:ro
+    entrypoint: ["sh", "-c", "tr -d '\\r' </scripts/ollama-init.sh | sh -s --"]
+    restart: 'no'
     networks:
       - autonova-network
 
@@ -277,7 +283,7 @@ services:
       # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
       DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
-      - '8084:8084'
+      - "8085:8085"
     depends_on:
       - rabbitmq
       - postgres-init
@@ -314,6 +320,24 @@ services:
       - rabbitmq
     networks:
       - autonova-network
+
+  # Chatbot service
+  chatbot:
+    container_name: autonova-chatbot
+    build:
+      # Use repository root as build context so parent POM and shared config are available
+      context: ..
+      dockerfile: chatbot/Dockerfile
+    env_file:
+      - ../chatbot/.env
+    ports:
+      - '8097:8097'
+    depends_on:
+      - rabbitmq
+      - postgres-init
+    networks:
+      - autonova-network
+    restart: 'no'
 
 volumes:
   postgres_data:

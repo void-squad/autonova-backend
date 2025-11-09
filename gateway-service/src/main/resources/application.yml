@@ -53,6 +53,10 @@ spring:
           uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
           predicates:
             - Path=/api/invoices/**,/webhooks/stripe/**
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/notifications/**
 
 management:
   endpoints:
