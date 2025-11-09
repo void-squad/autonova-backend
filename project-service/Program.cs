@@ -132,16 +132,11 @@ builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
+        .RequireRole("ADMIN")
         .Build();
 
-    options.AddPolicy("EmployeeOrManager", policy =>
-        policy.RequireRole("employee", "manager"));
-
-    options.AddPolicy("Customer", policy =>
-        policy.RequireRole("customer"));
-
-    options.AddPolicy("Manager", policy =>
-        policy.RequireRole("manager"));
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("ADMIN"));
 });
 
 builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));

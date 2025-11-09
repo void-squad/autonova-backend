@@ -31,16 +31,23 @@ public class DemoDataSeeder
 
         var employees = new[]
         {
-            Guid.Parse("f381a9f7-13e5-4d44-83fd-637e77a9cc10"), // Alex Rivera
-            Guid.Parse("6c9b6ef0-4c33-419f-bab9-1f0fb4ae1fcb"), // Priya Das
-            Guid.Parse("a7a63a74-5fe6-4a48-8459-1fb328e0b2c5")  // Liam Chen
+            501L, // Alex Rivera
+            502L, // Priya Das
+            503L  // Liam Chen
+        };
+
+        var employeeActors = new[]
+        {
+            Guid.Parse("f381a9f7-13e5-4d44-83fd-637e77a9cc10"),
+            Guid.Parse("6c9b6ef0-4c33-419f-bab9-1f0fb4ae1fcb"),
+            Guid.Parse("a7a63a74-5fe6-4a48-8459-1fb328e0b2c5")
         };
 
         var customers = new[]
         {
-            Guid.Parse("6e732997-2d4c-4763-b38d-8f07eb2a3d8c"),
-            Guid.Parse("df88b339-8ecf-4fbf-9310-b01730f0d522"),
-            Guid.Parse("4ba0e426-c88b-4e89-913f-8cf64a78a9d7")
+            21001L,
+            21002L,
+            21003L
         };
 
         var vehicles = new[]
@@ -183,22 +190,22 @@ public class DemoDataSeeder
 
         statusHistory.AddRange(CreateHistory(
             diagnosticsProjectId,
-            (ProjectStatus.Requested, ProjectStatus.Quoted, now.AddDays(-24), employees[0], "Initial inspection complete."),
-            (ProjectStatus.Quoted, ProjectStatus.Approved, now.AddDays(-22), employees[0], "Quote accepted by customer."),
-            (ProjectStatus.Approved, ProjectStatus.InProgress, now.AddDays(-20), employees[1], "Technicians scheduled.")
+            (ProjectStatus.Requested, ProjectStatus.Quoted, now.AddDays(-24), employeeActors[0], "Initial inspection complete."),
+            (ProjectStatus.Quoted, ProjectStatus.Approved, now.AddDays(-22), employeeActors[0], "Quote accepted by customer."),
+            (ProjectStatus.Approved, ProjectStatus.InProgress, now.AddDays(-20), employeeActors[1], "Technicians scheduled.")
         ));
 
         statusHistory.AddRange(CreateHistory(
             storefrontProjectId,
-            (ProjectStatus.Requested, ProjectStatus.Quoted, now.AddDays(-13), employees[2], "Requirements gathered."),
-            (ProjectStatus.Quoted, ProjectStatus.Approved, now.AddDays(-11), employees[2], "Statement of work signed.")
+            (ProjectStatus.Requested, ProjectStatus.Quoted, now.AddDays(-13), employeeActors[2], "Requirements gathered."),
+            (ProjectStatus.Quoted, ProjectStatus.Approved, now.AddDays(-11), employeeActors[2], "Statement of work signed.")
         ));
 
         statusHistory.AddRange(CreateHistory(
             detailingProjectId,
-            (ProjectStatus.Requested, ProjectStatus.Approved, now.AddDays(-7), employees[1], "Fast-tracked."),
-            (ProjectStatus.Approved, ProjectStatus.InProgress, now.AddDays(-6), employees[1], "Detailing started."),
-            (ProjectStatus.InProgress, ProjectStatus.Completed, now.AddDays(-2), employees[0], "Delivered to showroom.")
+            (ProjectStatus.Requested, ProjectStatus.Approved, now.AddDays(-7), employeeActors[1], "Fast-tracked."),
+            (ProjectStatus.Approved, ProjectStatus.InProgress, now.AddDays(-6), employeeActors[1], "Detailing started."),
+            (ProjectStatus.InProgress, ProjectStatus.Completed, now.AddDays(-2), employeeActors[0], "Delivered to showroom.")
         ));
 
         await _db.Projects.AddRangeAsync(projects, cancellationToken);

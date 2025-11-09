@@ -6,7 +6,7 @@ public class ProjectResponse
 {
     public long Id { get; set; }
     public Guid ProjectId { get; set; }
-    public Guid CustomerId { get; set; }
+    public long CustomerId { get; set; }
     public Guid VehicleId { get; set; }
     public string Title { get; set; } = string.Empty;
     public ProjectStatus Status { get; set; }
@@ -24,7 +24,7 @@ public class ProjectResponse
         public Guid TaskId { get; set; }
         public string Title { get; set; } = string.Empty;
         public decimal EstimateHours { get; set; }
-        public Guid? AssigneeId { get; set; }
+        public long? AssigneeId { get; set; }
         public string Status { get; set; } = string.Empty;
     }
 

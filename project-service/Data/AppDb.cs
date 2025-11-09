@@ -26,6 +26,8 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             entity.Property(e => e.Title)
                   .IsRequired()
                   .HasMaxLength(200);
+            entity.Property(e => e.CustomerId)
+                  .HasColumnType("bigint");
             entity.Property(e => e.VehicleId)
                   .IsRequired();
             entity.Property(e => e.Status)
@@ -91,6 +93,8 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
                   .HasMaxLength(80);
             entity.Property(e => e.EstimateHours)
                   .HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AssigneeId)
+                  .HasColumnType("bigint");
         });
 
         modelBuilder.Entity<Quote>(entity =>
