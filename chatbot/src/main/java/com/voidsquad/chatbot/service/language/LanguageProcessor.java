@@ -1,17 +1,18 @@
 package com.voidsquad.chatbot.service.language;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voidsquad.chatbot.service.language.provider.ChatClient;
+import com.voidsquad.chatbot.service.language.provider.ChatResponse;
 import com.voidsquad.chatbot.service.promptmanager.PromptManager;
-import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingRequest;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingType;
 import com.voidsquad.chatbot.service.promptmanager.core.PromptConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -20,16 +21,29 @@ import java.util.Map;
 public class LanguageProcessor {
 
     private final PromptManager promptManager;
-    private final ChatClient chatClient;
+    private ChatClient chatClient;
     private final ObjectMapper objectMapper;
     private static final Logger log = LogManager.getLogger(LanguageProcessor.class);
 
+
     public LanguageProcessor(PromptManager promptManager,
-                             ChatClient.Builder chatClientBuilder,
+                             @Qualifier("ollamaChatClient") ChatClient ollamaChatClientBuilder,
+                             @Qualifier("geminiChatClient") ChatClient geminiChatClientBuilder,
+                             @Value("${app.llm.provider}") LLMProvider llmProvider,
                              ObjectMapper objectMapper) {
         this.promptManager = promptManager;
-        this.chatClient = (chatClientBuilder != null) ? chatClientBuilder.build() : null;
+        if(llmProvider.equals(LLMProvider.GEMINI)) {
+            this.chatClient = geminiChatClientBuilder;
+        }else if(llmProvider.equals(LLMProvider.OLLAMA)) {
+            this.chatClient = ollamaChatClientBuilder;
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported LLM provider: " + llmProvider);
+        }
         this.objectMapper = objectMapper;
+        if(this.chatClient == null) {
+            throw new IllegalArgumentException("ChatClient initialization failed for provider: " + llmProvider);
+        }
     }
 
     private String sanitizeInput(String input) {
@@ -101,9 +115,7 @@ public class LanguageProcessor {
         ChatResponse response = chatClient.prompt()
                 .system(systemPrompt)
                 .user(userPrompt)
-                .call()
-                .chatResponse();
-
+                .call();
         log.info("Language model call completed");
 
         if (response != null) {
@@ -115,8 +127,4 @@ public class LanguageProcessor {
         }
     }
 
-    private PromptStrategy getStrategyForType(ProcessingType type) {
-        // Deprecated - PromptManager now exposes postProcess; keep for backward compatibility
-        return null;
-    }
 }

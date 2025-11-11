@@ -19,3 +19,25 @@ management:
   endpoint:
     health:
       show-details: always
+
+  ai:
+    ollama:
+      base-url: {$SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: llama3
+    chat:
+      client:
+        enabled: false
+    model:
+      chat: vertexai
+    vertex:
+      ai:
+        gemini:
+          chat:
+            options:
+              model: {$GEMINI_CHAT_MODEL:gemini-2.0-flash}
+              temperature: 0.5
+          api-key: {$GEMINI_API_KEY:your-gemini-api-key}
+          project-id: {$GEMINI_PROJECT_ID:your-gemini-project}
+          location: {$GEMINI_LOCATION:us-central1}

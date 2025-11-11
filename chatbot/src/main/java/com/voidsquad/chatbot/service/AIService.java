@@ -6,12 +6,13 @@ import com.voidsquad.chatbot.entities.WorkflowStep;
 import com.voidsquad.chatbot.exception.JsonDecodeException;
 import com.voidsquad.chatbot.exception.NoAnswerException;
 import com.voidsquad.chatbot.repository.WorkflowStepRepository;
+import com.voidsquad.chatbot.service.language.provider.ChatClient;
+import com.voidsquad.chatbot.service.language.provider.ChatResponse;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import com.voidsquad.chatbot.service.embedding.EmbeddingService;
 import com.voidsquad.chatbot.repository.StaticInfoRepository;
@@ -35,7 +36,6 @@ public class AIService {
 
 //    @Autowired
 //    private RabbitTemplate rabbitTemplate;
-
     private final ChatClient chatClient;
     private final EmbeddingService embeddingService;
     private final StaticInfoRepository staticInfoRepository;
@@ -43,12 +43,12 @@ public class AIService {
     private final ObjectMapper objectMapper;
     private final WorkflowStepRepository workflowStepRepository;
 
-    public AIService(@Autowired(required = false) ChatClient.Builder chatClientBuilder,
+    public AIService(@Qualifier("geminiChatClient") ChatClient chatClient,
                      @Autowired(required = false) EmbeddingService embeddingService,
                      @Autowired(required = false) StaticInfoRepository staticInfoRepository,
                      @Autowired(required = false) LanguageProcessor languageProcessor,
                      @Autowired(required = false) ObjectMapper objectMapper, WorkflowStepRepository workflowStepRepository) {
-        this.chatClient = (chatClientBuilder != null) ? chatClientBuilder.build() : null;
+        this.chatClient = chatClient;
         this.embeddingService = embeddingService;
         this.staticInfoRepository = staticInfoRepository;
         this.languageProcessor = languageProcessor;
@@ -62,8 +62,7 @@ public class AIService {
                     .prompt()
                     .system("You are a helpful chatbot assistant.")
                     .user("Explain briefly: " + userInput)
-                    .call()
-                    .chatResponse();
+                    .call();
 
             if (resp != null) {
                 return resp.getResult().getOutput().getText();
