@@ -1,8 +1,9 @@
 name: Build and push changed services
 
+
 on:
   push:
-    branches: [main, dev, update-ci-cd]
+    branches: [main, dev, mulitarch-dockerfiles]
 #  pull_request:
 #    branches: [main, dev, update-ci-cd]
   workflow_dispatch:
@@ -110,7 +111,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -197,7 +198,7 @@ jobs:
           echo "Using cache ref: $CACHE_REF"
 
           # Build with buildx and push; use registry cache to avoid re-pulling common layers
-          docker buildx build --platform linux/amd64 --push \
+          docker buildx build --platform linux/amd64,linux/arm64 --push \
             --tag "$IMAGE_SHA" \
             ${ADDITIONAL_TAGS[@]:-} \
             --cache-from=type=registry,ref=$CACHE_REF \

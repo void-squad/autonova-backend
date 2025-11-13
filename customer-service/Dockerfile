@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage build for Customer Service
 # Stage 1: build the application jar
 FROM maven:3.9-eclipse-temurin-17 AS build

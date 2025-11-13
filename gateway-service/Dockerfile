@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage Docker build for Gateway Service
 
 # Stage 1: Build
@@ -25,8 +26,11 @@ RUN ./mvnw clean package spring-boot:repackage -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-# Create non-root user (alpine)
-RUN addgroup -S spring && adduser -S spring -G spring
+# Install wget and certificates for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd --system spring && useradd --system --gid spring spring
 USER spring:spring
 
 # Copy JAR from build stage

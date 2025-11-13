@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Stage 1 - build with maven
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
