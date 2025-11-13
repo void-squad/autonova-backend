@@ -9,7 +9,7 @@ public interface IProjectWorkflowService
 {
     Task<Project> CreateProjectAsync(CreateProjectRequest request, Guid actorId, string actorRole, string? clientRequestId, CancellationToken cancellationToken);
     Task<Project?> GetProjectAsync(Guid projectId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<Project>> GetProjectsAsync(ProjectStatus? status, Guid? customerId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Project>> GetProjectsAsync(ProjectStatus? status, long? customerId, CancellationToken cancellationToken);
     Task<Project> UpdateStatusAsync(Guid projectId, ProjectStatus newStatus, Guid actorId, string actorRole, string? clientRequestId, CancellationToken cancellationToken);
     Task<Quote> CreateQuoteAsync(Guid projectId, CreateQuoteRequest request, Guid actorId, string actorRole, string? clientRequestId, CancellationToken cancellationToken);
     Task<Quote> ApproveQuoteAsync(Guid quoteId, Guid actorId, string actorRole, string? clientRequestId, CancellationToken cancellationToken);

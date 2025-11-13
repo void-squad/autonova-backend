@@ -290,6 +290,42 @@ services:
     networks:
       - autonova-network
 
+  # Chatbot service (image-based for dev images)
+  chatbot:
+    container_name: autonova-chatbot
+    image: jalinahirushan02/chatbot:${IMAGE_TAG:-dev-latest}
+    ports:
+      - '8097:8097'
+    environment:
+      # Activate docker profile so application-docker.yml is used
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      # Database (can be provided by infra/.env or set per-developer)
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # RabbitMQ
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      # Ollama LLM endpoint
+      SPRING_AI_OLLAMA_BASE_URL: ${SPRING_AI_OLLAMA_BASE_URL:-http://autonova-ollama:11434}
+      # App name for discovery
+      SPRING_APPLICATION_NAME: chatbot
+    depends_on:
+      - rabbitmq
+      - discovery-service
+    healthcheck:
+      test:
+        ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8097/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - autonova-network
+
 volumes:
   postgres_data:
     name: autonova_postgres_data
