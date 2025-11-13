@@ -1,27 +1,29 @@
 # syntax=docker/dockerfile:1.6
-# Multi-stage Docker build for Auth Service
+# Multi-stage Docker build for Gateway Service
 
 # Stage 1: Build
 FROM maven:3.9-eclipse-temurin-17 AS build
-WORKDIR /workspace
+WORKDIR /app
 
-# Copy the parent POM first
-COPY pom.xml /workspace/parent-pom.xml
+# Copy root pom so the module's parent relativePath (../pom.xml) resolves
+COPY pom.xml /pom.xml
 
-# Copy Maven wrapper and auth-service module pom
-COPY auth-service/.mvn /workspace/.mvn
-COPY auth-service/mvnw /workspace/mvnw
-COPY auth-service/pom.xml /workspace/pom.xml
+# Copy module-specific mvnw, .mvn and pom from the repository root context
+COPY gateway-service/.mvn .mvn
+COPY gateway-service/mvnw mvnw
+COPY gateway-service/pom.xml pom.xml
 
-# Pre-download dependencies
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+# Download dependencies (allow non-fatal failure to avoid build break on offline images)
+RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
 
-# Copy source code and build the application
-COPY auth-service/src ./src
-RUN ./mvnw clean package -DskipTests
+# Copy source code
+COPY gateway-service/src ./src
+
+# Build the application with Spring Boot repackaging
+RUN ./mvnw clean package spring-boot:repackage -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Install wget and certificates for healthcheck
@@ -31,15 +33,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certifi
 RUN groupadd --system spring && useradd --system --gid spring spring
 USER spring:spring
 
-# Copy the built JAR from the build stage
-COPY --from=build /workspace/target/*.jar app.jar
+# Copy JAR from build stage
+COPY --from=build /app/target/*.jar app.jar
 
-# Expose port
-EXPOSE 8081
+# Expose the gateway's configured port
+EXPOSE 8080
 
-# Health check
+# JVM options (override with Docker env at runtime if needed)
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+
+# Health check (actuator)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run application (allow JAVA_OPTS override)
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
