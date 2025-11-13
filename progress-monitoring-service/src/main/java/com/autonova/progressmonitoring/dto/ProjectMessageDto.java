@@ -16,4 +16,9 @@ public class ProjectMessageDto {
     private String payload;
     private OffsetDateTime occurredAt;
     private OffsetDateTime createdAt;
+    // attachment metadata
+    private String attachmentUrl;
+    private String attachmentContentType;
+    private String attachmentFilename;
+    private Long attachmentSize;
 }
