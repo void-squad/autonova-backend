@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Dockerfile to run RabbitMQ for the customer-service microservice
 # Uses the management-enabled official image so the management console is available on port 15672
 FROM rabbitmq:3.13-management

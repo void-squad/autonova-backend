@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage Docker build for Employee Dashboard Service
 
 # Stage 1: Build

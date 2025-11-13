@@ -19,7 +19,7 @@ COPY payments-billing-service/wrapper ./payments-billing-service/wrapper
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -f payments-billing-service/pom.xml -B -DskipTests clean package
 
-FROM eclipse-temurin:${JAVA_VERSION}-jre AS runtime
+FROM eclipse-temurin:${JAVA_VERSION}-jre-jammy AS runtime
 
 ARG APP_HOME=/opt/app
 ARG APP_USER=appuser

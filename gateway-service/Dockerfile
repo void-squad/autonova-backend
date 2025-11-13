@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage Docker build for Auth Service
 
 # Stage 1: Build
@@ -22,6 +23,9 @@ RUN ./mvnw clean package -DskipTests
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
+
+# Install wget and certificates for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd --system spring && useradd --system --gid spring spring

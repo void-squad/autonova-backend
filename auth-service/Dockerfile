@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage Docker build for Auth Service
 
 # Stage 1: Build
@@ -24,6 +25,9 @@ RUN ./mvnw clean package spring-boot:repackage -DskipTests
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
+
+# Install wget for healthcheck and add CA certs
+RUN apk add --no-cache wget ca-certificates
 
 # Create non-root user
 RUN addgroup -S spring && adduser -S spring -G spring
