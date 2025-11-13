@@ -28,14 +28,14 @@ COPY discovery-service/src ./src
 RUN ./mvnw clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Install wget for healthcheck and add CA certs
-RUN apk add --no-cache wget ca-certificates
+# Install wget for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN groupadd --system spring && useradd --system --gid spring spring
 USER spring:spring
 
 # Copy JAR from build stage
