@@ -26,7 +26,8 @@ public class ProjectWorkflowServiceTests
         context.Projects.Add(new Project
         {
             ProjectId = projectId,
-            CustomerId = Guid.NewGuid(),
+            CustomerId = 1001,
+            VehicleId = Guid.NewGuid(),
             Title = "History Test",
             Status = ProjectStatus.Requested,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -64,7 +65,8 @@ public class ProjectWorkflowServiceTests
         var service = CreateService(context);
         var request = new CreateProjectRequest
         {
-            CustomerId = Guid.NewGuid(),
+            CustomerId = 2001,
+            VehicleId = Guid.NewGuid(),
             Title = "Idempotent Project"
         };
         var key = Guid.NewGuid().ToString("N");
@@ -86,7 +88,8 @@ public class ProjectWorkflowServiceTests
 
         var project = await service.CreateProjectAsync(new CreateProjectRequest
         {
-            CustomerId = Guid.NewGuid(),
+            CustomerId = 3001,
+            VehicleId = Guid.NewGuid(),
             Title = "Scope Extensions"
         }, actorId, "customer", Guid.NewGuid().ToString("N"), CancellationToken.None);
 

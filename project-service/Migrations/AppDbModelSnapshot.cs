@@ -140,11 +140,17 @@ namespace ProjectService.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("CustomerId")
-                        .HasColumnType("uuid");
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
+
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -158,6 +164,9 @@ namespace ProjectService.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -170,6 +179,10 @@ namespace ProjectService.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Projects_ClientRequestId")
                         .HasFilter("\"ClientRequestId\" IS NOT NULL");
+
+                    b.HasIndex("Id")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Projects_Id");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_Projects_Status");
@@ -277,8 +290,8 @@ namespace ProjectService.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("AssigneeId")
-                        .HasColumnType("uuid");
+                    b.Property<long?>("AssigneeId")
+                        .HasColumnType("bigint");
 
                     b.Property<decimal>("EstimateHours")
                         .HasColumnType("numeric(10,2)");

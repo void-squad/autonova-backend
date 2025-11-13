@@ -57,7 +57,7 @@ public class ProjectWorkflowService : IProjectWorkflowService
             }
         }
 
-        if (request.CustomerId == Guid.Empty)
+        if (request.CustomerId <= 0)
         {
             throw new DomainException("CustomerId is required.");
         }
@@ -73,6 +73,7 @@ public class ProjectWorkflowService : IProjectWorkflowService
         {
             ProjectId = Guid.NewGuid(),
             CustomerId = request.CustomerId,
+            VehicleId = request.VehicleId,
             Title = title,
             Status = ProjectStatus.Requested,
             CreatedAt = now,
@@ -87,7 +88,7 @@ public class ProjectWorkflowService : IProjectWorkflowService
             ProjectId = project.ProjectId,
             FromStatus = ProjectStatus.Requested,
             ToStatus = ProjectStatus.Requested,
-            ChangedBy = actorId == Guid.Empty ? project.CustomerId : actorId,
+            ChangedBy = actorId,
             ChangedAt = now,
             Note = "Project created"
         }, cancellationToken);
@@ -99,7 +100,7 @@ public class ProjectWorkflowService : IProjectWorkflowService
             changeRequestId: null,
             fromStatus: ProjectStatus.Requested.ToString(),
             toStatus: ProjectStatus.Requested.ToString(),
-            actor: new ActorContext(actorId == Guid.Empty ? project.CustomerId : actorId, actorRole),
+            actor: new ActorContext(actorId, actorRole),
             occurredAt: now,
             metadata: new { project.CustomerId, project.Title });
 
@@ -118,7 +119,7 @@ public class ProjectWorkflowService : IProjectWorkflowService
             .FirstOrDefaultAsync(x => x.ProjectId == projectId, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Project>> GetProjectsAsync(ProjectStatus? status, Guid? customerId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Project>> GetProjectsAsync(ProjectStatus? status, long? customerId, CancellationToken cancellationToken)
     {
         var query = _db.Projects
             .Include(x => x.Tasks)
