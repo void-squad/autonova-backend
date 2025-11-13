@@ -23,7 +23,7 @@ COPY gateway-service/src ./src
 RUN ./mvnw clean package spring-boot:repackage -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # Install wget and certificates for healthcheck
