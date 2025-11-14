@@ -1,6 +1,5 @@
 name: Build and push changed services
 
-
 on:
   push:
     branches: [main, dev, mulitarch-dockerfiles]
