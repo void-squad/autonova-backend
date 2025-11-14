@@ -8,6 +8,9 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaApi;
+import org.springframework.ai.ollama.api.OllamaModel;
+import org.springframework.ai.ollama.api.OllamaOptions;
+import org.springframework.ai.ollama.management.ModelManagementOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -23,8 +26,13 @@ public class OllamaChatClient implements ChatClient {
     public OllamaChatClient(
             @Value("${app.llm.ollama.apiUrl:http://localhost:11434}") String ollamaApiUrl
     ) {
-        OllamaApi ollamaApi = OllamaApi.builder().baseUrl(ollamaApiUrl).build();
-        this.ollamaChatModel = OllamaChatModel.builder().ollamaApi(ollamaApi).build();
+        OllamaApi ollamaApi = OllamaApi.builder()
+                .baseUrl(ollamaApiUrl)
+                .build();
+        this.ollamaChatModel = OllamaChatModel.builder()
+                .defaultOptions(OllamaOptions.builder().model(OllamaModel.LLAMA3).build())
+                .ollamaApi(ollamaApi)
+                .build();
     }
 
     @Override

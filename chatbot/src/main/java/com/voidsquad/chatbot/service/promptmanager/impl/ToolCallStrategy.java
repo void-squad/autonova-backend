@@ -25,9 +25,11 @@ You are a tool identification expert. Analyze the user request and available con
     
     ALWAYS AVAILABLE BASIC TOOLS:
     - collectFeedbacks(): Collects any feedback data comes through the chatbot
-    - collectComplains(): Gathers customer complaints data
+            - parameters: none
     - getOngoingProjects(): Retrieves a list of ongoing company projects
+            - parameters: none
     - getCompletedProjects(): Retrieves a list of completed company projects
+            - parameters: none
     
     IMPORTANT RULES:
     1. Use basic tools only for contact info, feedback, or complaint requests
@@ -41,9 +43,7 @@ You are a tool identification expert. Analyze the user request and available con
         "tool_calls": [
             {
                 "tool_name": "string",
-                "parameters": {"param1": "value1"},
-                "description": "what this call will achieve",
-                "depends_on": ["previous_tool_output"]
+                "parameters": {"param1": "value1"}
             }
         ],
         "reasoning": "brief explanation of why these tools were chosen"

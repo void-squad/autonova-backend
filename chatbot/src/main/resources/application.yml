@@ -30,23 +30,6 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-  cloud:
-      gateway:
-        routes:
-          - id: chatbot-api
-            uri: http://chatbot:8097
-            predicates:
-              - Path=/chatbot/**         
-            filters:
-              - StripPrefix=1            
-              - AddRequestHeader=X-Forwarded-Host, "#{request.headers.Host[0]}"
-          - id: chatbot-actuator
-            uri: http://chatbot:8098
-            predicates:
-              - Path=/actuator/**
-            filters:
-              - AddRequestHeader=X-Gateway-Token, ${GATEWAY_ACTUATOR_SECRET}
-
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/vector_db}
     username: ${DB_USERNAME:postgres}
@@ -65,12 +48,30 @@ spring:
     virtual-host: /
 app:
   llm:
-    provider: GEMINI
+    provider: OLLAMA  #GEMINI
     gemini:
       model: ${CHATBOT_MODEL_SELECTED:gemini-1.5-flash}
       apikey: ${GEMINI_API_KEY:your-gemini-api-key}
     ollama:
       apiUrl: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+
+cloud:
+  gateway:
+    routes:
+      - id: chatbot-api
+        uri: http://chatbot:8097
+        predicates:
+          - Path=/chatbot/**
+        filters:
+          - StripPrefix=1
+          - AddRequestHeader=X-Forwarded-Host, "#{request.headers.Host[0]}"
+      - id: chatbot-actuator
+        uri: http://chatbot:8098
+        predicates:
+          - Path=/actuator/**
+        filters:
+          - AddRequestHeader=X-Gateway-Token, ${GATEWAY_ACTUATOR_SECRET}
+
 
 eureka:
   client:
@@ -94,3 +95,13 @@ management:
   endpoint:
     health:
       show-details: always
+
+jwt:
+  secret: ${JWT_SECRET:your-jwt-secret-key}
+
+auth:
+  events:
+    exchange: ${AUTH_EVENTS_EXCHANGE:auth.events}
+    login:
+      queue: ${AUTH_EVENTS_LOGIN_QUEUE:customer-service.auth.user-login}
+      routing-key: ${AUTH_EVENTS_LOGIN_ROUTING:user.logged-in}

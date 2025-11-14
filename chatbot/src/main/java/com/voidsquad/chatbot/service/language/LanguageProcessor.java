@@ -33,8 +33,10 @@ public class LanguageProcessor {
                              ObjectMapper objectMapper) {
         this.promptManager = promptManager;
         if(llmProvider.equals(LLMProvider.GEMINI)) {
+            log.info("Initializing Gemini API ...");
             this.chatClient = geminiChatClientBuilder;
         }else if(llmProvider.equals(LLMProvider.OLLAMA)) {
+            log.info("Initializing Local Ollama ...");
             this.chatClient = ollamaChatClientBuilder;
         }
         else {

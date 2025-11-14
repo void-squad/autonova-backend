@@ -36,19 +36,17 @@ public class AIService {
 
 //    @Autowired
 //    private RabbitTemplate rabbitTemplate;
-    private final ChatClient chatClient;
     private final EmbeddingService embeddingService;
     private final StaticInfoRepository staticInfoRepository;
     private final LanguageProcessor languageProcessor;
     private final ObjectMapper objectMapper;
     private final WorkflowStepRepository workflowStepRepository;
 
-    public AIService(@Qualifier("geminiChatClient") ChatClient chatClient,
+    public AIService(
                      @Autowired(required = false) EmbeddingService embeddingService,
                      @Autowired(required = false) StaticInfoRepository staticInfoRepository,
                      @Autowired(required = false) LanguageProcessor languageProcessor,
                      @Autowired(required = false) ObjectMapper objectMapper, WorkflowStepRepository workflowStepRepository) {
-        this.chatClient = chatClient;
         this.embeddingService = embeddingService;
         this.staticInfoRepository = staticInfoRepository;
         this.languageProcessor = languageProcessor;
@@ -58,14 +56,10 @@ public class AIService {
 
     public String generation(String userInput) {
         try {
-            ChatResponse resp = this.chatClient
-                    .prompt()
-                    .system("You are a helpful chatbot assistant.")
-                    .user("Explain briefly: " + userInput)
-                    .call();
+            ProcessingResult resp = languageProcessor.evaluateSimpleReply(userInput,"You are a chatbot assistant","USER");
 
             if (resp != null) {
-                return resp.getResult().getOutput().getText();
+                return resp.output().toString();
             } else {
                 return "No response from model";
             }
