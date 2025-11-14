@@ -7,6 +7,7 @@ import com.voidsquad.chatbot.service.embedding.EmbeddingService;
 import com.voidsquad.chatbot.service.workflow.WorkflowStepService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.query.Param;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -16,10 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 public class ChatbotController {
 
     private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
@@ -34,7 +36,7 @@ public class ChatbotController {
         this.workflowStepService = workflowStepService;
     }
 
-    @GetMapping("/v1/hello")
+    @GetMapping("/hello")
     public String hello(){
         return "hello!";
     }
@@ -71,31 +73,47 @@ public class ChatbotController {
     }
 
 
-    @GetMapping("/v1/ai")
+    @Profile("default")
+    @GetMapping("/lm")
     public String answerWithAI(@Param("prompt") String prompt){
         return aiService.generation(prompt);
     }
 
-    @GetMapping("/v1/send")
+    @Profile("default")
+    @GetMapping("/send")
     public String sendMessage(@Param("msg") String msg) {
 //        aiService.send(msg);
         return "msg sent";
     }
 
-    @GetMapping("v1/simpleAI")
+    @GetMapping("ai")
     public String simpleAIResponse(@Param("prompt") String prompt){
-        return aiService.requestHandler(prompt);
+        try {
+            return aiService.requestHandler(prompt);
+        }catch (Exception e){
+            log.error("Error in AI response: " + e.getMessage());
+            return "Error processing request";
+        }
     }
 
-    @GetMapping("/v1/workflowSteps")
+    @Profile("default")
+    @GetMapping("/workflowSteps")
     public Iterable<WorkflowStep> getAllWorkflowSteps(
             @Param("keyword") String keyword
     ) {
         return workflowStepService.findSimilarSteps(keyword,10);
     }
 
+    @Profile("default")
+    @GetMapping("/staticInfo")
+    public List<String> getStaticInfo(
+            @Param("query") String query
+    ) {
+        return aiService.getAllStaticInfoByEmbeddings(query);
+    }
 
-    @PostMapping("/v1/workflowStep")
+    @Profile("default")
+    @PostMapping("/workflowStep")
     public String test(
             @RequestParam("WorkflowName") String workflowName,
             @RequestParam("WorkflowDescription") String workflowDescription
@@ -110,7 +128,8 @@ public class ChatbotController {
         return "Saved";
     }
 
-    @PostMapping("/v1/staticInfo" )
+    @Profile("default")
+    @PostMapping("/staticInfo" )
     public String addStaticInfo(
             @RequestParam("topic") String topic,
             @RequestParam("description") String description
@@ -120,7 +139,8 @@ public class ChatbotController {
         return "Static info added";
     }
 
-    @PostMapping("/v1/staticInfo/bulk" )
+    @Profile("default")
+    @PostMapping("/staticInfo/bulk" )
     public String addBulkStaticInfo(
             @RequestParam("file") MultipartFile file
     ) {
