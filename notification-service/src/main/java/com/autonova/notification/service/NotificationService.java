@@ -7,8 +7,11 @@ import java.util.UUID;
 import reactor.core.publisher.Flux;
 
 public interface NotificationService {
-    Flux<NotificationDto> streamForUser(UUID userId);
-    List<NotificationDto> latestForUser(UUID userId);
+    Flux<NotificationDto> streamForUser(Long userId);
+    List<NotificationDto> latestForUser(Long userId);
     void markRead(UUID notificationId);
     void create(Notification notification);
+    void createAll(List<Notification> notifications);
+    long unreadCount(Long userId);
+    void markAllRead(Long userId);
 }

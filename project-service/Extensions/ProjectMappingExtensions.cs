@@ -22,7 +22,12 @@ public static class ProjectMappingExtensions
             Total = q.Total,
             Status = q.Status,
             IssuedAt = q.IssuedAt,
-            ApprovedAt = q.ApprovedAt
+            ApprovedAt = q.ApprovedAt,
+            RejectedAt = q.RejectedAt,
+            ApprovedBy = q.ApprovedBy,
+            RejectedBy = q.RejectedBy,
+            ClientRequestId = q.ClientRequestId,
+            xmin = q.xmin
         }).ToArray() ?? Array.Empty<ProjectResponse.QuoteResponse>();
 
         var history = project.StatusHistory?.OrderByDescending(h => h.ChangedAt).Select(h => new ProjectResponse.StatusHistoryResponse
@@ -31,17 +36,23 @@ public static class ProjectMappingExtensions
             FromStatus = h.FromStatus,
             ToStatus = h.ToStatus,
             ChangedBy = h.ChangedBy,
-            ChangedAt = h.ChangedAt
+            ChangedAt = h.ChangedAt,
+            Note = h.Note
         }).ToArray() ?? Array.Empty<ProjectResponse.StatusHistoryResponse>();
 
         return new ProjectResponse
         {
+            Id = project.Id,
             ProjectId = project.ProjectId,
             CustomerId = project.CustomerId,
+            VehicleId = project.VehicleId,
             Title = project.Title,
             Status = project.Status,
             CreatedAt = project.CreatedAt,
             UpdatedAt = project.UpdatedAt,
+            Budget = project.Budget,
+            DueDate = project.DueDate,
+            ClientRequestId = project.ClientRequestId,
             Tasks = tasks,
             Quotes = quotes,
             StatusHistory = history

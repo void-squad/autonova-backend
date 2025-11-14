@@ -1,4 +1,9 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: progressmonitoring
   rabbitmq:
@@ -14,10 +19,18 @@ spring:
     routing-key: ${APP_RABBIT_ROUTING_KEY:project.*}
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/progress}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: jdbc:postgresql://${POSTGRES_HOST:${SPRING_DATASOURCE_HOST:localhost}}:${POSTGRES_PORT:${SPRING_DATASOURCE_PORT:5432}}/${POSTGRES_DB:${SPRING_DATASOURCE_DB:progress}}
+    username: ${POSTGRES_USER:${SPRING_DATASOURCE_USERNAME:postgres}}
+    password: ${POSTGRES_PASSWORD:${SPRING_DATASOURCE_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
+
+
+app:
+  rabbit:
+    exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
+    queue: ${APP_RABBIT_QUEUE:progress.project.queue}
+    routing-keys: ${APP_RABBIT_ROUTING_KEYS:project.*,quote.*,project.change-request.*}
+
 
   jpa:
     hibernate:

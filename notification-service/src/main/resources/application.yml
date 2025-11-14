@@ -1,5 +1,5 @@
 server:
-  port: 8084
+  port: 8085
 
 spring:
   application:
@@ -13,7 +13,7 @@ spring:
       maximum-pool-size: 5
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -23,6 +23,10 @@ spring:
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
+  flyway:
+    enabled: false
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 
 management:
   endpoints:
@@ -35,3 +39,5 @@ app:
     exchange: ${APP_RABBIT_EXCHANGE:autonova.events}
     queue: ${APP_RABBIT_QUEUE:notification.events.queue}
     routingKey: ${APP_RABBIT_ROUTING_KEY:#}
+  demo:
+    enabled: ${APP_DEMO_ENABLED:false}

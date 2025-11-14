@@ -10,11 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "*")
 public class NotificationController {
 
     private final NotificationService notificationService;
@@ -26,24 +24,34 @@ public class NotificationController {
     }
 
     @GetMapping(value = "/stream/{userId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<NotificationDto>> stream(@PathVariable UUID userId) {
+    public Flux<ServerSentEvent<NotificationDto>> stream(@PathVariable Long userId) {
         return sseHub.subscribe(userId)
                 .map(dto -> ServerSentEvent.<NotificationDto>builder()
-                        .event(dto.type())
+                        .event(dto.eventType())
                         .id(dto.id() == null ? null : dto.id().toString())
                         .data(dto)
                         .build());
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<List<NotificationDto>> latest(@PathVariable UUID userId) {
+    public ResponseEntity<List<NotificationDto>> latest(@PathVariable Long userId) {
         return ResponseEntity.ok(notificationService.latestForUser(userId));
     }
 
     @PostMapping("/{id}/read")
-    public ResponseEntity<Void> markRead(@PathVariable UUID id) {
+    public ResponseEntity<Void> markRead(@PathVariable java.util.UUID id) {
         notificationService.markRead(id);
         return ResponseEntity.noContent().build();
     }
-}
 
+    @GetMapping("/{userId}/unread-count")
+    public ResponseEntity<Long> unreadCount(@PathVariable Long userId) {
+        return ResponseEntity.ok(notificationService.unreadCount(userId));
+    }
+
+    @PostMapping("/{userId}/read-all")
+    public ResponseEntity<Void> markAllRead(@PathVariable Long userId) {
+        notificationService.markAllRead(userId);
+        return ResponseEntity.noContent().build();
+    }
+}

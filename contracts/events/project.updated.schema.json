@@ -4,8 +4,29 @@
   "type": "object",
   "properties": {
     "projectId": {"type": "string", "format": "uuid"},
-    "status": {"type": "string"},
-    "occurredAt": {"type": "string", "format": "date-time"}
+    "quoteId": {"type": "string", "format": "uuid", "nullable": true},
+    "changeRequestId": {"type": "string", "format": "uuid", "nullable": true},
+    "fromStatus": {"type": "string", "nullable": true},
+    "toStatus": {"type": "string", "nullable": true},
+    "changedBy": {
+      "type": "object",
+      "properties": {
+        "userId": {"type": "string", "format": "uuid"},
+        "role": {"type": "string"}
+      },
+      "required": ["userId", "role"]
+    },
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "metadata": {
+      "type": "object",
+      "nullable": true,
+      "additionalProperties": true
+    },
+    "deltas": {
+      "type": "object",
+      "nullable": true,
+      "additionalProperties": true
+    }
   },
-  "required": ["projectId", "status", "occurredAt"]
+  "required": ["projectId", "changedBy", "occurredAt"]
 }

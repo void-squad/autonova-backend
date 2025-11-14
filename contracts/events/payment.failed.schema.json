@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.autonova.com/billing/payment.failed.json",
+  "title": "payment.failed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "version", "data"],
+  "properties": {
+    "type": { "const": "payment.failed" },
+    "version": { "type": "integer", "const": 1 },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payment_id", "invoice_id", "error_code"],
+      "properties": {
+        "payment_id": { "type": "string", "format": "uuid" },
+        "invoice_id": { "type": "string", "format": "uuid" },
+        "error_code": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

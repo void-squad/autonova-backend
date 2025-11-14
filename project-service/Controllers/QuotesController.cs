@@ -29,7 +29,7 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("~/api/projects/{projectId:guid}/quotes")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(QuoteDetailResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CreateQuote(Guid projectId, [FromBody] CreateQuoteRequest request, CancellationToken cancellationToken)
@@ -46,7 +46,10 @@ public class QuotesController : ControllerBase
 
         try
         {
-            var quote = await _workflowService.CreateQuoteAsync(projectId, request, User.GetUserId(), cancellationToken);
+            var actorId = User.GetUserId();
+            var actorRole = User.GetPrimaryRole();
+            var clientRequestId = Request.GetIdempotencyKey();
+            var quote = await _workflowService.CreateQuoteAsync(projectId, request, actorId, actorRole, clientRequestId, cancellationToken);
             return Created($"/api/quotes/{quote.QuoteId}", quote.ToResponse());
         }
         catch (DomainException ex)
@@ -57,14 +60,17 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(QuoteDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ApproveQuote(Guid id, CancellationToken cancellationToken)
     {
         try
         {
-            var quote = await _workflowService.ApproveQuoteAsync(id, User.GetUserId(), cancellationToken);
+            var actorId = User.GetUserId();
+            var actorRole = User.GetPrimaryRole();
+            var clientRequestId = Request.GetIdempotencyKey();
+            var quote = await _workflowService.ApproveQuoteAsync(id, actorId, actorRole, clientRequestId, cancellationToken);
             return Ok(quote.ToResponse());
         }
         catch (DomainException ex)
@@ -75,14 +81,17 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reject")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(QuoteDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RejectQuote(Guid id, CancellationToken cancellationToken)
     {
         try
         {
-            var quote = await _workflowService.RejectQuoteAsync(id, User.GetUserId(), cancellationToken);
+            var actorId = User.GetUserId();
+            var actorRole = User.GetPrimaryRole();
+            var clientRequestId = Request.GetIdempotencyKey();
+            var quote = await _workflowService.RejectQuoteAsync(id, actorId, actorRole, clientRequestId, cancellationToken);
             return Ok(quote.ToResponse());
         }
         catch (DomainException ex)

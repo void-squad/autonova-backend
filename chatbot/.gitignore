@@ -4,6 +4,14 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+.env
+.env.*
+!.env.example
+
+src/main/resources/*.json
+
+src/main/resources/*.csv
+
 ### STS ###
 .apt_generated
 .classpath

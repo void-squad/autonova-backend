@@ -11,4 +11,53 @@ public static class ClaimsPrincipalExtensions
             ? parsed
             : Guid.Empty;
     }
+
+    public static string GetPrimaryRole(this ClaimsPrincipal principal)
+    {
+        static IEnumerable<string> EnumerateRoles(ClaimsPrincipal p)
+        {
+            foreach (var claim in p.FindAll("role"))
+            {
+                if (!string.IsNullOrWhiteSpace(claim.Value))
+                {
+                    yield return claim.Value;
+                }
+            }
+
+            foreach (var claim in p.FindAll(ClaimTypes.Role))
+            {
+                if (!string.IsNullOrWhiteSpace(claim.Value))
+                {
+                    yield return claim.Value;
+                }
+            }
+        }
+
+        var roles = EnumerateRoles(principal)
+            .Select(r => r.Trim().ToLowerInvariant())
+            .Where(r => r.Length > 0)
+            .ToList();
+
+        if (roles.Contains("admin"))
+        {
+            return "admin";
+        }
+
+        if (roles.Contains("manager"))
+        {
+            return "manager";
+        }
+
+        if (roles.Contains("employee"))
+        {
+            return "employee";
+        }
+
+        if (roles.Contains("customer"))
+        {
+            return "customer";
+        }
+
+        return roles.FirstOrDefault() ?? "system";
+    }
 }

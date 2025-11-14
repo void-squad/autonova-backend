@@ -25,7 +25,7 @@ public class CustomerServiceClient {
     private final String customerServiceBaseUrl;
 
     public CustomerServiceClient(RestTemplate restTemplate,
-            @Value("${customer.service.base-url:http://localhost:8083}") String customerServiceBaseUrl) {
+            @Value("${customer.service.base-url:http://localhost:8087}") String customerServiceBaseUrl) {
         this.restTemplate = restTemplate;
         this.customerServiceBaseUrl = customerServiceBaseUrl;
     }
