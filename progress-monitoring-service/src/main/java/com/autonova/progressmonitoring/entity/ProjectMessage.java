@@ -1,7 +1,6 @@
 package com.autonova.progressmonitoring.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.CreationTimestamp;
 import lombok.*;
 
@@ -42,6 +41,19 @@ public class ProjectMessage {
     @CreationTimestamp
     private OffsetDateTime createdAt;
 
+    // Attachment fields (optional)
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
+    @Column(name = "attachment_content_type")
+    private String attachmentContentType;
+
+    @Column(name = "attachment_filename")
+    private String attachmentFilename;
+
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+
     public ProjectMessage(UUID projectId, String category, String message, String payload, OffsetDateTime occurredAt) {
         this.projectId = projectId;
         this.category = category;
@@ -50,4 +62,3 @@ public class ProjectMessage {
         this.occurredAt = occurredAt;
     }
 }
-

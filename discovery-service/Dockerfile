@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage Docker build for Discovery Service (Eureka Server)
 
 # Stage 1: Build
@@ -27,11 +28,14 @@ COPY discovery-service/src ./src
 RUN ./mvnw clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
+# Install wget for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN groupadd --system spring && useradd --system --gid spring spring
 USER spring:spring
 
 # Copy JAR from build stage
@@ -46,4 +50,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Run application
 ENTRYPOINT ["java", "-jar", "app.jar"]
-

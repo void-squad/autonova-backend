@@ -20,6 +20,10 @@ public class ProjectMessageMapper {
                 .payload(pm.getPayload())
                 .occurredAt(pm.getOccurredAt())
                 .createdAt(pm.getCreatedAt())
+                .attachmentUrl(pm.getAttachmentUrl())
+                .attachmentContentType(pm.getAttachmentContentType())
+                .attachmentFilename(pm.getAttachmentFilename())
+                .attachmentSize(pm.getAttachmentSize())
                 .build();
     }
 
@@ -32,6 +36,10 @@ public class ProjectMessageMapper {
                 dto.getPayload(),
                 dto.getOccurredAt()
         );
+        pm.setAttachmentUrl(dto.getAttachmentUrl());
+        pm.setAttachmentContentType(dto.getAttachmentContentType());
+        pm.setAttachmentFilename(dto.getAttachmentFilename());
+        pm.setAttachmentSize(dto.getAttachmentSize());
         return pm;
     }
 

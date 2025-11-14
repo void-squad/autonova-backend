@@ -29,7 +29,7 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("~/api/projects/{projectId:guid}/quotes")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(QuoteDetailResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CreateQuote(Guid projectId, [FromBody] CreateQuoteRequest request, CancellationToken cancellationToken)
@@ -60,7 +60,7 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(QuoteDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ApproveQuote(Guid id, CancellationToken cancellationToken)
@@ -81,7 +81,7 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reject")]
-    [Authorize(Policy = "EmployeeOrManager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(QuoteDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RejectQuote(Guid id, CancellationToken cancellationToken)

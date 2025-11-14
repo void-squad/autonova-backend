@@ -30,7 +30,7 @@ public class ChangeRequestsController : ControllerBase
     }
 
     [HttpPost("projects/{projectId:guid}/change-requests")]
-    [Authorize(Roles = "customer,employee,manager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(ChangeRequestResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create(Guid projectId, [FromBody] CreateChangeRequestRequest request, CancellationToken cancellationToken)
     {
@@ -84,7 +84,7 @@ public class ChangeRequestsController : ControllerBase
     }
 
     [HttpPost("change-requests/{changeRequestId:guid}/approve")]
-    [Authorize(Policy = "Manager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(ChangeRequestResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Approve(Guid changeRequestId, [FromBody] ChangeRequestDecisionRequest request, CancellationToken cancellationToken)
     {
@@ -109,7 +109,7 @@ public class ChangeRequestsController : ControllerBase
     }
 
     [HttpPost("change-requests/{changeRequestId:guid}/reject")]
-    [Authorize(Policy = "Manager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(ChangeRequestResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Reject(Guid changeRequestId, [FromBody] ChangeRequestDecisionRequest request, CancellationToken cancellationToken)
     {
@@ -134,7 +134,7 @@ public class ChangeRequestsController : ControllerBase
     }
 
     [HttpPost("change-requests/{changeRequestId:guid}/apply")]
-    [Authorize(Policy = "Manager")]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(ChangeRequestResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Apply(Guid changeRequestId, [FromBody] ChangeRequestDecisionRequest request, CancellationToken cancellationToken)
     {
