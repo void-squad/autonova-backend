@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -84,16 +85,21 @@ public class ProjectServiceClient {
             int pageSize,
             String authorizationHeader
     ) {
-        log.info("Fetching assigned tasks via gateway for assignee hint: {} with status: {}", assigneeId, status);
+        log.info("Fetching tasks via gateway endpoint /api/tasks/by-assignee/{} with status filter: {}", assigneeId, status);
 
         int resolvedPage = page < 1 ? 1 : page;
         int resolvedPageSize = pageSize < 1 ? 20 : pageSize;
         String normalizedStatus = status != null ? status.toLowerCase(Locale.ROOT) : null;
 
-        return webClientBuilder.build()
+        WebClient.RequestHeadersSpec<?> requestSpec = webClientBuilder.build()
                 .get()
-                .uri(gatewayUrl + "/api/tasks/assigned")
-                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                .uri(gatewayUrl + "/api/tasks/by-assignee/{assigneeId}", assigneeId);
+
+        if (StringUtils.hasText(authorizationHeader)) {
+            requestSpec = requestSpec.header(HttpHeaders.AUTHORIZATION, authorizationHeader);
+        }
+
+        return requestSpec
                 .retrieve()
                 .bodyToFlux(TaskDto.class)
                 .collectList()
