@@ -2,7 +2,7 @@ name: Build and push changed services
 
 on:
   push:
-    branches: [main, dev, mulitarch-dockerfiles]
+    branches: [main, dev, multiarch-dockerfiles]
 #  pull_request:
 #    branches: [main, dev, update-ci-cd]
   workflow_dispatch:
