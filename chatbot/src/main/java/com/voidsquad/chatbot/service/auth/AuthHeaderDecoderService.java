@@ -143,11 +143,10 @@ public class AuthHeaderDecoderService {
         return v != null ? v.toString() : null;
     }
 
-    // Some JWT libraries omit padding; ensure length is multiple of 4 for Base64 decoder
     private String padBase64(String b64) {
         int rem = b64.length() % 4;
         if (rem == 0) return b64;
-        return b64 + "".repeat(4 - rem);
+        return b64 + "=".repeat(4 - rem);
     }
 
 }
