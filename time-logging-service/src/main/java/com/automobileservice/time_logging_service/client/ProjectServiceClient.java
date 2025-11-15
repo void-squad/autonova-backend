@@ -7,17 +7,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
+import java.util.UUID;
 
 @FeignClient(name = "project-service")
 public interface ProjectServiceClient {
     
     @GetMapping("/api/projects/{id}")
-    ProjectResponse getProjectById(@PathVariable("id") String id);
+    ProjectResponse getProjectById(@PathVariable("id") UUID id);
     
     @GetMapping("/api/projects/{projectId}/tasks")
-    List<TaskResponse> getTasksByProjectId(@PathVariable("projectId") String projectId);
+    List<TaskResponse> getTasksByProjectId(@PathVariable("projectId") UUID projectId);
     
     @GetMapping("/api/projects/{projectId}/tasks/{taskId}")
-    TaskResponse getTaskById(@PathVariable("projectId") String projectId, 
-                            @PathVariable("taskId") String taskId);
+    TaskResponse getTaskById(@PathVariable("projectId") UUID projectId, 
+                            @PathVariable("taskId") UUID taskId);
 }

@@ -1,14 +1,19 @@
 package com.automobileservice.time_logging_service.client.dto;
 
 import lombok.Data;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 public class TaskResponse {
-    private String id;
+    private UUID taskId;
+    private UUID projectId;
     private String title;
-    private String projectId;
-    private String assignedEmployeeId;
-    private LocalDate dueDate;
+    private String serviceType;
+    private String detail;
     private String status;
+    private UUID assigneeId;
+    private Double estimateHours;
+    private LocalDateTime scheduledStart;
+    private LocalDateTime scheduledEnd;
 }

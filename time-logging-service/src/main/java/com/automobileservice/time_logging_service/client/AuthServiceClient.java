@@ -12,7 +12,7 @@ import java.util.List;
 public interface AuthServiceClient {
     
     @GetMapping("/api/users/{id}")
-    UserResponse getUserById(@PathVariable("id") String id);
+    UserResponse getUserById(@PathVariable("id") Long id);
     
     @GetMapping("/api/users")
     List<UserResponse> getUsersByRole(@RequestParam("role") String role);
