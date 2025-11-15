@@ -1,6 +1,6 @@
 # Multi-stage build for Analytics Service
 # Stage 1: Build
-FROM maven:3.9.5-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /build
 
