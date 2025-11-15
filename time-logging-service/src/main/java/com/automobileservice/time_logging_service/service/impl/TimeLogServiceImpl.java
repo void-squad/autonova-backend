@@ -111,7 +111,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     
     @Override
     @Transactional(readOnly = true)
-    public List<TimeLogResponse> getTimeLogsByEmployee(String employeeId) {
+    public List<TimeLogResponse> getTimeLogsByEmployee(Long employeeId) {
         List<TimeLog> timeLogs = timeLogRepository.findByEmployeeIdOrderByLoggedAtDesc(employeeId);
         return timeLogs.stream()
             .map(this::mapToResponse)
@@ -120,7 +120,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     
     @Override
     @Transactional(readOnly = true)
-    public List<TimeLogResponse> getTimeLogsByProject(String projectId) {
+    public List<TimeLogResponse> getTimeLogsByProject(UUID projectId) {
         List<TimeLog> timeLogs = timeLogRepository.findByProjectIdOrderByLoggedAtDesc(projectId);
         return timeLogs.stream()
             .map(this::mapToResponse)
@@ -129,7 +129,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     
     @Override
     @Transactional(readOnly = true)
-    public List<TimeLogResponse> getTimeLogsByTask(String taskId) {
+    public List<TimeLogResponse> getTimeLogsByTask(UUID taskId) {
         List<TimeLog> timeLogs = timeLogRepository.findByTaskIdOrderByLoggedAtDesc(taskId);
         return timeLogs.stream()
             .map(this::mapToResponse)
@@ -138,7 +138,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     
     @Override
     @Transactional(readOnly = true)
-    public BigDecimal getTotalHoursByEmployee(String employeeId) {
+    public BigDecimal getTotalHoursByEmployee(Long employeeId) {
         return timeLogRepository.getTotalApprovedHoursByEmployee(employeeId);
     }
     
@@ -161,7 +161,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     }
     
     @Override
-    public TimeLogResponse approveTimeLog(UUID id, String approvedBy) {
+    public TimeLogResponse approveTimeLog(UUID id, Long approvedBy) {
         log.info("Approving time log: {} by user: {}", id, approvedBy);
         
         TimeLog timeLog = timeLogRepository.findById(id)
@@ -179,7 +179,7 @@ public class TimeLogServiceImpl implements TimeLogService {
     }
     
     @Override
-    public TimeLogResponse rejectTimeLog(UUID id, String rejectedBy, String reason) {
+    public TimeLogResponse rejectTimeLog(UUID id, Long rejectedBy, String reason) {
         log.info("Rejecting time log: {} by user: {} with reason: {}", id, rejectedBy, reason);
         
         TimeLog timeLog = timeLogRepository.findById(id)

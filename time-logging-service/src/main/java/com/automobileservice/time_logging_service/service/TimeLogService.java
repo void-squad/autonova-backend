@@ -42,28 +42,28 @@ public interface TimeLogService {
      * @param employeeId Employee ID
      * @return List of time logs
      */
-    List<TimeLogResponse> getTimeLogsByEmployee(String employeeId);
+    List<TimeLogResponse> getTimeLogsByEmployee(Long employeeId);
     
     /**
      * Get all time logs for a specific project
      * @param projectId Project ID
      * @return List of time logs
      */
-    List<TimeLogResponse> getTimeLogsByProject(String projectId);
+    List<TimeLogResponse> getTimeLogsByProject(UUID projectId);
     
     /**
      * Get all time logs for a specific task
      * @param taskId Task ID
      * @return List of time logs
      */
-    List<TimeLogResponse> getTimeLogsByTask(String taskId);
+    List<TimeLogResponse> getTimeLogsByTask(UUID taskId);
     
     /**
      * Get total hours logged by an employee
      * @param employeeId Employee ID
      * @return Total hours
      */
-    BigDecimal getTotalHoursByEmployee(String employeeId);
+    BigDecimal getTotalHoursByEmployee(Long employeeId);
     
     /**
      * Get all time logs (for admin)
@@ -83,7 +83,7 @@ public interface TimeLogService {
      * @param approvedBy User ID who approved
      * @return Updated time log
      */
-    TimeLogResponse approveTimeLog(UUID id, String approvedBy);
+    TimeLogResponse approveTimeLog(UUID id, Long approvedBy);
     
     /**
      * Reject a time log
@@ -92,5 +92,5 @@ public interface TimeLogService {
      * @param reason Rejection reason
      * @return Updated time log
      */
-    TimeLogResponse rejectTimeLog(UUID id, String rejectedBy, String reason);
+    TimeLogResponse rejectTimeLog(UUID id, Long rejectedBy, String reason);
 }
