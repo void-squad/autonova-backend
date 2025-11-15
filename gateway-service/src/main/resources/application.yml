@@ -53,7 +53,7 @@ spring:
         - id: project-service
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
-            - Path=/api/projects/**
+            - Path=/api/projects/**,/api/admin/projects/**
         - id: project-change-requests
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
