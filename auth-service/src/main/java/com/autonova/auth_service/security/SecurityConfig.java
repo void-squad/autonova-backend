@@ -31,7 +31,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configure(http)) // Enable CORS
+            .cors(cors -> cors.disable()) // Disable CORS - only accept requests from gateway
             .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless JWT
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Stateless sessions

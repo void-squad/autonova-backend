@@ -18,7 +18,9 @@ public class RabbitProjectConsumer {
 
     @RabbitListener(queues = "${app.rabbit.queue:progress.project.queue}")
     public void onMessage(Message message) {
+        log.info("Message received from rabbit: {}", message);
         try {
+            log.info("Calling processing");
             processor.process(message);
         } catch (Exception ex) {
             log.error("Error handling rabbit message", ex);

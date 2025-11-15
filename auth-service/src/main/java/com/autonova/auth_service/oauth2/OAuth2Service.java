@@ -1,6 +1,7 @@
 package com.autonova.auth_service.oauth2;
 
 import com.autonova.auth_service.auth.LoginResponse;
+import com.autonova.auth_service.event.AuthEventPublisher;
 import com.autonova.auth_service.security.JwtService;
 import com.autonova.auth_service.security.model.RefreshToken;
 import com.autonova.auth_service.security.service.RefreshTokenService;
@@ -27,6 +28,7 @@ public class OAuth2Service {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final AuthEventPublisher authEventPublisher;
 
     /**
      * Process OAuth2 login
@@ -55,7 +57,8 @@ public class OAuth2Service {
         String accessToken = jwtService.generateToken(
                 user.getId(),
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getFirstName()
         );
         
         // Generate refresh token (7 days)
@@ -71,6 +74,9 @@ public class OAuth2Service {
         
         log.info("✅ OAuth2 Login successful for user: {}", user.getEmail());
         
+        // Notify downstream services so their customer records stay in sync
+        authEventPublisher.publishUserLoggedIn(user);
+
         // Return login response with both tokens
         return new LoginResponse(accessToken, refreshToken.getToken(), userInfoResponse);
     }

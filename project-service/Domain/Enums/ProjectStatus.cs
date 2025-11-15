@@ -2,8 +2,7 @@ namespace ProjectService.Domain.Enums;
 
 public enum ProjectStatus
 {
-    Requested,
-    Quoted,
+    PendingReview,
     Approved,
     InProgress,
     Completed,

@@ -151,6 +151,22 @@ Content-Type: application/json
 }
 ```
 
+### Vehicle Metrics
+
+| Method | Path                                     | Description                                                            |
+| ------ | ---------------------------------------- | ---------------------------------------------------------------------- |
+| `GET`  | `/customers/{customerId}/vehicles/stats` | Returns the vehicle count for a specific customer (admin/support use). |
+| `GET`  | `/customers/me/vehicles/stats`           | Returns the vehicle count for the authenticated customer.              |
+
+**Sample Response**
+
+```json
+{
+  "totalVehicles": 3,
+  "generatedAt": "2025-11-15T04:05:06Z"
+}
+```
+
 ## Error Handling
 
 All failures return a consistent `ApiError` payload:
