@@ -21,6 +21,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     List<Vehicle> findAllByCustomerId(Long customerId);
 
+    long countByCustomerId(Long customerId);
+
     /**
      * Find vehicle by ID (for cross-service consumption).
      * Used by other services (e.g., Project Service) to fetch vehicle details.

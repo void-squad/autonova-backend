@@ -3,6 +3,7 @@ package com.autonova.customer.service;
 import com.autonova.customer.dto.CustomerMapper;
 import com.autonova.customer.dto.VehicleRequest;
 import com.autonova.customer.dto.VehicleResponse;
+import com.autonova.customer.dto.VehicleStatsResponse;
 import com.autonova.customer.event.VehicleDomainEventPublisher;
 import com.autonova.customer.event.VehicleEventType;
 import com.autonova.customer.model.Customer;
@@ -11,6 +12,7 @@ import com.autonova.customer.repository.CustomerRepository;
 import com.autonova.customer.repository.VehicleRepository;
 import com.autonova.customer.security.AuthenticatedUser;
 import com.autonova.customer.security.CurrentUserProvider;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -134,6 +136,23 @@ public class VehicleService {
     public VehicleResponse updateVehicleForCurrentCustomer(Long vehicleId, VehicleRequest request) {
         Long customerId = resolveCurrentCustomerId();
         return updateVehicle(customerId, vehicleId, request);
+    }
+
+    @Transactional(readOnly = true)
+    public VehicleStatsResponse getVehicleStats(Long customerId) {
+        findCustomerForCurrentUser(customerId);
+        return buildVehicleStats(customerId);
+    }
+
+    @Transactional(readOnly = true)
+    public VehicleStatsResponse getVehicleStatsForCurrentCustomer() {
+        Long customerId = resolveCurrentCustomerId();
+        return buildVehicleStats(customerId);
+    }
+
+    private VehicleStatsResponse buildVehicleStats(Long customerId) {
+        long totalVehicles = vehicleRepository.countByCustomerId(customerId);
+        return new VehicleStatsResponse(totalVehicles, Instant.now());
     }
 
     public void deleteVehicle(Long customerId, Long vehicleId) {
