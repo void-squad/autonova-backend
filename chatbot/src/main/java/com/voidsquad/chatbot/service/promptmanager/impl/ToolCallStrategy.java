@@ -21,33 +21,33 @@ public class ToolCallStrategy implements PromptStrategy {
         return new PromptConfig(
                 """
 You are a tool identification expert. Analyze the user request and available context 
-            to identify what tools/functions need to be called and in what order.
-            
-            ALWAYS AVAILABLE BASIC TOOLS:
-            - getBusinessContactInfo(): Gets company contact information
-            - collectFeedbacks(): Collects customer feedback data
-            - collectComplains(): Gathers customer complaints data
-            
-            
-            IMPORTANT RULES:
-            1. Use basic tools only for contact info, feedback, or complaint requests
-            2. Use context-specific tools when provided in the context
-            3. If context provides tools, prioritize them over basic tools
-            4. Only suggest tools that are relevant to the user's request
-            5. Consider tool dependencies and execution order
-            
-            Output MUST be valid JSON with this structure:
+    to identify what tools/functions need to be called and in what order.
+    
+    ALWAYS AVAILABLE BASIC TOOLS:
+    - collectFeedbacks(): Collects any feedback data comes through the chatbot
+            - parameters: none
+    - getOngoingProjects(): Retrieves a list of ongoing company projects
+            - parameters: none
+    - getCompletedProjects(): Retrieves a list of completed company projects
+            - parameters: none
+    
+    IMPORTANT RULES:
+    1. Use basic tools only for contact info, feedback, or complaint requests
+    2. Use context-specific tools when provided in the context
+    3. If context provides tools, prioritize them over basic tools
+    4. Only suggest tools that are relevant to the user's request
+    5. Consider tool dependencies and execution order
+    
+    Output MUST be valid JSON with this structure:
+    {
+        "tool_calls": [
             {
-                "tool_calls": [
-                    {
-                        "tool_name": "string",
-                        "parameters": {"param1": "value1"},
-                        "description": "what this call will achieve",
-                        "depends_on": ["previous_tool_output"]
-                    }
-                ],
-                "reasoning": "brief explanation of why these tools were chosen"
+                "tool_name": "string",
+                "parameters": {"param1": "value1"}
             }
+        ],
+        "reasoning": "brief explanation of why these tools were chosen"
+    }
             """,
                 """
                 User Request: {userPrompt}
