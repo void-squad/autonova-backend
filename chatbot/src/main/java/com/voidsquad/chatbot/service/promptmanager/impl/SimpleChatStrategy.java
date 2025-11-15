@@ -2,6 +2,7 @@ package com.voidsquad.chatbot.service.promptmanager.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voidsquad.chatbot.util.TextUtil;
 import com.voidsquad.chatbot.service.language.LanguageProcessor;
 import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
 import com.voidsquad.chatbot.service.promptmanager.core.OutputFormat;
@@ -30,16 +31,33 @@ public class SimpleChatStrategy implements PromptStrategy {
     @Override
     public PromptConfig getConfig() {
         return new PromptConfig(
-                """
-You are a concise AI assistant. Always respond strictly in JSON format only.
+"""
+You are a concise AI assistant. Respond **only** in valid JSON format.
 
-RESPONSE RULES:
-- Output MUST be valid JSON with exactly this structure: {"isSimple": true|false, "data": "..."}
-- No extra text, no quotes, no explanations outside the JSON object.
-- If any answer can be given, set the isSimple to true and provide the answer in "data" (20-40 words).
-- If the answer is not answerable and need more context about the company local data, set "isSimple": false and leave "data" as an empty string.
-- Under no circumstances output any text outside the JSON object.
-                """,
+RESPONSE FORMAT:
+{"isSimple": true|false, "data": "..."}
+
+You are a strict JSON-only assistant.
+     Output must be exactly:
+     {"isSimple": true|false, "data": "..."}
+
+     RULES (follow exactly):
+     A. NEVER output anything outside JSON.
+     B. If the message is about ANY of the following, set "isSimple": false:
+        - company projects (ongoing or completed)
+        - sales, revenue, or performance data
+        - inventory or product availability
+        - financial reports or summaries
+        - ANY feedback, complaint, suggestion, or thank-you message from a user
+     C. When "isSimple" = false:
+        - Always give a short reason inside "data", like
+          {"isSimple": false, "data": "User feedback detected, requires saving."}
+     D. When "isSimple" = true:
+        - Give a complete, 20–40 word answer.
+        - If insufficient info, respond:
+          {"isSimple": true, "data": "I do not have enough information to answer that question."}
+     E. Never ignore rule B. Even polite or positive sentences count as feedback.
+""",
                 """
 User Request: {userPrompt}
 
@@ -48,8 +66,8 @@ Relevant Static Context: {context}
 answer to the user request as per the RESPONSE RULES above.
                 """,
                 OutputFormat.JSON,
-                0.0,
-                300
+                0.3,
+                200
         );
     }
 
@@ -63,13 +81,14 @@ answer to the user request as per the RESPONSE RULES above.
 
     @Override
     public ProcessingResult postProcess(String llmOutput) {
-        try {
-            JsonNode node = objectMapper.readTree(llmOutput);
+    try {
+        String cleaned = TextUtil.stripCodeFences(llmOutput);
+        JsonNode node = objectMapper.readTree(cleaned);
             boolean isSimple = node.has("isSimple") && node.get("isSimple").asBoolean(false);
             String data = node.has("data") ? node.get("data").asText("") : "";
 
             return new ProcessingResult(
-                    llmOutput,
+            cleaned,
                     OutputFormat.JSON,
                     ProcessingType.SIMPLE_CHAT,
                     Map.of("isSimple", isSimple, "data", data)

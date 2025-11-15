@@ -21,9 +21,15 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         modelBuilder.Entity<Project>(entity =>
         {
             entity.HasKey(e => e.ProjectId);
+            entity.Property(e => e.Id)
+                  .ValueGeneratedOnAdd();
             entity.Property(e => e.Title)
                   .IsRequired()
                   .HasMaxLength(200);
+            entity.Property(e => e.CustomerId)
+                  .HasColumnType("bigint");
+            entity.Property(e => e.VehicleId)
+                  .IsRequired();
             entity.Property(e => e.Status)
                   .HasConversion<string>()
                   .IsRequired();
@@ -70,6 +76,10 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
                   .HasDatabaseName("UX_Projects_ClientRequestId")
                   .IsUnique()
                   .HasFilter("\"ClientRequestId\" IS NOT NULL");
+
+            entity.HasIndex(e => e.Id)
+                  .HasDatabaseName("IX_Projects_Id")
+                  .IsUnique();
         });
 
         modelBuilder.Entity<TaskItem>(entity =>
@@ -83,6 +93,8 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
                   .HasMaxLength(80);
             entity.Property(e => e.EstimateHours)
                   .HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AssigneeId)
+                  .HasColumnType("bigint");
         });
 
         modelBuilder.Entity<Quote>(entity =>

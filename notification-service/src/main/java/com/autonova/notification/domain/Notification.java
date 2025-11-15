@@ -22,7 +22,7 @@ public class Notification {
     private String messageId;
 
     // Target user; nullable when targeting role broadcast only
-    private UUID userId;
+    private Long userId; // changed from UUID to Long (bigint)
 
     // Optional role recipient (CUSTOMER|EMPLOYEE|ADMIN) if broadcast by role
     @Column(length = 32)
@@ -62,8 +62,8 @@ public class Notification {
     public void setId(UUID id) { this.id = id; }
     public String getMessageId() { return messageId; }
     public void setMessageId(String messageId) { this.messageId = messageId; }
-    public UUID getUserId() { return userId; }
-    public void setUserId(UUID userId) { this.userId = userId; }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
     public String getType() { return type; }

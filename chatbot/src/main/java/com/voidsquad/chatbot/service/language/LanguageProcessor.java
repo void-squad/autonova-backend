@@ -1,19 +1,19 @@
 package com.voidsquad.chatbot.service.language;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.voidsquad.chatbot.service.AIService;
+import com.voidsquad.chatbot.service.auth.AuthInfo;
+import com.voidsquad.chatbot.service.language.provider.ChatClient;
+import com.voidsquad.chatbot.service.language.provider.ChatResponse;
 import com.voidsquad.chatbot.service.promptmanager.PromptManager;
-import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingRequest;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingType;
 import com.voidsquad.chatbot.service.promptmanager.core.PromptConfig;
-import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -22,16 +22,31 @@ import java.util.Map;
 public class LanguageProcessor {
 
     private final PromptManager promptManager;
-    private final ChatClient chatClient;
+    private ChatClient chatClient;
     private final ObjectMapper objectMapper;
     private static final Logger log = LogManager.getLogger(LanguageProcessor.class);
 
+
     public LanguageProcessor(PromptManager promptManager,
-                             ChatClient.Builder chatClientBuilder,
+                             @Qualifier("ollamaChatClient") ChatClient ollamaChatClientBuilder,
+                             @Qualifier("geminiChatClient") ChatClient geminiChatClientBuilder,
+                             @Value("${app.llm.provider}") LLMProvider llmProvider,
                              ObjectMapper objectMapper) {
         this.promptManager = promptManager;
-        this.chatClient = (chatClientBuilder != null) ? chatClientBuilder.build() : null;
+        if(llmProvider.equals(LLMProvider.GEMINI)) {
+            log.info("Initializing Gemini API ...");
+            this.chatClient = geminiChatClientBuilder;
+        }else if(llmProvider.equals(LLMProvider.OLLAMA)) {
+            log.info("Initializing Local Ollama ...");
+            this.chatClient = ollamaChatClientBuilder;
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported LLM provider: " + llmProvider);
+        }
         this.objectMapper = objectMapper;
+        if(this.chatClient == null) {
+            throw new IllegalArgumentException("ChatClient initialization failed for provider: " + llmProvider);
+        }
     }
 
     private String sanitizeInput(String input) {
@@ -43,12 +58,11 @@ public class LanguageProcessor {
         return tmp;
     }
 
-    private ProcessingResult processWithCustomSystemPrompt(ProcessingRequest request) {
+    private ProcessingResult processUserMessage(ProcessingRequest request) {
         try {
             // Build user prompt
             log.info("Processing request of type: " + request.type());
             String userPrompt = promptManager.buildUserPrompt(request);
-            log.info("User prompt built: " + userPrompt);
             // Get config for temperature/maxTokens
             PromptConfig config = promptManager.getPromptConfig(request.type());
             log.info("Prompt config retrieved: " + config.systemPrompt() , config.outputFormat(), config.userPromptTemplate(), config.maxTokens());
@@ -73,17 +87,18 @@ public class LanguageProcessor {
                 Map.of("userRole", userRole)
         );
 
-        return processWithCustomSystemPrompt(request);
+        return processUserMessage(request);
     }
 
-    public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole, String useFullTools) {
+    public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole) {
+
         ProcessingRequest request = new ProcessingRequest(
                 userPrompt,
                 vectorContext,
                 ProcessingType.TOOL_CALL_IDENTIFICATION,
                 Map.of("userRole", userRole)
         );
-        return processWithCustomSystemPrompt(request);
+        return processUserMessage(request);
     }
 
     public ProcessingResult finalOutputPrepWithData(String userPrompt, String extractedContext, String userInfo) {
@@ -93,7 +108,7 @@ public class LanguageProcessor {
                 ProcessingType.FINAL_OUTPUT_GENERATION,
                 Map.of("userInfo", userInfo)
         );
-        return processWithCustomSystemPrompt(request);
+        return processUserMessage(request);
     }
 
     private String callLanguageModel(String systemPrompt, String userPrompt, PromptConfig config) {
@@ -103,9 +118,7 @@ public class LanguageProcessor {
         ChatResponse response = chatClient.prompt()
                 .system(systemPrompt)
                 .user(userPrompt)
-                .call()
-                .chatResponse();
-
+                .call();
         log.info("Language model call completed");
 
         if (response != null) {
@@ -117,8 +130,4 @@ public class LanguageProcessor {
         }
     }
 
-    private PromptStrategy getStrategyForType(ProcessingType type) {
-        // Deprecated - PromptManager now exposes postProcess; keep for backward compatibility
-        return null;
-    }
 }

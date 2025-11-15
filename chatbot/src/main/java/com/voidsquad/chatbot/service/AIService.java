@@ -2,12 +2,21 @@ package com.voidsquad.chatbot.service;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
-import com.voidsquad.chatbot.config.RabbitMQConfig;
+import com.voidsquad.chatbot.decoder.SimpleAiResponseDecoder;
+import com.voidsquad.chatbot.decoder.ToolCallResponseDecoder;
+import com.voidsquad.chatbot.entities.WorkflowStep;
+import com.voidsquad.chatbot.exception.JsonDecodeException;
+import com.voidsquad.chatbot.exception.NoAnswerException;
+import com.voidsquad.chatbot.model.SimpleChatStrategyResponse;
+import com.voidsquad.chatbot.model.ToolCall;
+import com.voidsquad.chatbot.repository.WorkflowStepRepository;
+import com.voidsquad.chatbot.service.auth.AuthInfo;
+import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
+import com.voidsquad.chatbot.service.tool.ToolCallResult;
+import com.voidsquad.chatbot.service.tool.ToolExecutionService;
+import com.voidsquad.chatbot.service.tool.ToolRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.voidsquad.chatbot.service.embedding.EmbeddingService;
@@ -15,7 +24,6 @@ import com.voidsquad.chatbot.repository.StaticInfoRepository;
 import com.voidsquad.chatbot.service.language.LanguageProcessor;
 import com.voidsquad.chatbot.entities.StaticInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -30,42 +38,49 @@ public class AIService {
 
 //    @Autowired
 //    private RabbitTemplate rabbitTemplate;
-
-    private final ChatClient chatClient;
     private final EmbeddingService embeddingService;
     private final StaticInfoRepository staticInfoRepository;
     private final LanguageProcessor languageProcessor;
     private final ObjectMapper objectMapper;
+    private final WorkflowStepRepository workflowStepRepository;
+    private final SimpleAiResponseDecoder simpleAiResponseDecoder;
+    private final ToolCallResponseDecoder toolCallResponseDecoder;
+    private final ToolRegistry toolRegistry;
+    private final ToolExecutionService toolExecutionService;
 
-    public AIService(@Autowired(required = false) ChatClient.Builder chatClientBuilder,
-                     @Autowired(required = false) EmbeddingService embeddingService,
-                     @Autowired(required = false) StaticInfoRepository staticInfoRepository,
-                     @Autowired(required = false) LanguageProcessor languageProcessor,
-                     @Autowired(required = false) ObjectMapper objectMapper) {
-        this.chatClient = (chatClientBuilder != null) ? chatClientBuilder.build() : null;
+    public AIService(
+            @Autowired(required = false) EmbeddingService embeddingService,
+            @Autowired(required = false) StaticInfoRepository staticInfoRepository,
+            @Autowired(required = false) LanguageProcessor languageProcessor,
+            @Autowired(required = false) ObjectMapper objectMapper,
+            @Autowired(required = false) SimpleAiResponseDecoder simpleAiResponseDecoder,
+            WorkflowStepRepository workflowStepRepository,
+        ToolCallResponseDecoder toolCallResponseDecoder,
+        ToolRegistry toolRegistry,
+            ToolExecutionService toolExecutionService) {
         this.embeddingService = embeddingService;
         this.staticInfoRepository = staticInfoRepository;
         this.languageProcessor = languageProcessor;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+        this.simpleAiResponseDecoder = simpleAiResponseDecoder != null ? simpleAiResponseDecoder : new SimpleAiResponseDecoder(new com.voidsquad.chatbot.util.JsonPathKeyDecoder());
+        this.workflowStepRepository = workflowStepRepository;
+        this.toolCallResponseDecoder = toolCallResponseDecoder;
+        this.toolRegistry = toolRegistry;
+        this.toolExecutionService = toolExecutionService;
     }
 
     public String generation(String userInput) {
         try {
-            ChatResponse resp = this.chatClient
-                    .prompt()
-                    .system("You are a helpful chatbot assistant.")
-                    .user("Explain briefly: " + userInput)
-                    .call()
-                    .chatResponse();
+            ProcessingResult resp = languageProcessor.evaluateSimpleReply(userInput,"You are a chatbot assistant","USER");
 
             if (resp != null) {
-                return resp.getResult().getOutput().getText();
+                return resp.output().toString();
             } else {
                 return "No response from model";
             }
 
         } catch (Exception e) {
-            System.err.println("AIService.generation error: " + e.getMessage());
+            log.error("AIService.generation error: {}", e.getMessage(), e);
             return "Error!";
         }
     }
@@ -111,7 +126,6 @@ public class AIService {
                 return staticInfoList;
             }
 
-            // Read data rows
             for (int i = 1; i < records.size(); i++) {
                 String[] record = records.get(i);
                 String topic = record.length > topicIndex ? record[topicIndex] : null;
@@ -153,15 +167,13 @@ public class AIService {
         }
     }
 
-    public String requestHandler(String userPrompt){
+    public String requestHandler(String userPrompt, AuthInfo authInfo) throws JsonDecodeException, NoAnswerException, IOException {
         log.info("user prompt: "+userPrompt);
-        try {
             if (embeddingService == null || staticInfoRepository == null || languageProcessor == null) {
                 log.info("direct answer from language model");
                 return generation(userPrompt);
             }
 
-            // 1) generate embedding and search static_info_vector_db
             float[] qEmbedding = embeddingService.generateEmbedding(userPrompt);
             log.info("getting embeddings"+(qEmbedding.length==384?" (384-dim)":"(not 384-dim)"));
             List<StaticInfo> hits = staticInfoRepository.findSimilarStaticInfo(qEmbedding, 5);
@@ -177,41 +189,80 @@ public class AIService {
             log.info("genarated context: "+vectorContext);
 
             log.info("sending for simple reply with context");
-            // 2) Ask LanguageProcessor to evaluate if a simple reply is possible
-            var simpleResult = languageProcessor.evaluateSimpleReply(userPrompt, vectorContext, "USER");
-            // simpleResult.metadata contains isSimple flag
+
+            String role = authInfo != null && authInfo.getRole() != null ? authInfo.getRole() : "GUEST";
+
+            var simpleResult = languageProcessor.evaluateSimpleReply(userPrompt, vectorContext, role);
             log.info("LM RESULT => "+simpleResult);
 
-            Object isSimpleObj = simpleResult.metadata().get("isSimple");
-            boolean isSimple = false;
-            if (isSimpleObj instanceof Boolean) isSimple = (Boolean) isSimpleObj;
-            else if (isSimpleObj instanceof String) isSimple = Boolean.parseBoolean((String) isSimpleObj);
+        SimpleChatStrategyResponse structuredOutput = simpleAiResponseDecoder.decode(simpleResult);
 
-            if (isSimple) {
-                log.info("simple reply found, returning");
-                // Return the simple reply data
-                Object data = simpleResult.metadata().get("data");
-                if (data != null) return data.toString();
-                // Fallback: try to parse JSON output
-                try {
-                    JsonNode node = objectMapper.readTree(simpleResult.output());
-                    if (node.has("data")) return node.get("data").asText();
-                } catch (Exception ignored) {}
-                return simpleResult.output();
-            }
+        if(structuredOutput.isSimple()) {
+            log.info("simple reply found, returning");
+            return structuredOutput.data();
+        } else {
             log.info("not a simple reply, need complex processing");
-            // for now we return error
-            return "Complex requests not yet supported";
-            // 3) Not simple -> forward to workflow tool identification
-//            var toolPlan = languageProcessor.findHelperToolCalls(userPrompt, vectorContext, "USER", null);
-//            return toolPlan.output();
-
-        } catch (Exception e) {
-            System.err.println("AIService.requestHandler error: " + e.getMessage());
-            return "Error processing request";
+            return prepareWorkflow(userPrompt,qEmbedding,structuredOutput.data(), authInfo);
         }
+
+
+
+
     }
 
+
+    private String prepareWorkflow(String userPrompt, float[] embiddings , String toolCallReason ,AuthInfo userInfo ) {
+
+        List<WorkflowStep> hits = workflowStepRepository.findSimilarSteps(embiddings,5);
+        StringBuilder contextBuilder = new StringBuilder();
+        for (WorkflowStep s : hits) {
+            contextBuilder.append("Name: ").append(s.getName()).append("\n");
+            contextBuilder.append(s.getDescription()).append("\n---\n");
+        }
+        contextBuilder.append("Reason For ToolCalls: ").append(toolCallReason).append("\n");
+        String context = contextBuilder.toString();
+
+        StringBuilder userInfoBuilder = new StringBuilder();
+        userInfoBuilder.append("User Info: ").append("\n")
+                .append("firstName: ").append(userInfo.getFirstName()).append("\n")
+                .append("role: ").append(userInfo.getRole()).append("\n")
+                .append("userId: ").append(userInfo.getUserId()).append("\n")
+                .append("\n---\n");
+        String userInfoStr = userInfoBuilder.toString();
+
+        var usableTools = languageProcessor.findHelperToolCalls(
+                userPrompt,
+                context,
+                userInfoStr);
+        String output = usableTools.output();
+        List<ToolCall> toolCalls = toolCallResponseDecoder.decode(output);
+
+        List<ToolCallResult> toolCallResults = toolExecutionService.executeAll(toolCalls);
+
+        StringBuilder toolResultsBuilder = new StringBuilder();
+        for( ToolCallResult result : toolCallResults ){
+            toolResultsBuilder.append("\n--- Tool: ").append(result.getToolName()).append(" ---\n");
+            toolResultsBuilder.append(result.getResult()).append("\n");
+        }
+
+        return toolResultsBuilder.toString();
+    }
+
+
+    // Tool beans are discovered and registered by Spring into ToolRegistry at startup.
+    // No runtime registration required; keep this method removed to avoid mutation of the registry.
+
+    public List<String> getAllStaticInfoByEmbeddings(String keyword) {
+                float[] emb = embeddingService.generateEmbedding(keyword);
+                int count = 0;
+                return staticInfoRepository.findSimilarStaticInfo(emb,5).stream().map(staticInfo -> {
+                    String info = "Topic " + staticInfo.getTopic() + "\n" +
+                            "Description: " + staticInfo.getDescription() + "\n";
+                    return info;
+                }).toList();
+            }
+
+    // JSON decoding for LLM simple responses has been moved to SimpleAiResponseDecoder
 
 //    public void send(String message) {
 //        rabbitTemplate.convertAndSend(

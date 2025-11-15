@@ -57,6 +57,14 @@ spring:
           uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
           predicates:
             - Path=/api/invoices/**,/webhooks/stripe/**
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/notifications/**
+        - id: chatbot-service
+          uri: ${CHATBOT_SERVICE_URL:http://localhost:8097}
+          predicates:
+            - Path=/api/v1/chatbot,/api/v1/chatbot/**
 
 management:
   endpoints:
@@ -66,3 +74,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: DEBUG

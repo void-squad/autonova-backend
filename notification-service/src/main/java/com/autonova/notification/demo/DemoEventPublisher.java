@@ -32,11 +32,11 @@ public class DemoEventPublisher {
         this.objectMapper = objectMapper;
     }
 
-    public void publishAppointmentCreated(UUID userId) {
+    public void publishAppointmentCreated(Long userId) {
         String eventType = "appointment.created";
         Map<String, Object> data = new HashMap<>();
         data.put("appointment_id", UUID.randomUUID().toString());
-        data.put("customer_id", userId.toString());
+        data.put("customer_id", userId); // numeric
         data.put("vehicle_id", UUID.randomUUID().toString());
         data.put("service_type", "MAINTENANCE");
         data.put("scheduled_at", "2025-12-01T10:00:00Z");
@@ -48,11 +48,11 @@ public class DemoEventPublisher {
         sendJson(payload, eventType, userId);
     }
 
-    public void publishProjectApproved(UUID userId) {
+    public void publishProjectApproved(Long userId) {
         String eventType = "project.approved";
         Map<String, Object> data = new HashMap<>();
         data.put("project_id", UUID.randomUUID().toString());
-        data.put("customer_id", userId.toString());
+        data.put("customer_id", userId);
         data.put("status", "APPROVED");
         data.put("start_date", "2025-12-05");
         data.put("end_date", "2025-12-20");
@@ -63,7 +63,7 @@ public class DemoEventPublisher {
         sendJson(payload, eventType, userId);
     }
 
-    public void publishPaymentSucceeded(UUID userId) {
+    public void publishPaymentSucceeded(Long userId) {
         String eventType = "payment.succeeded";
         Map<String, Object> data = new HashMap<>();
         data.put("payment_id", UUID.randomUUID().toString());
@@ -79,7 +79,7 @@ public class DemoEventPublisher {
         sendJson(payload, eventType, userId);
     }
 
-    private void sendJson(Map<String, Object> payload, String eventType, UUID userId) {
+    private void sendJson(Map<String, Object> payload, String eventType, Long userId) {
         try {
             String json = objectMapper.writeValueAsString(payload);
             String msgId = UUID.randomUUID().toString();
@@ -88,7 +88,7 @@ public class DemoEventPublisher {
             props.setMessageId(msgId);
             props.setHeader("x-event-name", eventType);
             props.setHeader("x-event-version", 1);
-            props.setHeader("x-recipients-user-ids", userId.toString());
+            props.setHeader("x-recipients-user-ids", String.valueOf(userId));
             Message message = new Message(json.getBytes(StandardCharsets.UTF_8), props);
             rabbitTemplate.send(exchange, eventType, message);
             log.info("[DEMO] Published {} with messageId={} to exchange={} for user {}", eventType, msgId, exchange, userId);
