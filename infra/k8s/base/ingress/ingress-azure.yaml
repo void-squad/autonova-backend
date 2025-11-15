@@ -1,0 +1,79 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: autonova-ingress
+  namespace: autonova
+  annotations:
+    # Azure Application Gateway Ingress Controller
+    kubernetes.io/ingress.class: azure/application-gateway
+    # SSL redirect
+    appgw.ingress.kubernetes.io/ssl-redirect: "false"
+    # Backend protocol
+    appgw.ingress.kubernetes.io/backend-protocol: "http"
+    # Connection draining
+    appgw.ingress.kubernetes.io/connection-draining: "true"
+    appgw.ingress.kubernetes.io/connection-draining-timeout: "30"
+    # Request timeout
+    appgw.ingress.kubernetes.io/request-timeout: "30"
+spec:
+  rules:
+    - http:
+        paths:
+          # API Gateway routes
+          - path: /api/*
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway-service
+                port:
+                  number: 8080
+          - path: /eureka/*
+            pathType: Prefix
+            backend:
+              service:
+                name: discovery-service
+                port:
+                  number: 8761
+          # Frontend routes
+          - path: /*
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 5173
+---
+# Alternative: Standard Kubernetes Ingress (without Application Gateway)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: autonova-ingress-standard
+  namespace: autonova
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  tls:
+    - hosts:
+        - autonova.example.com  # Replace with your domain
+      secretName: autonova-tls
+  rules:
+    - host: autonova.example.com  # Replace with your domain
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 5173

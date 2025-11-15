@@ -6,11 +6,11 @@ set -euo pipefail
 
 SECRET_NAME=${1:-autonova-env}
 NAMESPACE=${2:-autonova}
-ENV_FILE=${3:-./secrets/.env}
+ENV_FILE=${3:-.env}
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Env file not found: $ENV_FILE"
-  echo "Copy secrets/.env.example -> secrets/.env and fill in values, then re-run."
+  echo "Copy .env.example -> .env and fill in values, then re-run."
   exit 2
 fi
 

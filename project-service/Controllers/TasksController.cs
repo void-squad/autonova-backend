@@ -130,4 +130,17 @@ public class TasksController : ControllerBase
 
         return CreatedAtAction(nameof(GetAssignedTasks), new { }, task.ToDto());
     }
+
+    [HttpGet("by-assignee/{assigneeId:long}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<IEnumerable<ProjectTaskDto>>> GetTasksByAssignee(long assigneeId, CancellationToken cancellationToken)
+    {
+        var tasks = await _db.Tasks.AsNoTracking()
+            .Where(t => t.AssigneeId == assigneeId)
+            .OrderBy(t => t.Status)
+            .ThenByDescending(t => t.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return Ok(tasks.Select(t => t.ToDto()));
+    }
 }
