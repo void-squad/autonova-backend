@@ -50,6 +50,12 @@ spring:
           uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/vehicles/**
+        # IMPORTANT: time-logging-service route MUST come BEFORE project-service
+        # because /api/projects/employee/** is more specific than /api/projects/**
+        - id: time-logging-service
+          uri: ${TIME_LOGGING_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/time-logs/**,/api/projects/employee/**
         - id: project-service
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
@@ -68,10 +74,6 @@ spring:
             - Path=/api/tasks/**
           filters:
             - StripPrefix=1
-        - id: time-logging-service
-          uri: ${TIME_LOGGING_SERVICE_URL:http://localhost:8083}
-          predicates:
-            - Path=/api/time-logs/**,/api/projects/employee/**
         - id: payments-billing-service
           uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
           predicates:
