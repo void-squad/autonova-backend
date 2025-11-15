@@ -5,6 +5,7 @@ import com.automobileservice.time_logging_service.dto.response.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public interface TimeLogService {
     
@@ -21,20 +22,20 @@ public interface TimeLogService {
      * @param request Updated details
      * @return Updated time log
      */
-    TimeLogResponse updateTimeLog(String id, TimeLogRequest request);
+    TimeLogResponse updateTimeLog(UUID id, TimeLogRequest request);
     
     /**
      * Delete a time log entry
      * @param id Time log ID
      */
-    void deleteTimeLog(String id);
+    void deleteTimeLog(UUID id);
     
     /**
      * Get time log by ID
      * @param id Time log ID
      * @return Time log details
      */
-    TimeLogResponse getTimeLogById(String id);
+    TimeLogResponse getTimeLogById(UUID id);
     
     /**
      * Get all time logs for a specific employee
@@ -65,42 +66,6 @@ public interface TimeLogService {
     BigDecimal getTotalHoursByEmployee(String employeeId);
     
     /**
-     * Get employee summary with total hours and earnings
-     * @param employeeId Employee ID
-     * @return Employee summary
-     */
-    EmployeeSummaryResponse getEmployeeSummary(String employeeId);
-    
-    /**
-     * Get time logs for a specific employee on a specific project
-     * @param employeeId Employee ID
-     * @param projectId Project ID
-     * @return List of time logs
-     */
-    List<TimeLogResponse> getTimeLogsByEmployeeAndProject(String employeeId, String projectId);
-    
-    /**
-     * Get weekly summary for an employee
-     * @param employeeId Employee ID
-     * @return Weekly summary with daily hours and project breakdown
-     */
-    WeeklySummaryResponse getWeeklySummary(String employeeId);
-    
-    /**
-     * Get smart task suggestions for an employee
-     * @param employeeId Employee ID
-     * @return List of suggested tasks with reasoning
-     */
-    List<SmartSuggestionResponse> getSmartSuggestions(String employeeId);
-    
-    /**
-     * Get efficiency metrics for an employee
-     * @param employeeId Employee ID
-     * @return Efficiency metrics and productivity data
-     */
-    EfficiencyMetricsResponse getEfficiencyMetrics(String employeeId);
-    
-    /**
      * Get all time logs (for admin)
      * @return List of all time logs
      */
@@ -115,15 +80,17 @@ public interface TimeLogService {
     /**
      * Approve a time log
      * @param id Time log ID
+     * @param approvedBy User ID who approved
      * @return Updated time log
      */
-    TimeLogResponse approveTimeLog(String id);
+    TimeLogResponse approveTimeLog(UUID id, String approvedBy);
     
     /**
      * Reject a time log
      * @param id Time log ID
+     * @param rejectedBy User ID who rejected
      * @param reason Rejection reason
      * @return Updated time log
      */
-    TimeLogResponse rejectTimeLog(String id, String reason);
+    TimeLogResponse rejectTimeLog(UUID id, String rejectedBy, String reason);
 }
