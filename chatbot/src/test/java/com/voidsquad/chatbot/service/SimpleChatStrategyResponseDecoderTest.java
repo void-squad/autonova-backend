@@ -15,7 +15,7 @@ public class SimpleChatStrategyResponseDecoderTest {
     @Test
     public void decode_happyPath_booleanAndData() {
         String json = "{\"isSimple\": true, \"data\": \"hello-world\"}";
-        ProcessingResult pr = new ProcessingResult(json, OutputFormat.JSON, ProcessingType.SIMPLE, Collections.emptyMap());
+        ProcessingResult pr = new ProcessingResult(json, OutputFormat.JSON, ProcessingType.SIMPLE_CHAT, Collections.emptyMap());
 
         SimpleAiResponseDecoder decoder = new SimpleAiResponseDecoder(new com.voidsquad.chatbot.util.JsonPathKeyDecoder());
         SimpleChatStrategyResponse res = decoder.decode(pr);
@@ -26,7 +26,7 @@ public class SimpleChatStrategyResponseDecoderTest {
 
     @Test
     public void decode_fallbackToMetadata_whenOutputMissing() {
-        ProcessingResult pr = new ProcessingResult("", OutputFormat.JSON, ProcessingType.SIMPLE, Collections.singletonMap("data", "meta-value"));
+        ProcessingResult pr = new ProcessingResult("", OutputFormat.JSON, ProcessingType.SIMPLE_CHAT, Collections.singletonMap("data", "meta-value"));
         SimpleAiResponseDecoder decoder = new SimpleAiResponseDecoder(new com.voidsquad.chatbot.util.JsonPathKeyDecoder());
         SimpleChatStrategyResponse res = decoder.decode(pr);
 
