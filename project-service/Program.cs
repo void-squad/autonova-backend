@@ -187,6 +187,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("ADMIN", "ROLE_ADMIN"));
 
+    options.AddPolicy("EmployeeAccess", policy =>
+        policy.RequireRole("ADMIN", "EMPLOYEE", "ROLE_ADMIN", "ROLE_EMPLOYEE"));
+
     options.AddPolicy("EmployeeOrAdmin", policy =>
         policy.RequireRole("EMPLOYEE", "ADMIN", "ROLE_EMPLOYEE", "ROLE_ADMIN"));
 
