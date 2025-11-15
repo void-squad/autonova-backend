@@ -33,6 +33,10 @@ spring:
           uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
+        - id: customer-service-vehicles
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/api/vehicles/**
         - id: project-service
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
