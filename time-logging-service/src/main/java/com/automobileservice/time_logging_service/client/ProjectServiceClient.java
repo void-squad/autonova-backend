@@ -27,4 +27,7 @@ public interface ProjectServiceClient {
     @GetMapping("/api/projects/{projectId}/tasks/{taskId}")
     TaskResponse getTaskById(@PathVariable("projectId") UUID projectId, 
                             @PathVariable("taskId") UUID taskId);
+    
+    @GetMapping("/api/tasks/{taskId}")
+    TaskResponse getTaskByIdAlone(@PathVariable("taskId") UUID taskId);
 }
