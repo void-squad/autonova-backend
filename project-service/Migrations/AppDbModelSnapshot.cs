@@ -45,11 +45,11 @@ namespace ProjectService.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
 
-                    b.Property<Guid>("CustomerId")
-                        .HasColumnType("uuid");
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Description")
                         .HasMaxLength(4000)
@@ -93,8 +93,8 @@ namespace ProjectService.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid");
+                    b.Property<long>("ActorId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("ActorRole")
                         .IsRequired()
@@ -133,8 +133,8 @@ namespace ProjectService.Migrations
                     b.Property<Guid?>("AppointmentId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("AssigneeId")
-                        .HasColumnType("uuid");
+                    b.Property<long?>("AssigneeId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");

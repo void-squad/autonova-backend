@@ -61,19 +61,19 @@ services:
     networks:
       - autonova-network
 
-  # Ollama local model server for LLM testing
-  ollama:
-    container_name: autonova-ollama
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./ollama-data:/root/.ollama
-      - ./init-scripts:/scripts:ro
-    entrypoint: ["sh", "-c", "tr -d '\\r' </scripts/ollama-init.sh | sh -s --"]
-    restart: "no"
-    networks:
-      - autonova-network
+  # # Ollama local model server for LLM testing
+  # ollama:
+  #   container_name: autonova-ollama
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ./ollama-data:/root/.ollama
+  #     - ./init-scripts:/scripts:ro
+  #   entrypoint: ["sh", "-c", "tr -d '\\r' </scripts/ollama-init.sh | sh -s --"]
+  #   restart: "no"
+  #   networks:
+  #     - autonova-network
 
   # --- New Service: Discovery Service (from dev) ---
   discovery-service:
@@ -265,7 +265,7 @@ services:
       APP_RABBIT_ROUTING_KEY: project.*
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - "8086:8080" # Used 8086 from dev, mapping to container 8080
+      - "8086:8086" # Used 8086 from dev, mapping to container 8080
     depends_on:
       - rabbitmq
       - discovery-service # Added dependency on discovery service
@@ -298,45 +298,45 @@ services:
     networks:
       - autonova-network
 
-  time-logging-service:
-    container_name: autonova-time-logging-service
-    build:
-      context: ..
-      dockerfile: time-logging-service/Dockerfile
-    ports:
-      - "8083:8083"
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/time_logging_db?sslmode=${DB_SSLMODE:-require}
-      SPRING_DATASOURCE_USERNAME: ${TIME_LOGGING_DB_USER:-time_logging_service}
-      SPRING_DATASOURCE_PASSWORD: ${TIME_LOGGING_DB_PASSWORD}
-      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
-      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
-      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-    depends_on:
-      - postgres-init
-      - rabbitmq
-      - discovery-service
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:8083/actuator/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - autonova-network
+  # time-logging-service:
+  #   container_name: autonova-time-logging-service
+  #   build:
+  #     context: ..
+  #     dockerfile: time-logging-service/Dockerfile
+  #   ports:
+  #     - "8083:8083"
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/time_logging_db?sslmode=${DB_SSLMODE:-require}
+  #     SPRING_DATASOURCE_USERNAME: ${TIME_LOGGING_DB_USER:-time_logging_service}
+  #     SPRING_DATASOURCE_PASSWORD: ${TIME_LOGGING_DB_PASSWORD}
+  #     SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+  #     SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+  #     SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+  #     SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+  #     EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+  #     JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+  #   depends_on:
+  #     - postgres-init
+  #     - rabbitmq
+  #     - discovery-service
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "wget",
+  #         "--no-verbose",
+  #         "--tries=1",
+  #         "--spider",
+  #         "http://localhost:8083/actuator/health",
+  #       ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #   restart: unless-stopped
+  #   networks:
+  #     - autonova-network
 
   payments-billing-service:
     container_name: autonova-payments-billing-service

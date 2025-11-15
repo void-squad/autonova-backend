@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.7</version>
+        <version>3.4.0</version>
         <relativePath/>
     </parent>
     <groupId>com.void-squad</groupId>
@@ -27,8 +27,10 @@
         <url/>
     </scm>
     <properties>
+        <java.version>21</java.version>
         <spring-ai.version>1.0.3</spring-ai.version>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
+<!--        <spring-cloud.version>2025.0.0</spring-cloud.version>-->
+        <spring-cloud.version>2024.0.0</spring-cloud.version>
     </properties>
 
     <dependencyManagement>
@@ -43,7 +45,7 @@
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
-                <version>2023.0.3</version>
+                <version>${spring-cloud.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -145,6 +147,20 @@
             <artifactId>eureka-client</artifactId>
         </dependency>
 
+        <!-- JsonPath for path-based JSON extraction -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>2.9.0</version>
+        </dependency>
+
+        <!-- Jackson Java Time support -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -159,6 +175,9 @@
                             <artifactId>lombok</artifactId>
                         </path>
                     </annotationProcessorPaths>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

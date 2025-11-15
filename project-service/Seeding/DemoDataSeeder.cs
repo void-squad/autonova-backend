@@ -26,7 +26,7 @@ public class DemoDataSeeder
         }
 
         var now = DateTimeOffset.UtcNow;
-        var demoCustomer = Guid.Parse("4a3645a6-5b56-4b6a-8b33-953bc8b7a890");
+        const long demoCustomer = 1001;
         var demoVehicle = Guid.Parse("d0970b0a-4b52-47cb-838d-7c306114dd0f");
 
         var project = new Project
@@ -56,7 +56,7 @@ public class DemoDataSeeder
                 ServiceType = "Interior",
                 Detail = "Replace seats and dashboard with premium leather.",
                 Status = TaskStatusEnum.InProgress,
-                AssigneeId = Guid.Parse("f381a9f7-13e5-4d44-83fd-637e77a9cc10"),
+                AssigneeId = 2001,
                 ScheduledStart = now.AddDays(-6),
                 ScheduledEnd = now.AddDays(-2),
                 CreatedAt = now.AddDays(-11),
@@ -70,7 +70,7 @@ public class DemoDataSeeder
                 ServiceType = "Electronics",
                 Detail = "Install new head unit with wireless CarPlay.",
                 Status = TaskStatusEnum.Accepted,
-                AssigneeId = Guid.Parse("6c9b6ef0-4c33-419f-bab9-1f0fb4ae1fcb"),
+                AssigneeId = 2002,
                 ScheduledStart = now.AddDays(-1),
                 ScheduledEnd = now.AddDays(1),
                 CreatedAt = now.AddDays(-10),
@@ -91,7 +91,7 @@ public class DemoDataSeeder
             new ProjectActivity
             {
                 ProjectId = project.ProjectId,
-                ActorId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                ActorId = 9000,
                 ActorRole = "admin",
                 Message = "Project approved",
                 CreatedAt = now.AddDays(-7)

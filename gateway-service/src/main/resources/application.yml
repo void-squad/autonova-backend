@@ -11,6 +11,12 @@ spring:
           "[/**]":
             allowedOrigins:
               - http://localhost:5173
+              - http://127.0.0.1:5173
+              - http://[::1]:5173
+              - http://localhost:5174
+            # allow origin patterns for flexible local ports
+            allowedOriginPatterns:
+              - http://localhost:*
             allowedMethods:
               - GET
               - POST
@@ -68,6 +74,10 @@ spring:
           uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
           predicates:
             - Path=/api/invoices/**,/webhooks/stripe/**
+        - id: appointment-booking-service
+          uri: ${APPOINTMENT_BOOKING_SERVICE_URL:http://localhost:8088}
+          predicates:
+            - Path=/api/v1/appointments,/api/v1/appointments/**
         - id: notification-service
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
           predicates:
@@ -75,7 +85,7 @@ spring:
         - id: chatbot-service
           uri: ${CHATBOT_SERVICE_URL:http://localhost:8097}
           predicates:
-            - Path=/api/chatbot/**
+            - Path=/api/v1/chatbot,/api/v1/chatbot/**
 
 management:
   endpoints:
@@ -85,3 +95,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: DEBUG

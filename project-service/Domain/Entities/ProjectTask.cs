@@ -10,7 +10,7 @@ public class ProjectTask
     public string ServiceType { get; set; } = string.Empty;
     public string? Detail { get; set; }
     public TaskStatus Status { get; set; } = TaskStatus.Requested;
-    public Guid? AssigneeId { get; set; }
+    public long? AssigneeId { get; set; }
     public decimal? EstimateHours { get; set; }
     public DateTimeOffset? ScheduledStart { get; set; }
     public DateTimeOffset? ScheduledEnd { get; set; }
