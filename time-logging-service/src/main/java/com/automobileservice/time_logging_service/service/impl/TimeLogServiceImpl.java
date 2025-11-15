@@ -212,6 +212,52 @@ public class TimeLogServiceImpl implements TimeLogService {
         response.setApprovedBy(timeLog.getApprovedBy());
         response.setApprovedAt(timeLog.getApprovedAt());
         response.setLoggedAt(timeLog.getLoggedAt());
+        
+        // Fetch employee name from auth-service
+        try {
+            var user = authServiceClient.getUserById(timeLog.getEmployeeId());
+            if (user != null && user.getFirstName() != null && user.getLastName() != null) {
+                response.setEmployeeName(user.getFirstName() + " " + user.getLastName());
+            } else if (user != null && user.getUserName() != null) {
+                response.setEmployeeName(user.getUserName());
+            } else {
+                response.setEmployeeName("Unknown");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch employee name for ID {}: {}", timeLog.getEmployeeId(), e.getMessage());
+            response.setEmployeeName("Unknown");
+        }
+        
+        // Fetch project title from project-service
+        if (timeLog.getProjectId() != null) {
+            try {
+                var project = projectServiceClient.getProjectById(timeLog.getProjectId());
+                if (project != null && project.getTitle() != null) {
+                    response.setProjectTitle(project.getTitle());
+                } else {
+                    response.setProjectTitle("Unknown Project");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch project title for ID {}: {}", timeLog.getProjectId(), e.getMessage());
+                response.setProjectTitle("Unknown Project");
+            }
+        }
+        
+        // Fetch task name from project-service
+        if (timeLog.getTaskId() != null) {
+            try {
+                var task = projectServiceClient.getTaskByIdAlone(timeLog.getTaskId());
+                if (task != null && task.getTitle() != null) {
+                    response.setTaskName(task.getTitle());
+                } else {
+                    response.setTaskName("Unknown Task");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch task name for ID {}: {}", timeLog.getTaskId(), e.getMessage());
+                response.setTaskName("Unknown Task");
+            }
+        }
+        
         return response;
     }
     
