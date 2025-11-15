@@ -11,7 +11,9 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class JwtService {
 
@@ -21,6 +23,7 @@ public class JwtService {
     // Get signing key
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
+        log.debug("JWT secret loaded, length: {} bytes", keyBytes.length);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -67,8 +70,11 @@ public class JwtService {
     // Validate token
     public Boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token);
+            boolean valid = !isTokenExpired(token);
+            log.debug("Token validation result: {}", valid);
+            return valid;
         } catch (Exception e) {
+            log.error("Token validation failed: {}", e.getMessage());
             return false;
         }
     }

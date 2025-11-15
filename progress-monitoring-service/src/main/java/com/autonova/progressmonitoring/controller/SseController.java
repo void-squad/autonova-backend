@@ -25,7 +25,7 @@ public class SseController {
     }
 
     @GetMapping(path = "/projects/{projectId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'CUSTOMER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE', 'CUSTOMER')")
     public SseEmitter subscribeToProject(@PathVariable String projectId) {
         try {
             UUID.fromString(projectId);
