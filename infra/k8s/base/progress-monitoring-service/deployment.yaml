@@ -36,14 +36,17 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: autonova-env
-                  key: POSTGRES_USER
+                  key: PROGRESS_MONITORING_DB_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: autonova-env
                   key: PROGRESS_MONITORING_DB_PASSWORD
             - name: POSTGRES_DB
-              value: "progress"
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: PROGRESS_MONITORING_DB_NAME
             - name: SPRING_RABBITMQ_HOST
               valueFrom:
                 secretKeyRef:
@@ -89,6 +92,9 @@ spec:
               port: 8086
             initialDelaySeconds: 60
             periodSeconds: 30
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
           resources:
             requests:
               cpu: "200m"
@@ -96,4 +102,8 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+      volumes:
+        - name: uploads
+          emptyDir: {}
+
 
