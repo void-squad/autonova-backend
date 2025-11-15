@@ -372,8 +372,8 @@ services:
     container_name: autonova-chatbot
     build:
       # Use repository root as build context so parent POM and shared config are available
-      context: ..
-      dockerfile: chatbot/Dockerfile
+      context: ../chatbot
+      dockerfile: Dockerfile
     env_file:
       - ../chatbot/.env
     ports:
