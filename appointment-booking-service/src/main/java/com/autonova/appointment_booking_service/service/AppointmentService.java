@@ -3,6 +3,7 @@ package com.autonova.appointment_booking_service.service;
 import com.autonova.appointment_booking_service.dto.*;
 import com.autonova.appointment_booking_service.entity.Appointment;
 import com.autonova.appointment_booking_service.exception.ConflictException;
+import com.autonova.appointment_booking_service.messaging.AppointmentEventPublisher;
 import com.autonova.appointment_booking_service.repository.AppointmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import java.util.*;
 public class AppointmentService {
 
     private final AppointmentRepository repository;
+    private final AppointmentEventPublisher eventPublisher;
 
     // capacity: number of concurrent service bays; configurable in production
     private final int serviceCapacity = 3;
@@ -26,8 +28,9 @@ public class AppointmentService {
             "CANCELLED"
     );
 
-    public AppointmentService(AppointmentRepository repository) {
+    public AppointmentService(AppointmentRepository repository, AppointmentEventPublisher eventPublisher) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -75,6 +78,7 @@ public class AppointmentService {
                 .build();
 
         Appointment saved = repository.save(a);
+        safePublish("appointment.created", saved);
         return toDto(saved);
     }
 
@@ -115,6 +119,7 @@ public class AppointmentService {
         appt.setEndTime(newEnd);
         appt.setUpdatedAt(OffsetDateTime.now());
         Appointment saved = repository.save(appt);
+        safePublish("appointment.rescheduled", saved);
         return toDto(saved);
     }
 
@@ -125,7 +130,7 @@ public class AppointmentService {
         appt.setStatus("CANCELLED");
         appt.setUpdatedAt(OffsetDateTime.now());
         repository.save(appt);
-        // publish cancellation event to notification service / audit
+        safePublish("appointment.cancelled", appt);
     }
 
     @Transactional(readOnly = true)
@@ -215,6 +220,7 @@ public class AppointmentService {
         }
         appt.setUpdatedAt(OffsetDateTime.now());
         Appointment saved = repository.save(appt);
+        safePublish(mapStatusToEvent(saved.getStatus()), saved);
         return toDto(saved);
     }
 
@@ -255,4 +261,20 @@ public class AppointmentService {
 //
 //        return availableSlots;
 //    }
+
+    private String mapStatusToEvent(String status) {
+        if (status == null) return null;
+        return switch (status.toUpperCase(Locale.ROOT)) {
+            case "CONFIRMED" -> "appointment.accepted";
+            case "IN_PROGRESS" -> "appointment.in_progress";
+            case "COMPLETED" -> "appointment.completed";
+            case "CANCELLED" -> "appointment.cancelled";
+            default -> null; // PENDING or unknown
+        };
+    }
+
+    private void safePublish(String eventType, Appointment appt) {
+        if (eventType == null) return;
+        try { eventPublisher.publish(eventType, appt); } catch (Exception ignored) {}
+    }
 }
