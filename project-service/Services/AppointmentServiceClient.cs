@@ -25,6 +25,7 @@ public class AppointmentServiceClient : IAppointmentServiceClient
         string? status,
         DateTimeOffset? from,
         DateTimeOffset? to,
+        Guid? vehicleId,
         CancellationToken cancellationToken)
     {
         var query = new QueryBuilder();
@@ -41,6 +42,11 @@ public class AppointmentServiceClient : IAppointmentServiceClient
         if (to.HasValue)
         {
             query.Add("to", to.Value.ToString("O"));
+        }
+
+        if (vehicleId.HasValue)
+        {
+            query.Add("vehicleId", vehicleId.Value.ToString());
         }
 
         var url = "admin" + query.ToQueryString();

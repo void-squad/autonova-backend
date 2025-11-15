@@ -142,6 +142,14 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
+    public List<AppointmentResponseDto> searchForAdmin(String status, OffsetDateTime from, OffsetDateTime to, UUID vehicleId) {
+        return repository.searchForAdmin(status, from, to, vehicleId)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<Map<String, OffsetDateTime>> getAvailableSlots(OffsetDateTime start, OffsetDateTime end) {
         List<Map<String, OffsetDateTime>> availableSlots = new ArrayList<>();
 
@@ -193,10 +201,18 @@ public class AppointmentService {
     }
 
     @Transactional
-    public AppointmentResponseDto updateStatus(UUID appointmentId, String newStatus) {
+    public AppointmentResponseDto updateStatus(UUID appointmentId, String newStatus, String adminNote) {
         Appointment appt = repository.findById(appointmentId)
                 .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
         appt.setStatus(newStatus.toUpperCase(Locale.ROOT));
+        if (adminNote != null && !adminNote.isBlank()) {
+            String trimmed = adminNote.trim();
+            if (appt.getNotes() == null || appt.getNotes().isBlank()) {
+                appt.setNotes(trimmed);
+            } else {
+                appt.setNotes(appt.getNotes() + "\n\n" + trimmed);
+            }
+        }
         appt.setUpdatedAt(OffsetDateTime.now());
         Appointment saved = repository.save(appt);
         return toDto(saved);
