@@ -15,8 +15,14 @@ public interface ProjectServiceClient {
     @GetMapping("/api/projects/{id}")
     ProjectResponse getProjectById(@PathVariable("id") UUID id);
     
+    @GetMapping("/api/projects/employee/{employeeId}")
+    List<ProjectResponse> getProjectsByEmployeeId(@PathVariable("employeeId") Long employeeId);
+    
     @GetMapping("/api/projects/{projectId}/tasks")
     List<TaskResponse> getTasksByProjectId(@PathVariable("projectId") UUID projectId);
+    
+    @GetMapping("/api/tasks/by-assignee/{assigneeId}")
+    List<TaskResponse> getTasksByAssigneeId(@PathVariable("assigneeId") Long assigneeId);
     
     @GetMapping("/api/projects/{projectId}/tasks/{taskId}")
     TaskResponse getTaskById(@PathVariable("projectId") UUID projectId, 
