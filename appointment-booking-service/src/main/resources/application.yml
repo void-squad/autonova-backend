@@ -22,7 +22,7 @@ spring:
 #              jwk-set-uri: https://auth-server.example.com/.well-known/jwks.json
 
 server:
-  port: 8082
+  port: 8088
 
 # security jwt jwk-set-uri example (resource-server)
 

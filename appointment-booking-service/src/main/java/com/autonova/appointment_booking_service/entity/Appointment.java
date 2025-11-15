@@ -26,8 +26,14 @@ public class Appointment {
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;   // references customer microservice
 
+    @Column(name = "customer_username", nullable = false)
+    private String customerUsername;
+
     @Column(name = "vehicle_id", nullable = false)
     private UUID vehicleId;    // references vehicle microservice
+
+    @Column(name = "vehicle_name", nullable = false)
+    private String vehicleName;
 
     @Column(name = "service_type", nullable = false)
     private String serviceType;

@@ -12,8 +12,10 @@ import java.util.UUID;
 public class AppointmentRequestDto {
     @NotNull
     private UUID customerId;
+    private String customerUsername;
     @NotNull
     private UUID vehicleId;
+    private String vehicleName;
     @NotNull
     private String serviceType;
     @NotNull
