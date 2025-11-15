@@ -31,6 +31,15 @@ public class ProjectClientService {
                         error -> handleProjectServiceError(projectId, error));
     }
 
+    public java.util.List<Map<String, Object>> getProjectsForCustomer(long customerId) {
+        try {
+            return projectClient.getProjectsByCustomerId(customerId).block();
+        } catch (Exception ex) {
+            handleProjectServiceError(String.valueOf(customerId), ex);
+            return java.util.Collections.emptyList();
+        }
+    }
+
     private void applyTitleIfMissing(List<ProjectMessageDto> messages, Map<String, Object> proj) {
         if (messages.isEmpty()) return;
 

@@ -47,6 +47,29 @@ public class ProjectServiceClient {
                 .doOnTerminate(() -> logger.info("Request to fetch project {} completed", projectId));
     }
 
+    public Mono<java.util.List<Map<String, Object>>> getProjectsByCustomerId(long customerId) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/projects").queryParam("customerId", String.valueOf(customerId)).build())
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError(),
+                        response -> {
+                            logger.error("Client error while fetching projects for customer {}: Status code {}", customerId, response.statusCode());
+                            return Mono.error(new ProjectServiceException("Client error while fetching projects", response.statusCode().value()));
+                        })
+                .onStatus(status -> status.is5xxServerError(),
+                        response -> {
+                            logger.error("Server error while fetching projects for customer {}: Status code {}", customerId, response.statusCode());
+                            return Mono.error(new ProjectServiceException("Server error while fetching projects", response.statusCode().value()));
+                        })
+                .bodyToMono(new ParameterizedTypeReference<java.util.List<Map<String, Object>>>() {})
+                .timeout(java.time.Duration.ofSeconds(5))
+                .onErrorMap(e -> {
+                    logger.error("Error occurred while fetching projects for customer {}: {}", customerId, e.getMessage());
+                    return new ProjectServiceException("Unexpected error occurred", e);
+                })
+                .doOnTerminate(() -> logger.info("Request to fetch projects for customer {} completed", customerId));
+    }
+
     public static class ProjectServiceException extends RuntimeException {
         private final int statusCode;
 

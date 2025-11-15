@@ -13,6 +13,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
@@ -21,6 +22,10 @@ import org.slf4j.LoggerFactory;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -39,7 +44,68 @@ public class ProjectMessageController {
         this.projectClientService = projectClientService;
     }
 
+    @GetMapping("/my/statuses")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<Map<String, Object>>> getMyProjectStatuses(HttpServletRequest request) {
+        Object uid = request.getAttribute("userId");
+        if (uid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        long userId;
+        try {
+            userId = (Long) uid;
+        } catch (ClassCastException ex) {
+            // sometimes numbers deserialized differently; try to convert
+            try {
+                userId = Long.parseLong(String.valueOf(uid));
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            }
+        }
+
+        try {
+            List<Map<String, Object>> projects = projectClientService.getProjectsForCustomer(userId);
+            List<Map<String, Object>> response = new ArrayList<>();
+
+            if (projects == null || projects.isEmpty()) {
+                return ResponseEntity.ok(response);
+            }
+
+            for (Map<String, Object> proj : projects) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("project", proj);
+
+                Object projIdObj = proj.getOrDefault("projectId", proj.get("projectId"));
+                if (projIdObj != null) {
+                    try {
+                        UUID pid = UUID.fromString(String.valueOf(projIdObj));
+                        List<ProjectMessageDto> messages = service.getMessagesForProjectDto(pid);
+                        if (messages != null && !messages.isEmpty()) {
+                            ProjectMessageDto last = messages.get(0);
+                            Map<String, Object> lastMsg = new HashMap<>();
+                            lastMsg.put("message", last.getMessage());
+                            lastMsg.put("occurredAt", last.getOccurredAt());
+                            lastMsg.put("category", last.getCategory());
+                            item.put("lastMessage", lastMsg);
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        // ignore invalid projectId format
+                    }
+                }
+
+                response.add(item);
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching projects for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     @GetMapping("/{projectId}/messages")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'CUSTOMER')")
     public ResponseEntity<List<ProjectMessageDto>> getMessages(@PathVariable String projectId) {
         UUID id;
         try {
@@ -124,6 +190,7 @@ public class ProjectMessageController {
     }
 
     @PostMapping("/{projectId}/messages")
+    @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<ProjectMessageDto> postStatusMessage(@PathVariable String projectId,
                                                                @RequestBody CreateStatusRequest request) {
         UUID id;
@@ -163,6 +230,7 @@ public class ProjectMessageController {
     }
 
     @PostMapping(value = "/{projectId}/messages/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<ProjectMessageDto> uploadAndCreateMessage(@PathVariable String projectId,
                                                                     @RequestPart("file") MultipartFile file,
                                                                     @RequestPart("message") String message,
