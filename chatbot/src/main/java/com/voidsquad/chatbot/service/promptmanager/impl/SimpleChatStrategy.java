@@ -2,6 +2,7 @@ package com.voidsquad.chatbot.service.promptmanager.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voidsquad.chatbot.util.TextUtil;
 import com.voidsquad.chatbot.service.language.LanguageProcessor;
 import com.voidsquad.chatbot.service.promptmanager.PromptStrategy;
 import com.voidsquad.chatbot.service.promptmanager.core.OutputFormat;
@@ -80,13 +81,14 @@ answer to the user request as per the RESPONSE RULES above.
 
     @Override
     public ProcessingResult postProcess(String llmOutput) {
-        try {
-            JsonNode node = objectMapper.readTree(llmOutput);
+    try {
+        String cleaned = TextUtil.stripCodeFences(llmOutput);
+        JsonNode node = objectMapper.readTree(cleaned);
             boolean isSimple = node.has("isSimple") && node.get("isSimple").asBoolean(false);
             String data = node.has("data") ? node.get("data").asText("") : "";
 
             return new ProcessingResult(
-                    llmOutput,
+            cleaned,
                     OutputFormat.JSON,
                     ProcessingType.SIMPLE_CHAT,
                     Map.of("isSimple", isSimple, "data", data)
