@@ -8,6 +8,7 @@ public interface IAppointmentServiceClient
         string? status,
         DateTimeOffset? from,
         DateTimeOffset? to,
+        Guid? vehicleId,
         CancellationToken cancellationToken);
 
     Task<ExternalAppointmentDto?> GetAppointmentAsync(Guid id, CancellationToken cancellationToken);
