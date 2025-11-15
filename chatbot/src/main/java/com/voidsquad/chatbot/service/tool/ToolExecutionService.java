@@ -1,6 +1,7 @@
 package com.voidsquad.chatbot.service.tool;
 
 import com.voidsquad.chatbot.model.ToolCall;
+import com.voidsquad.chatbot.service.auth.AuthInfo;
 import com.voidsquad.chatbot.service.tool.Tool;
 import com.voidsquad.chatbot.service.tool.ToolCallRequest;
 import com.voidsquad.chatbot.service.tool.ToolCallResult;
@@ -24,7 +25,7 @@ public class ToolExecutionService {
         this.registry = registry;
     }
 
-    public List<ToolCallResult> executeAll(List<ToolCall> calls) {
+    public List<ToolCallResult> executeAll(List<ToolCall> calls, String userInput ,AuthInfo userInfo) {
         List<ToolCallResult> results = new ArrayList<>();
         if (calls == null) return results;
 
@@ -38,6 +39,9 @@ public class ToolExecutionService {
                 results.add(ToolCallResult.failure(msg,toolName));
                 continue;
             }
+
+            c.getParameters().put("userInput",userInput);
+            c.getParameters().put("userInfo",userInfo);
 
             Tool t = opt.get();
             try {

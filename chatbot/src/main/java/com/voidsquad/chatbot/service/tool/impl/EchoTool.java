@@ -1,5 +1,6 @@
 package com.voidsquad.chatbot.service.tool.impl;
 
+import com.voidsquad.chatbot.service.auth.AuthInfo;
 import com.voidsquad.chatbot.service.tool.Tool;
 import com.voidsquad.chatbot.service.tool.ToolCallRequest;
 import com.voidsquad.chatbot.service.tool.ToolCallResult;

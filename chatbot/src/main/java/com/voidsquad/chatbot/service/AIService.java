@@ -3,6 +3,8 @@ package com.voidsquad.chatbot.service;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import com.voidsquad.chatbot.decoder.SimpleAiResponseDecoder;
+import com.voidsquad.chatbot.decoder.FinalOutputStrategyDecoder;
+import com.voidsquad.chatbot.decoder.FinalOutputStrategyResponse;
 import com.voidsquad.chatbot.decoder.ToolCallResponseDecoder;
 import com.voidsquad.chatbot.entities.WorkflowStep;
 import com.voidsquad.chatbot.exception.JsonDecodeException;
@@ -12,6 +14,7 @@ import com.voidsquad.chatbot.model.ToolCall;
 import com.voidsquad.chatbot.repository.WorkflowStepRepository;
 import com.voidsquad.chatbot.service.auth.AuthInfo;
 import com.voidsquad.chatbot.service.promptmanager.core.ProcessingResult;
+import com.voidsquad.chatbot.service.promptmanager.impl.FinalOutputStrategy;
 import com.voidsquad.chatbot.service.tool.ToolCallResult;
 import com.voidsquad.chatbot.service.tool.ToolExecutionService;
 import com.voidsquad.chatbot.service.tool.ToolRegistry;
@@ -44,6 +47,7 @@ public class AIService {
     private final ObjectMapper objectMapper;
     private final WorkflowStepRepository workflowStepRepository;
     private final SimpleAiResponseDecoder simpleAiResponseDecoder;
+    private final FinalOutputStrategyDecoder finalOutputStrategyDecoder;
     private final ToolCallResponseDecoder toolCallResponseDecoder;
     private final ToolRegistry toolRegistry;
     private final ToolExecutionService toolExecutionService;
@@ -54,6 +58,7 @@ public class AIService {
             @Autowired(required = false) LanguageProcessor languageProcessor,
             @Autowired(required = false) ObjectMapper objectMapper,
             @Autowired(required = false) SimpleAiResponseDecoder simpleAiResponseDecoder,
+            @Autowired(required = false) FinalOutputStrategyDecoder finalOutputStrategyDecoder,
             WorkflowStepRepository workflowStepRepository,
         ToolCallResponseDecoder toolCallResponseDecoder,
         ToolRegistry toolRegistry,
@@ -63,6 +68,7 @@ public class AIService {
         this.languageProcessor = languageProcessor;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
         this.simpleAiResponseDecoder = simpleAiResponseDecoder != null ? simpleAiResponseDecoder : new SimpleAiResponseDecoder(new com.voidsquad.chatbot.util.JsonPathKeyDecoder());
+        this.finalOutputStrategyDecoder = finalOutputStrategyDecoder != null ? finalOutputStrategyDecoder : new FinalOutputStrategyDecoder();
         this.workflowStepRepository = workflowStepRepository;
         this.toolCallResponseDecoder = toolCallResponseDecoder;
         this.toolRegistry = toolRegistry;
@@ -205,9 +211,6 @@ public class AIService {
             return prepareWorkflow(userPrompt,qEmbedding,structuredOutput.data(), authInfo);
         }
 
-
-
-
     }
 
 
@@ -237,7 +240,7 @@ public class AIService {
         String output = usableTools.output();
         List<ToolCall> toolCalls = toolCallResponseDecoder.decode(output);
 
-        List<ToolCallResult> toolCallResults = toolExecutionService.executeAll(toolCalls);
+        List<ToolCallResult> toolCallResults = toolExecutionService.executeAll(toolCalls,userPrompt ,userInfo);
 
         StringBuilder toolResultsBuilder = new StringBuilder();
         for( ToolCallResult result : toolCallResults ){
@@ -245,31 +248,29 @@ public class AIService {
             toolResultsBuilder.append(result.getResult()).append("\n");
         }
 
-        return toolResultsBuilder.toString();
+        String cat = userInfoStr + toolResultsBuilder.toString();
+        return finalOutputGenarator(userPrompt,cat ,userInfo);
     }
 
+    public String finalOutputGenarator(String userPrompt, String toolResults, AuthInfo authInfo) {
+        ProcessingResult finalResult = languageProcessor.finalOutputPrepWithData(userPrompt, toolResults, authInfo != null ? authInfo.getRole() : "GUEST");
+            FinalOutputStrategyResponse finalResponse = finalOutputStrategyDecoder.decode(finalResult);
+            if (finalResponse != null && finalResponse.isComplete()) {
+                return finalResponse.getData();
+            }
+            return "Unknown error";
+    }
 
-    // Tool beans are discovered and registered by Spring into ToolRegistry at startup.
-    // No runtime registration required; keep this method removed to avoid mutation of the registry.
 
     public List<String> getAllStaticInfoByEmbeddings(String keyword) {
                 float[] emb = embeddingService.generateEmbedding(keyword);
                 int count = 0;
                 return staticInfoRepository.findSimilarStaticInfo(emb,5).stream().map(staticInfo -> {
-                    String info = "Topic " + staticInfo.getTopic() + "\n" +
-                            "Description: " + staticInfo.getDescription() + "\n";
-                    return info;
+                    return STR."""
+                                Topic \{staticInfo.getTopic()}
+                                Description: \{staticInfo.getDescription()}
+                                """;
                 }).toList();
             }
-
-    // JSON decoding for LLM simple responses has been moved to SimpleAiResponseDecoder
-
-//    public void send(String message) {
-//        rabbitTemplate.convertAndSend(
-//                RabbitMQConfig.EXCHANGE,
-//                RabbitMQConfig.ROUTING_KEY,
-//                message
-//        );
-//    }
 
 }
