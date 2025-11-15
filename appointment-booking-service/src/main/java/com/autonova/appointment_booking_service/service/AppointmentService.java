@@ -18,6 +18,14 @@ public class AppointmentService {
     // capacity: number of concurrent service bays; configurable in production
     private final int serviceCapacity = 3;
 
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "PENDING",
+            "CONFIRMED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED"
+    );
+
     public AppointmentService(AppointmentRepository repository) {
         this.repository = repository;
     }

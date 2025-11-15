@@ -31,4 +31,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     // find appointments in a given range (for availability)
     @Query("SELECT a FROM Appointment a WHERE a.startTime < :end AND a.endTime > :start AND a.status <> 'CANCELLED'")
     List<Appointment> findInTimeRange(@Param("start") OffsetDateTime start, @Param("end") OffsetDateTime end);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE (:status IS NULL OR UPPER(a.status) = UPPER(:status))
+              AND a.startTime >= COALESCE(:from, a.startTime)
+              AND a.startTime <= COALESCE(:to, a.startTime)
+            ORDER BY a.startTime DESC
+            """)
+    List<Appointment> searchForAdmin(@Param("status") String status,
+                                     @Param("from") OffsetDateTime from,
+                                     @Param("to") OffsetDateTime to);
 }
