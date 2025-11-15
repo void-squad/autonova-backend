@@ -5,57 +5,81 @@ namespace ProjectService.Extensions;
 
 public static class ProjectMappingExtensions
 {
-    public static ProjectResponse ToResponse(this Project project)
+    public static ProjectSummaryDto ToSummary(this Project project)
     {
-        var tasks = project.Tasks?.Select(t => new ProjectResponse.TaskResponse
+        return new ProjectSummaryDto
         {
-            TaskId = t.TaskId,
-            Title = t.Title,
-            EstimateHours = t.EstimateHours,
-            AssigneeId = t.AssigneeId,
-            Status = t.Status
-        }).ToArray() ?? Array.Empty<ProjectResponse.TaskResponse>();
-
-        var quotes = project.Quotes?.Select(q => new ProjectResponse.QuoteResponse
-        {
-            QuoteId = q.QuoteId,
-            Total = q.Total,
-            Status = q.Status,
-            IssuedAt = q.IssuedAt,
-            ApprovedAt = q.ApprovedAt,
-            RejectedAt = q.RejectedAt,
-            ApprovedBy = q.ApprovedBy,
-            RejectedBy = q.RejectedBy,
-            ClientRequestId = q.ClientRequestId,
-            xmin = q.xmin
-        }).ToArray() ?? Array.Empty<ProjectResponse.QuoteResponse>();
-
-        var history = project.StatusHistory?.OrderByDescending(h => h.ChangedAt).Select(h => new ProjectResponse.StatusHistoryResponse
-        {
-            Id = h.Id,
-            FromStatus = h.FromStatus,
-            ToStatus = h.ToStatus,
-            ChangedBy = h.ChangedBy,
-            ChangedAt = h.ChangedAt,
-            Note = h.Note
-        }).ToArray() ?? Array.Empty<ProjectResponse.StatusHistoryResponse>();
-
-        return new ProjectResponse
-        {
-            Id = project.Id,
             ProjectId = project.ProjectId,
-            CustomerId = project.CustomerId,
             VehicleId = project.VehicleId,
             Title = project.Title,
             Status = project.Status,
             CreatedAt = project.CreatedAt,
             UpdatedAt = project.UpdatedAt,
-            Budget = project.Budget,
-            DueDate = project.DueDate,
-            ClientRequestId = project.ClientRequestId,
-            Tasks = tasks,
-            Quotes = quotes,
-            StatusHistory = history
+            RequestedStart = project.RequestedStart,
+            RequestedEnd = project.RequestedEnd,
+            ApprovedStart = project.ApprovedStart,
+            ApprovedEnd = project.ApprovedEnd
+        };
+    }
+
+    public static ProjectDetailsDto ToDetails(this Project project)
+    {
+        return new ProjectDetailsDto
+        {
+            ProjectId = project.ProjectId,
+            CustomerId = project.CustomerId,
+            VehicleId = project.VehicleId,
+            Title = project.Title,
+            Description = project.Description,
+            Status = project.Status,
+            CreatedAt = project.CreatedAt,
+            UpdatedAt = project.UpdatedAt,
+            RequestedStart = project.RequestedStart,
+            RequestedEnd = project.RequestedEnd,
+            ApprovedStart = project.ApprovedStart,
+            ApprovedEnd = project.ApprovedEnd,
+            AppointmentId = project.AppointmentId,
+            AppointmentSnapshot = project.AppointmentSnapshot,
+            Tasks = project.Tasks
+                .OrderBy(t => t.CreatedAt)
+                .Select(t => t.ToDto())
+                .ToArray(),
+            Activity = project.Activity
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => a.ToDto())
+                .ToArray()
+        };
+    }
+
+    public static ProjectTaskDto ToDto(this ProjectTask task)
+    {
+        return new ProjectTaskDto
+        {
+            TaskId = task.TaskId,
+            Title = task.Title,
+            ServiceType = task.ServiceType,
+            Detail = task.Detail,
+            Status = task.Status,
+            AssigneeId = task.AssigneeId,
+            EstimateHours = task.EstimateHours,
+            ScheduledStart = task.ScheduledStart,
+            ScheduledEnd = task.ScheduledEnd,
+            AppointmentId = task.AppointmentId,
+            CreatedAt = task.CreatedAt,
+            UpdatedAt = task.UpdatedAt
+        };
+    }
+
+    public static ProjectActivityDto ToDto(this ProjectActivity activity)
+    {
+        return new ProjectActivityDto
+        {
+            Id = activity.Id,
+            TaskId = activity.TaskId,
+            ActorId = activity.ActorId,
+            ActorRole = activity.ActorRole,
+            Message = activity.Message,
+            CreatedAt = activity.CreatedAt
         };
     }
 }

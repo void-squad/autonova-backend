@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentValidation;
@@ -15,9 +16,7 @@ using Npgsql;
 using ProjectService.Data;
 using ProjectService.Dtos;
 using ProjectService.HealthChecks;
-using ProjectService.Messaging;
 using ProjectService.Seeding;
-using ProjectService.Services;
 using ProjectService.Swagger;
 using ProjectService.Validators;
 using Steeltoe.Discovery.Eureka;
@@ -115,16 +114,66 @@ if (!string.IsNullOrWhiteSpace(appointmentsUrl))
         new[] { "ready" }));
 }
 
+var authSection = builder.Configuration.GetSection("Auth");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = builder.Configuration["Auth:Authority"];
+        var authority = authSection["Authority"];
+        if (!string.IsNullOrWhiteSpace(authority))
+        {
+            options.Authority = authority;
+        }
+
         options.RequireHttpsMetadata = false;
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateAudience = builder.Configuration.GetValue("Auth:ValidateAudience", false),
-            ValidateIssuer = true,
-            RoleClaimType = "role"
+            ValidateAudience = authSection.GetValue("ValidateAudience", false),
+            ValidateIssuer = authSection.GetValue("ValidateIssuer", false),
+            RoleClaimType = "role",
+            NameClaimType = authSection["NameClaimType"] ?? "email"
+        };
+
+        var signingKeyValue = authSection["SigningKey"];
+        if (!string.IsNullOrWhiteSpace(signingKeyValue))
+        {
+            byte[] keyBytes;
+            try
+            {
+                keyBytes = Convert.FromBase64String(signingKeyValue);
+            }
+            catch (FormatException)
+            {
+                keyBytes = Encoding.UTF8.GetBytes(signingKeyValue);
+            }
+
+            options.TokenValidationParameters.ValidateIssuerSigningKey = true;
+            options.TokenValidationParameters.IssuerSigningKey = new SymmetricSecurityKey(keyBytes);
+        }
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+
+                var role = context.Principal?.FindFirst("role")?.Value ?? "(none)";
+                var subject = context.Principal?.Identity?.Name ?? "(anonymous)";
+                logger.LogInformation("Token validated for {Subject} with role {Role}", subject, role);
+                return Task.CompletedTask;
+            },
+            OnForbidden = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+                var role = context.Principal?.FindFirst("role")?.Value ?? "(none)";
+                logger.LogWarning("Authorization failed for {Subject} with role {Role}", context.Principal?.Identity?.Name ?? "(anonymous)", role);
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -132,18 +181,45 @@ builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
-        .RequireRole("ADMIN")
         .Build();
 
     options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("ADMIN"));
+        policy.RequireRole("ADMIN", "ROLE_ADMIN"));
+
+    options.AddPolicy("EmployeeOrAdmin", policy =>
+        policy.RequireRole("EMPLOYEE", "ADMIN", "ROLE_EMPLOYEE", "ROLE_ADMIN"));
+
+    options.AddPolicy("CustomerOnly", policy =>
+        policy.RequireRole("CUSTOMER", "ROLE_CUSTOMER"));
 });
 
-builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
-builder.Services.AddScoped<IProjectWorkflowService, ProjectWorkflowService>();
+builder.Services.AddCors(options =>
+{
+    var configuredOrigins = builder.Configuration.GetSection("Frontend:AllowedOrigins")
+        .Get<string[]>() ?? Array.Empty<string>();
+
+    var filteredOrigins = configuredOrigins
+        .Where(o => !string.IsNullOrWhiteSpace(o))
+        .Select(o => o.TrimEnd('/'))
+        .ToArray();
+
+    if (filteredOrigins.Length == 0)
+    {
+        var baseOrigin = builder.Configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+        filteredOrigins = new[] { baseOrigin.TrimEnd('/') };
+    }
+
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.WithOrigins(filteredOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectRequestValidator>();
-builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddEurekaDiscoveryClient();
 
 var app = builder.Build();
@@ -164,6 +240,8 @@ app.UseExceptionHandler();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
