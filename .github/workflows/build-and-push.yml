@@ -163,14 +163,18 @@ jobs:
             cd -
           fi
 
-          IMAGE_SHA=${DOCKERHUB_USERNAME}/${svc}:${SHORT_SHA::8}
+          IMAGE_SHA=${DOCKERHUB_USERNAME}/${svc}:sha-${SHORT_SHA::8}
+          IMAGE_VERSION=${DOCKERHUB_USERNAME}/${svc}:v${GITHUB_RUN_NUMBER}
 
           # Determine additional tags based on branch
           ADDITIONAL_TAGS=()
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             ADDITIONAL_TAGS+=(--tag ${DOCKERHUB_USERNAME}/${svc}:latest)
+            ADDITIONAL_TAGS+=(--tag ${IMAGE_VERSION})
+            ADDITIONAL_TAGS+=(--tag ${IMAGE_SHA})
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             ADDITIONAL_TAGS+=(--tag ${DOCKERHUB_USERNAME}/${svc}:dev-latest)
+            ADDITIONAL_TAGS+=(--tag ${DOCKERHUB_USERNAME}/${svc}:dev-sha-${SHORT_SHA::8})
           fi
 
           # Choose Dockerfile and determine build context
@@ -198,7 +202,7 @@ jobs:
 
           # Build with buildx and push; use registry cache to avoid re-pulling common layers
           docker buildx build --platform linux/amd64,linux/arm64 --push \
-            --tag "$IMAGE_SHA" \
+            --tag "${DOCKERHUB_USERNAME}/${svc}:sha-${SHORT_SHA::8}" \
             ${ADDITIONAL_TAGS[@]:-} \
             --cache-from=type=registry,ref=$CACHE_REF \
             --cache-to=type=registry,ref=$CACHE_REF,mode=max \
@@ -206,3 +210,61 @@ jobs:
             "$BUILD_CONTEXT"
 
           echo "Pushed images for $svc"
+
+  update-kustomization:
+    name: Update production kustomization with new image tags
+    needs: [determine-services, build-and-push]
+    if: github.ref == 'refs/heads/main' && needs.determine-services.outputs.services_json != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update kustomization.yaml with new image tags
+        env:
+          SERVICES_JSON: ${{ needs.determine-services.outputs.services_json }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -eu
+          
+          SERVICES=$(echo "$SERVICES_JSON" | jq -r '.[]')
+          KUSTOMIZATION_FILE="infra/k8s/overlays/production/kustomization.yaml"
+          
+          echo "Updating $KUSTOMIZATION_FILE with new image tags..."
+          
+          for svc in $SERVICES; do
+            if [ -f "$svc/Dockerfile" ] || [ -f "$svc/Dockerfile.prebuilt" ] || [ -f "$svc/docker/Dockerfile" ]; then
+              NEW_TAG="v${{ github.run_number }}"
+              IMAGE_NAME="${DOCKERHUB_USERNAME}/${svc}"
+              
+              # Check if image exists in kustomization.yaml
+              if grep -q "name: ${IMAGE_NAME}" "$KUSTOMIZATION_FILE"; then
+                echo "Updating $svc to $NEW_TAG"
+                # Use sed to update the newTag line that follows the matching image name
+                sed -i "/name: ${IMAGE_NAME}/,/newTag:/ s/newTag: .*/newTag: ${NEW_TAG}/" "$KUSTOMIZATION_FILE"
+              else
+                echo "Image $IMAGE_NAME not found in kustomization.yaml, skipping"
+              fi
+            fi
+          done
+          
+          echo "Updated kustomization.yaml:"
+          cat "$KUSTOMIZATION_FILE"
+
+      - name: Commit and push kustomization changes
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+          if git diff --quiet infra/k8s/overlays/production/kustomization.yaml; then
+            echo "No changes to commit"
+          else
+            git add infra/k8s/overlays/production/kustomization.yaml
+            git commit -m "chore: update production image tags to v${{ github.run_number }} [skip ci]"
+            git push origin main
+          fi

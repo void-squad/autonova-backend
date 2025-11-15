@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+spec:
+  template:
+    spec:
+      containers:
+      - name: gateway-service
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: LOGGING_LEVEL_ROOT
+          value: "INFO"
+        - name: EUREKA_CLIENT_ENABLED
+          value: "true"
+        - name: EUREKA_SERVER_URL
+          value: "http://discovery-service:8761/eureka"
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:8081"
+        - name: CUSTOMER_SERVICE_URL
+          value: "http://customer-service:8087"
+        - name: PROJECT_SERVICE_URL
+          value: "http://project-service:8082"
+        - name: PROGRESS_MONITORING_SERVICE_URL
+          value: "http://progress-monitoring-service:8086"
+        - name: EMPLOYEE_DASHBOARD_SERVICE_URL
+          value: "http://employee-dashboard-service:8084"
+        - name: PAYMENTS_BILLING_SERVICE_URL
+          value: "http://payments-billing-service:8069"
+        - name: APPOINTMENT_BOOKING_SERVICE_URL
+          value: "http://appointment-booking-service:8088"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-service:8085"
+        - name: CHATBOT_SERVICE_URL
+          value: "http://chatbot:8097"
+        - name: FRONTEND_URL
+          value: "https://autonova.example.com"

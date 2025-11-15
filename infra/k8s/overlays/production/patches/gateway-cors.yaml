@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-cors-config
+  namespace: autonova
+data:
+  cors-origins: |
+    https://autonova.example.com
+    https://www.autonova.example.com
+    https://api.autonova.example.com

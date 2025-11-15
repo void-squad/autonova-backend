@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: autonova-production
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: "deployments"
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: "alerts"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: "alerts"
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/void-squad/autonova-backend
+    targetRevision: main
+    path: infra/k8s/overlays/production
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: autonova
+  
+  syncPolicy:
+    # Manual sync for production safety
+    automated:
+      prune: false      # Manual approval for deletions
+      selfHeal: false   # Manual sync required
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  
+  # Ignore HPA-managed replicas
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  
+  # Health assessment
+  revisionHistoryLimit: 10

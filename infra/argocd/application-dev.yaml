@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: autonova-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/void-squad/autonova-backend
+    targetRevision: dev
+    path: infra/k8s/overlays/dev
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: autonova
+  
+  syncPolicy:
+    automated:
+      prune: true       # Remove resources not in Git
+      selfHeal: true    # Auto-sync when cluster state drifts
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore HPA-managed replicas
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas

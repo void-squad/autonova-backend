@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee-dashboard-service
+  labels:
+    app: employee-dashboard-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: employee-dashboard-service
+  template:
+    metadata:
+      labels:
+        app: employee-dashboard-service
+        monitoring: enabled
+    spec:
+      containers:
+        - name: employee-dashboard-service
+          image: jalinahirushan02/employee-dashboard-service:dev-latest
+          ports:
+            - containerPort: 8084
+              name: http
+          envFrom:
+            - secretRef:
+                name: autonova-env
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8084
+            initialDelaySeconds: 90
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"

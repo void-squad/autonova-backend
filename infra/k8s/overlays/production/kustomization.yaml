@@ -1,0 +1,58 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: autonova
+
+bases:
+  - ../../base
+
+# Production image tags
+images:
+  - name: jalinahirushan02/auth-service
+    newTag: latest
+  - name: jalinahirushan02/customer-service
+    newTag: latest
+  - name: jalinahirushan02/gateway-service
+    newTag: latest
+  - name: jalinahirushan02/project-service
+    newTag: latest
+  - name: jalinahirushan02/progress-monitoring-service
+    newTag: latest
+  - name: jalinahirushan02/notification-service
+    newTag: latest
+  - name: jalinahirushan02/payments-billing-service
+    newTag: latest
+  - name: jalinahirushan02/employee-dashboard-service
+    newTag: latest
+  - name: jalinahirushan02/time-logging-service
+    newTag: latest
+  - name: jalinahirushan02/appointment-booking-service
+    newTag: latest
+  - name: jalinahirushan02/chatbot
+    newTag: latest
+  - name: jalinahirushan02/discovery-service
+    newTag: latest
+  - name: sachinthalk/autonova-frontend-v1
+    newTag: latest
+
+resources:
+  - ingress/ingress.yaml
+  - ingress/certificate.yaml
+  - hpa/gateway-hpa.yaml
+  - hpa/auth-hpa.yaml
+  - hpa/customer-hpa.yaml
+  - hpa/project-hpa.yaml
+  - external-secrets/secret-store.yaml
+  - external-secrets/external-secret.yaml
+  - monitoring/service-monitor.yaml
+  - monitoring/prometheus-rules.yaml
+  - security/network-policy.yaml
+
+patches:
+  - path: patches/production-resources.yaml
+  - path: patches/production-replicas.yaml
+  - path: patches/production-env.yaml
+  - path: patches/gateway-cors.yaml
+
+commonLabels:
+  environment: production

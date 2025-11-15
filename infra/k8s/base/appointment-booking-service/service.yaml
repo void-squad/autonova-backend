@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-booking-service
+  labels:
+    app: appointment-booking-service
+    monitoring: enabled
+spec:
+  selector:
+    app: appointment-booking-service
+  ports:
+    - port: 8088
+      targetPort: 8088
+      name: http
+  type: ClusterIP

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-booking-service
+  labels:
+    app: appointment-booking-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appointment-booking-service
+  template:
+    metadata:
+      labels:
+        app: appointment-booking-service
+        monitoring: enabled
+    spec:
+      containers:
+        - name: appointment-booking-service
+          image: jalinahirushan02/appointment-booking-service:dev-latest
+          ports:
+            - containerPort: 8088
+              name: http
+          envFrom:
+            - secretRef:
+                name: autonova-env
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8088
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8088
+            initialDelaySeconds: 90
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"

@@ -1,0 +1,119 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: autonova-alerts
+  namespace: autonova
+  labels:
+    release: prometheus
+spec:
+  groups:
+  - name: autonova-services
+    interval: 30s
+    rules:
+    # High Error Rate Alert
+    - alert: HighErrorRate
+      expr: |
+        rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: critical
+        team: backend
+      annotations:
+        summary: "High error rate detected on {{ $labels.service }}"
+        description: "Service {{ $labels.service }} has error rate above 5% (current: {{ $value }})"
+    
+    # High Memory Usage Alert
+    - alert: HighMemoryUsage
+      expr: |
+        (container_memory_usage_bytes{namespace="autonova"} / container_spec_memory_limit_bytes{namespace="autonova"}) > 0.9
+      for: 5m
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: "High memory usage in {{ $labels.pod }}"
+        description: "Pod {{ $labels.pod }} is using over 90% of memory limit"
+    
+    # High CPU Usage Alert
+    - alert: HighCPUUsage
+      expr: |
+        rate(container_cpu_usage_seconds_total{namespace="autonova"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: "High CPU usage in {{ $labels.pod }}"
+        description: "Pod {{ $labels.pod }} is using over 80% CPU"
+    
+    # Service Down Alert
+    - alert: ServiceDown
+      expr: |
+        up{job="autonova-services"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        team: backend
+      annotations:
+        summary: "Service {{ $labels.service }} is down"
+        description: "Service {{ $labels.service }} in namespace {{ $labels.namespace }} is unreachable"
+    
+    # Pod Restart Alert
+    - alert: PodRestartingFrequently
+      expr: |
+        rate(kube_pod_container_status_restarts_total{namespace="autonova"}[15m]) > 0
+      for: 5m
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: "Pod {{ $labels.pod }} is restarting frequently"
+        description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes"
+    
+    # Database Connection Pool Alert
+    - alert: DatabaseConnectionPoolExhausted
+      expr: |
+        hikaricp_connections_active / hikaricp_connections_max > 0.9
+      for: 3m
+      labels:
+        severity: warning
+        team: backend
+      annotations:
+        summary: "Database connection pool nearly exhausted"
+        description: "Service {{ $labels.service }} is using over 90% of database connections"
+    
+    # Slow Response Time Alert
+    - alert: SlowResponseTime
+      expr: |
+        histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 2
+      for: 5m
+      labels:
+        severity: warning
+        team: backend
+      annotations:
+        summary: "Slow response time on {{ $labels.service }}"
+        description: "95th percentile response time is above 2 seconds (current: {{ $value }}s)"
+    
+    # RabbitMQ Queue Backlog
+    - alert: RabbitMQQueueBacklog
+      expr: |
+        rabbitmq_queue_messages > 1000
+      for: 10m
+      labels:
+        severity: warning
+        team: backend
+      annotations:
+        summary: "RabbitMQ queue {{ $labels.queue }} has backlog"
+        description: "Queue {{ $labels.queue }} has {{ $value }} messages pending"
+    
+    # Disk Usage Alert
+    - alert: HighDiskUsage
+      expr: |
+        (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: "High disk usage on {{ $labels.instance }}"
+        description: "Disk usage is above 85% on {{ $labels.instance }}"
