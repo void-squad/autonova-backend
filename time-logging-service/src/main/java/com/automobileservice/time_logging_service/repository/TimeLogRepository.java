@@ -18,59 +18,59 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
     List<TimeLog> findAllByOrderByLoggedAtDesc();
     
     // Find all time logs for a specific employee, ordered by most recent
-    List<TimeLog> findByEmployeeIdOrderByLoggedAtDesc(String employeeId);
+    List<TimeLog> findByEmployeeIdOrderByLoggedAtDesc(Long employeeId);
     
     // Find time logs for a specific project
-    List<TimeLog> findByProjectIdOrderByLoggedAtDesc(String projectId);
+    List<TimeLog> findByProjectIdOrderByLoggedAtDesc(UUID projectId);
     
     // Find time logs for a specific task
-    List<TimeLog> findByTaskIdOrderByLoggedAtDesc(String taskId);
+    List<TimeLog> findByTaskIdOrderByLoggedAtDesc(UUID taskId);
     
     // Calculate total hours logged by an employee
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM TimeLog t WHERE t.employeeId = :employeeId")
-    BigDecimal getTotalHoursByEmployee(@Param("employeeId") String employeeId);
+    BigDecimal getTotalHoursByEmployee(@Param("employeeId") Long employeeId);
     
     // Calculate total hours for a specific project
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM TimeLog t WHERE t.projectId = :projectId")
-    BigDecimal getTotalHoursByProject(@Param("projectId") String projectId);
+    BigDecimal getTotalHoursByProject(@Param("projectId") UUID projectId);
     
     // Calculate total hours for a specific task
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM TimeLog t WHERE t.taskId = :taskId")
-    BigDecimal getTotalHoursByTask(@Param("taskId") String taskId);
+    BigDecimal getTotalHoursByTask(@Param("taskId") UUID taskId);
     
     // Find time logs by employee and project
     List<TimeLog> findByEmployeeIdAndProjectIdOrderByLoggedAtDesc(
-        String employeeId, String projectId);
+        Long employeeId, UUID projectId);
     
     // Find time logs after a specific date for an employee
-    List<TimeLog> findByEmployeeIdAndLoggedAtAfter(String employeeId, LocalDateTime after);
+    List<TimeLog> findByEmployeeIdAndLoggedAtAfter(Long employeeId, LocalDateTime after);
     
     // Find time logs between two dates for an employee
     List<TimeLog> findByEmployeeIdAndLoggedAtBetween(
-        String employeeId, LocalDateTime start, LocalDateTime end);
+        Long employeeId, LocalDateTime start, LocalDateTime end);
     
     // Find all pending time logs (for admin approval)
     List<TimeLog> findByApprovalStatusOrderByLoggedAtDesc(String approvalStatus);
     
     // Find pending time logs for a specific employee
     List<TimeLog> findByEmployeeIdAndApprovalStatusOrderByLoggedAtDesc(
-        String employeeId, String approvalStatus);
+        Long employeeId, String approvalStatus);
     
     // Calculate total hours by employee (approved only)
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM TimeLog t WHERE t.employeeId = :employeeId AND t.approvalStatus = 'APPROVED'")
-    BigDecimal getTotalApprovedHoursByEmployee(@Param("employeeId") String employeeId);
+    BigDecimal getTotalApprovedHoursByEmployee(@Param("employeeId") Long employeeId);
     
     // Calculate total hours for a task (approved only)
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM TimeLog t WHERE t.taskId = :taskId AND t.approvalStatus = 'APPROVED'")
-    BigDecimal getTotalApprovedHoursByTask(@Param("taskId") String taskId);
+    BigDecimal getTotalApprovedHoursByTask(@Param("taskId") UUID taskId);
     
     // Find approved time logs after a specific date for an employee
     @Query("SELECT t FROM TimeLog t WHERE t.employeeId = :employeeId AND t.loggedAt > :after AND t.approvalStatus = 'APPROVED'")
     List<TimeLog> findApprovedByEmployeeIdAndLoggedAtAfter(
-        @Param("employeeId") String employeeId, @Param("after") LocalDateTime after);
+        @Param("employeeId") Long employeeId, @Param("after") LocalDateTime after);
     
     // Find approved time logs between two dates for an employee
     @Query("SELECT t FROM TimeLog t WHERE t.employeeId = :employeeId AND t.loggedAt BETWEEN :start AND :end AND t.approvalStatus = 'APPROVED'")
     List<TimeLog> findApprovedByEmployeeIdAndLoggedAtBetween(
-        @Param("employeeId") String employeeId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+        @Param("employeeId") Long employeeId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
