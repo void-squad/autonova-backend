@@ -25,12 +25,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // Prefer Authorization header (Bearer). If missing, allow `access_token` query param
+        // This is necessary for browser EventSource which cannot set custom headers.
+        // WARNING: passing JWTs in URLs can expose tokens in logs/history; prefer cookie-based auth if possible.
+        String jwt = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7);
+        } else {
+            // fallback: check request parameter `access_token` (used by some SSE clients)
+            final String param = request.getParameter("access_token");
+            if (param != null && !param.isEmpty()) {
+                jwt = param;
+            }
+        }
+
+        if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
         }
+
         try {
-            final String jwt = authHeader.substring(7);
             if (jwtService.validateToken(jwt)) {
                 String username = jwtService.extractUsername(jwt);
                 Long userId = jwtService.extractUserId(jwt);
