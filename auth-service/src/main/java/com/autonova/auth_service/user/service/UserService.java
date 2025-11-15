@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autonova.auth_service.email.EmailService;
 import com.autonova.auth_service.security.UserSecurityService;
 import com.autonova.auth_service.user.Role;
 import com.autonova.auth_service.user.model.User;
@@ -18,12 +19,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserSecurityService userSecurityService;
+    private final EmailService emailService;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-            UserSecurityService userSecurityService) {
+            UserSecurityService userSecurityService, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userSecurityService = userSecurityService;
+        this.emailService = emailService;
     }
 
     // Get all users
@@ -87,7 +90,12 @@ public class UserService {
         // Hash the password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        
+        // Send welcome email after successful user creation
+        emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUserName());
+        
+        return savedUser;
     }
 
     // Update user
