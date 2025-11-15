@@ -1,0 +1,88 @@
+# Docker ignore file for time-logging-service
+# Prevents unnecessary files from being copied to Docker image
+
+# ==========================================
+# BUILD ARTIFACTS
+# ==========================================
+
+# Maven build output (except final JAR)
+target/
+!target/*.jar
+
+# Compiled class files
+*.class
+
+# ==========================================
+# DEVELOPMENT FILES
+# ==========================================
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ==========================================
+# VERSION CONTROL
+# ==========================================
+
+.git/
+.gitignore
+.gitattributes
+
+# ==========================================
+# DOCUMENTATION
+# ==========================================
+
+*.md
+!README.md
+HELP.md
+
+# ==========================================
+# TEST FILES
+# ==========================================
+
+src/test/
+**/test/
+**/*Test.java
+**/*Tests.java
+application-test.properties
+test_api.py
+unit_test_examples.py
+Time_Logging_Service_Postman_Collection.json
+
+# ==========================================
+# LOGS AND TEMPORARY
+# ==========================================
+
+*.log
+logs/
+*.tmp
+*.temp
+
+# ==========================================
+# DOCKER FILES
+# ==========================================
+
+Dockerfile
+.dockerignore
+
+# ==========================================
+# MAVEN WRAPPER (using system Maven in Docker)
+# ==========================================
+
+# Keep the Maven wrapper files in context so `./mvnw` works inside the builder stage
+!/.mvn/wrapper/maven-wrapper.jar
+!mvnw
+!mvnw.cmd

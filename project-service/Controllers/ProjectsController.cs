@@ -1,240 +1,195 @@
-using System.Net.Mime;
 using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProjectService.Data;
 using ProjectService.Domain.Entities;
 using ProjectService.Domain.Enums;
-using ProjectService.Domain.Exceptions;
 using ProjectService.Dtos;
 using ProjectService.Extensions;
-using ProjectService.Services;
 
 namespace ProjectService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 public class ProjectsController : ControllerBase
 {
     private readonly AppDb _db;
-    private readonly IProjectWorkflowService _workflowService;
     private readonly IValidator<CreateProjectRequest> _createValidator;
-    private readonly IValidator<UpdateProjectStatusRequest> _statusValidator;
-    private readonly ILogger<ProjectsController> _logger;
 
-    public ProjectsController(
-        AppDb db,
-        IProjectWorkflowService workflowService,
-        IValidator<CreateProjectRequest> createValidator,
-        IValidator<UpdateProjectStatusRequest> statusValidator,
-        ILogger<ProjectsController> logger)
+    public ProjectsController(AppDb db, IValidator<CreateProjectRequest> createValidator)
     {
         _db = db;
-        _workflowService = workflowService;
         _createValidator = createValidator;
-        _statusValidator = statusValidator;
-        _logger = logger;
-    }
-
-    [HttpGet("employee/{assigneeId:long}")]
-    [Authorize(Policy = "AdminOnly")]
-    [ProducesResponseType(typeof(IEnumerable<EmployeeProjectResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<EmployeeProjectResponse>>> GetProjectsForEmployee(long assigneeId, CancellationToken cancellationToken)
-    {
-        var projects = await _db.Projects
-            .AsNoTracking()
-            .Where(p => p.Tasks.Any(t => t.AssigneeId == assigneeId))
-            .OrderBy(p => p.DueDate == null)
-            .ThenBy(p => p.DueDate)
-            .ThenByDescending(p => p.CreatedAt)
-            .Select(p => new EmployeeProjectResponse
-            {
-                Id = p.Id,
-                ProjectId = p.ProjectId,
-                VehicleId = p.VehicleId,
-                Title = p.Title,
-                Status = p.Status,
-                DueDate = p.DueDate
-            })
-            .ToListAsync(cancellationToken);
-
-        return Ok(projects);
     }
 
     [HttpPost]
-    [Authorize(Policy = "AdminOnly")]
-    [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status201Created)]
-    public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
+    [Authorize(Policy = "CustomerOnly")]
+    public async Task<ActionResult<ProjectDetailsDto>> CreateProject(
+        [FromBody] CreateProjectRequest request,
+        CancellationToken cancellationToken)
     {
         var validation = await _createValidator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
         {
-            var details = new ValidationProblemDetails(validation.ToProblemDictionary())
-            {
-                Status = StatusCodes.Status400BadRequest
-            };
-            return ValidationProblem(details);
+            return ValidationProblem(new ValidationProblemDetails(validation.ToDictionary()));
         }
 
-        try
+        var customerId = User.GetUserId();
+        var now = DateTimeOffset.UtcNow;
+        var project = new Project
         {
-            var actorId = User.GetUserId();
-            var actorRole = User.GetPrimaryRole();
-            var clientRequestId = Request.GetIdempotencyKey();
-            var project = await _workflowService.CreateProjectAsync(request, actorId, actorRole, clientRequestId, cancellationToken);
-            var full = await _workflowService.GetProjectAsync(project.ProjectId, cancellationToken) ?? project;
-            var response = full.ToResponse();
-            return CreatedAtAction(nameof(GetProjectById), new { id = response.ProjectId }, response);
-        }
-        catch (DomainException ex)
-        {
-            return Problem(statusCode: ex.StatusCode, detail: ex.Message);
-        }
-    }
-
-    [HttpGet]
-    [Authorize]
-    [ProducesResponseType(typeof(IEnumerable<ProjectResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProjectListResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetProjects(
-        [FromQuery] ProjectStatus? status,
-        [FromQuery] long? customerId,
-        [FromQuery] long? assigneeId,
-        [FromQuery] bool includeTasks = false,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        CancellationToken cancellationToken = default)
-    {
-        if (!assigneeId.HasValue)
-        {
-            if (includeTasks)
-            {
-                return BadRequest("includeTasks requires an assigneeId.");
-            }
-
-            var projects = await _workflowService.GetProjectsAsync(status, customerId, cancellationToken);
-            return Ok(projects.Select(p => p.ToResponse()));
-        }
-
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 200);
-
-        var query = _db.Projects
-            .Include(x => x.Tasks)
-            .Include(x => x.Quotes)
-            .Include(x => x.StatusHistory)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
-
-        if (customerId.HasValue)
-        {
-            query = query.Where(x => x.CustomerId == customerId.Value);
-        }
-
-        var employeeId = assigneeId.Value;
-        query = query.Where(p => p.Tasks.Any(t => t.AssigneeId == employeeId));
-
-        var total = await query.CountAsync(cancellationToken);
-
-        var projectsPage = await query
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        foreach (var project in projectsPage)
-        {
-            if (includeTasks)
-            {
-                project.Tasks = project.Tasks.Where(t => t.AssigneeId == employeeId).ToList();
-            }
-            else
-            {
-                project.Tasks = new List<TaskItem>();
-            }
-        }
-
-        var response = new ProjectListResponse
-        {
-            Page = page,
-            PageSize = pageSize,
-            Total = total,
-            Items = projectsPage.Select(p => p.ToResponse()).ToList()
+            ProjectId = Guid.NewGuid(),
+            CustomerId = customerId,
+            VehicleId = request.VehicleId,
+            Title = request.Title.Trim(),
+            Description = request.Description?.Trim(),
+            RequestedStart = request.RequestedStart,
+            RequestedEnd = request.RequestedEnd,
+            AppointmentId = request.AppointmentId,
+            AppointmentSnapshot = request.AppointmentSnapshot,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = customerId
         };
 
-        return Ok(response);
+        if (request.Tasks.Count == 0)
+        {
+            project.Tasks.Add(new ProjectTask
+            {
+                TaskId = Guid.NewGuid(),
+                ProjectId = project.ProjectId,
+                Title = project.Title,
+                ServiceType = "General Service",
+                Detail = project.Description,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+        else
+        {
+            foreach (var task in request.Tasks)
+            {
+                project.Tasks.Add(new ProjectTask
+                {
+                    TaskId = Guid.NewGuid(),
+                    ProjectId = project.ProjectId,
+                    Title = task.Title.Trim(),
+                    ServiceType = task.ServiceType.Trim(),
+                    Detail = task.Detail?.Trim(),
+                    ScheduledStart = task.ScheduledStart,
+                    ScheduledEnd = task.ScheduledEnd,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            }
+        }
+
+        project.Activity.Add(new ProjectActivity
+        {
+            ActorId = customerId,
+            ActorRole = "customer",
+            Message = "Project requested by customer",
+            CreatedAt = now
+        });
+
+        await _db.Projects.AddAsync(project, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var saved = await LoadProjectAsync(project.ProjectId, cancellationToken);
+        return CreatedAtAction(nameof(GetProjectById), new { projectId = project.ProjectId }, saved!.ToDetails());
     }
 
-    [HttpGet("{id:guid}")]
-    [Authorize]
-    [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetProjectById(Guid id, CancellationToken cancellationToken)
+    [HttpGet("mine")]
+    [Authorize(Policy = "CustomerOnly")]
+    public async Task<ActionResult<IEnumerable<ProjectSummaryDto>>> GetMyProjects(CancellationToken cancellationToken)
     {
-        var project = await _workflowService.GetProjectAsync(id, cancellationToken);
+        var customerId = User.GetUserId();
+        var projects = await _db.Projects
+            .AsNoTracking()
+            .Where(p => p.CustomerId == customerId)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return Ok(projects.Select(p => p.ToSummary()));
+    }
+
+    [HttpGet("{projectId:guid}")]
+    [Authorize]
+    public async Task<ActionResult<ProjectDetailsDto>> GetProjectById(Guid projectId, CancellationToken cancellationToken)
+    {
+        var project = await LoadProjectAsync(projectId, cancellationToken);
         if (project is null)
         {
             return NotFound();
         }
 
-        return Ok(project.ToResponse());
+        if (!CanAccessProject(project))
+        {
+            return Forbid();
+        }
+
+        return Ok(project.ToDetails());
     }
 
-    [HttpPatch("{id:guid}/status")]
-    [Authorize(Policy = "AdminOnly")]
-    [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateProjectStatusRequest request, CancellationToken cancellationToken)
+    [HttpPost("{projectId:guid}/cancel")]
+    [Authorize(Policy = "CustomerOnly")]
+    public async Task<IActionResult> CancelProject(Guid projectId, CancellationToken cancellationToken)
     {
-        ValidationResult validation = await _statusValidator.ValidateAsync(request, cancellationToken);
-        if (!validation.IsValid)
+        var customerId = User.GetUserId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.ProjectId == projectId && p.CustomerId == customerId, cancellationToken);
+        if (project is null)
         {
-            var details = new ValidationProblemDetails(validation.ToProblemDictionary())
-            {
-                Status = StatusCodes.Status400BadRequest
-            };
-            return ValidationProblem(details);
+            return NotFound();
         }
 
-        try
+        if (project.Status != ProjectStatus.PendingReview)
         {
-            var actorId = User.GetUserId();
-            var actorRole = User.GetPrimaryRole();
-            var clientRequestId = Request.GetIdempotencyKey();
-            var project = await _workflowService.UpdateStatusAsync(id, request.NewStatus, actorId, actorRole, clientRequestId, cancellationToken);
-            var hydrated = await _workflowService.GetProjectAsync(project.ProjectId, cancellationToken) ?? project;
-            return Ok(hydrated.ToResponse());
+            return BadRequest("Project can only be cancelled while pending review.");
         }
-        catch (DomainException ex)
-        {
-            return Problem(statusCode: ex.StatusCode, detail: ex.Message);
-        }
-    }
 
-    [HttpGet("{id:guid}/status-history")]
-    [Authorize]
-    [ProducesResponseType(typeof(IEnumerable<ProjectResponse.StatusHistoryResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetStatusHistory(Guid id, CancellationToken cancellationToken)
-    {
-        var history = await _workflowService.GetStatusHistoryAsync(id, cancellationToken);
-        var response = history.Select(h => new ProjectResponse.StatusHistoryResponse
+        project.Status = ProjectStatus.Cancelled;
+        project.UpdatedAt = DateTimeOffset.UtcNow;
+        project.Activity.Add(new ProjectActivity
         {
-            Id = h.Id,
-            FromStatus = h.FromStatus,
-            ToStatus = h.ToStatus,
-            ChangedBy = h.ChangedBy,
-            ChangedAt = h.ChangedAt,
-            Note = h.Note
+            ActorId = customerId,
+            ActorRole = "customer",
+            Message = "Project cancelled by customer",
+            CreatedAt = DateTimeOffset.UtcNow
         });
 
-        return Ok(response);
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    private bool CanAccessProject(Project project)
+    {
+        var role = User.GetPrimaryRole()?.ToUpperInvariant();
+        var userId = User.GetUserId();
+
+        if (role == "ADMIN")
+        {
+            return true;
+        }
+
+        if (role == "CUSTOMER" && project.CustomerId == userId)
+        {
+            return true;
+        }
+
+        if (role == "EMPLOYEE")
+        {
+            return project.Tasks.Any(t => t.AssigneeId == userId);
+        }
+
+        return false;
+    }
+
+    private Task<Project?> LoadProjectAsync(Guid projectId, CancellationToken cancellationToken)
+    {
+        return _db.Projects
+            .Include(p => p.Tasks)
+            .Include(p => p.Activity)
+            .FirstOrDefaultAsync(p => p.ProjectId == projectId, cancellationToken);
     }
 }
