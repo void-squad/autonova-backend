@@ -55,19 +55,19 @@ services:
     networks:
       - autonova-network
 
-  # Ollama local model server for LLM testing
-  ollama:
-    container_name: autonova-ollama
-    image: ollama/ollama:latest
-    ports:
-      - '11434:11434'
-    volumes:
-      - ./ollama-data:/root/.ollama
-      - ./init-scripts:/scripts:ro
-    entrypoint: ["sh", "-c", "tr -d '\\r' </scripts/ollama-init.sh | sh -s --"]
-    restart: 'no'
-    networks:
-      - autonova-network
+#  # Ollama local model server for LLM testing
+#  ollama:
+#    container_name: autonova-ollama
+#    image: ollama/ollama:latest
+#    ports:
+#      - '11434:11434'
+#    volumes:
+#      - ./ollama-data:/root/.ollama
+#      - ./init-scripts:/scripts:ro
+#    entrypoint: ["sh", "-c", "tr -d '\\r' </scripts/ollama-init.sh | sh -s --"]
+#    restart: 'no'
+#    networks:
+#      - autonova-network
 
   # --- New Service: Discovery Service (from dev) ---
   discovery-service:
@@ -327,8 +327,8 @@ services:
     container_name: autonova-chatbot
     build:
       # Use repository root as build context so parent POM and shared config are available
-      context: ..
-      dockerfile: chatbot/Dockerfile
+      context: ../chatbot
+      dockerfile: Dockerfile
     env_file:
       - ../chatbot/.env
     ports:
