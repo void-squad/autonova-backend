@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage build for Customer Service
 # Stage 1: build the application jar
 FROM maven:3.9-eclipse-temurin-17 AS build
@@ -18,7 +19,8 @@ RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
 COPY customer-service/src ./src
 
 # Build the jar (skip tests for faster image build)
-RUN ./mvnw clean package -DskipTests
+# RUN ./mvnw clean package -DskipTests
+RUN ./mvnw clean package spring-boot:repackage -DskipTests
 
 # Stage 2: runtime image
 FROM eclipse-temurin:17-jre-jammy

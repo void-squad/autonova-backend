@@ -3,6 +3,7 @@ package com.autonova.customer.service;
 import com.autonova.customer.dto.CustomerMapper;
 import com.autonova.customer.dto.VehicleRequest;
 import com.autonova.customer.dto.VehicleResponse;
+import com.autonova.customer.dto.VehicleStatsResponse;
 import com.autonova.customer.event.VehicleDomainEventPublisher;
 import com.autonova.customer.event.VehicleEventType;
 import com.autonova.customer.model.Customer;
@@ -11,6 +12,7 @@ import com.autonova.customer.repository.CustomerRepository;
 import com.autonova.customer.repository.VehicleRepository;
 import com.autonova.customer.security.AuthenticatedUser;
 import com.autonova.customer.security.CurrentUserProvider;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -136,6 +138,23 @@ public class VehicleService {
         return updateVehicle(customerId, vehicleId, request);
     }
 
+    @Transactional(readOnly = true)
+    public VehicleStatsResponse getVehicleStats(Long customerId) {
+        findCustomerForCurrentUser(customerId);
+        return buildVehicleStats(customerId);
+    }
+
+    @Transactional(readOnly = true)
+    public VehicleStatsResponse getVehicleStatsForCurrentCustomer() {
+        Long customerId = resolveCurrentCustomerId();
+        return buildVehicleStats(customerId);
+    }
+
+    private VehicleStatsResponse buildVehicleStats(Long customerId) {
+        long totalVehicles = vehicleRepository.countByCustomerId(customerId);
+        return new VehicleStatsResponse(totalVehicles, Instant.now());
+    }
+
     public void deleteVehicle(Long customerId, Long vehicleId) {
         findCustomerForCurrentUser(customerId);
         Vehicle vehicle = vehicleRepository.findByCustomerIdAndId(customerId, vehicleId)
@@ -177,6 +196,21 @@ public class VehicleService {
         return customerRepository.findByEmailIgnoreCase(currentUser.normalizedEmail())
                 .map(Customer::getId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer profile not found"));
+    }
+
+    /**
+     * Public method to fetch vehicle details for cross-service consumption.
+     * Used by other services (e.g., Project Service) to display vehicle information.
+     * 
+     * @param vehicleId the vehicle identifier
+     * @return VehicleDetailsDto with essential fields (id, licensePlate, make, model, year)
+     * @throws ResponseStatusException 404 if vehicle not found
+     */
+    @Transactional(readOnly = true)
+    public com.autonova.customer.dto.VehicleDetailsDto getVehicleDetails(Long vehicleId) {
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
+        return CustomerMapper.toVehicleDetailsDto(vehicle);
     }
 
     private ResponseStatusException translateIntegrityViolation(DataIntegrityViolationException ex) {

@@ -43,12 +43,12 @@ public class NotificationEventListener {
         String json = new String(message.getBody(), StandardCharsets.UTF_8);
         String effectiveEventType = eventName != null ? eventName : routingKey;
         String msgPropId = message.getMessageProperties().getMessageId();
-        String effectiveMessageId = firstNonBlank(legacyMessageId, msgPropId, UUID.randomUUID().toString());
+        String effectiveMessageId = firstNonBlank(legacyMessageId, msgPropId, java.util.UUID.randomUUID().toString());
         try {
             Map<String, Object> payload = objectMapper.readValue(json, new TypeReference<>() {});
             Object dataObj = payload.getOrDefault("data", Collections.emptyMap());
             Map<String, Object> data = dataObj instanceof Map ? (Map<String, Object>) dataObj : Collections.emptyMap();
-            Set<UUID> userRecipients = parseUuidCsv(recipientsUserIds);
+            Set<Long> userRecipients = parseLongCsv(recipientsUserIds);
             Set<String> roleRecipients = parseCsv(recipientsRoles);
             if (userRecipients.isEmpty()) userRecipients = deriveRecipientsFromPayload(data);
             if (userRecipients.isEmpty() && roleRecipients.isEmpty()) {
@@ -59,7 +59,7 @@ public class NotificationEventListener {
             String title = buildTitle(effectiveEventType, data);
             String messageText = buildMessage(effectiveEventType, data);
             List<Notification> notifications = new ArrayList<>();
-            for (UUID userId : userRecipients) notifications.add(baseNotification(effectiveMessageId, userId, null, groupType, effectiveEventType, title, messageText, json));
+            for (Long userId : userRecipients) notifications.add(baseNotification(effectiveMessageId, userId, null, groupType, effectiveEventType, title, messageText, json));
             for (String role : roleRecipients) notifications.add(baseNotification(effectiveMessageId + ":" + role, null, role.toUpperCase(Locale.ROOT), groupType, effectiveEventType, title, messageText, json));
             notificationService.createAll(notifications);
         } catch (Exception ex) {
@@ -67,25 +67,25 @@ public class NotificationEventListener {
         }
     }
 
-    private Set<UUID> deriveRecipientsFromPayload(Map<String, Object> data) {
-        Set<UUID> ids = new HashSet<>();
+    private Set<Long> deriveRecipientsFromPayload(Map<String, Object> data) {
+        Set<Long> ids = new HashSet<>();
         // common keys
         Stream.of("customer_id", "user_id", "employee_id", "assigned_employee_id")
                 .map(data::get)
-                .map(this::toUuid)
+                .map(this::toLong)
                 .filter(Objects::nonNull)
                 .forEach(ids::add);
         Object list = data.get("assigned_employee_ids");
         if (list instanceof Collection<?> c) {
             for (Object v : c) {
-                UUID id = toUuid(v == null ? null : String.valueOf(v));
+                Long id = toLong(v);
                 if (id != null) ids.add(id);
             }
         }
         return ids;
     }
 
-    private Notification baseNotification(String messageId, UUID userId, String role, String type, String eventType, String title, String msg, String rawJson) {
+    private Notification baseNotification(String messageId, Long userId, String role, String type, String eventType, String title, String msg, String rawJson) {
         Notification n = new Notification();
         n.setMessageId(messageId);
         n.setUserId(userId);
@@ -163,8 +163,8 @@ public class NotificationEventListener {
         }
     }
 
-    private Set<UUID> parseUuidCsv(String csv) {
-        return parseCsv(csv).stream().map(this::toUuid).filter(Objects::nonNull).collect(Collectors.toSet());
+    private Set<Long> parseLongCsv(String csv) {
+        return parseCsv(csv).stream().map(this::toLong).filter(Objects::nonNull).collect(Collectors.toSet());
     }
 
     private Set<String> parseCsv(String csv) {
@@ -175,8 +175,15 @@ public class NotificationEventListener {
                 .collect(Collectors.toSet());
     }
 
-    private UUID toUuid(Object raw) {
-        try { return raw == null ? null : UUID.fromString(String.valueOf(raw)); } catch (Exception e) { return null; }
+    private Long toLong(Object raw) {
+        try {
+            if (raw == null) return null;
+            String s = String.valueOf(raw).trim();
+            if (s.isEmpty()) return null;
+            return Long.parseLong(s);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String firstNonBlank(String... values) {

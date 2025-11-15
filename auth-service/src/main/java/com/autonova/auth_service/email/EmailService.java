@@ -189,27 +189,31 @@ public class EmailService {
     }
 
     /**
-     * Send welcome email (optional - can be used after registration)
+     * Send welcome email
+     * Automatically sent after successful user registration
      */
     public void sendWelcomeEmail(String toEmail, String userName) {
         try {
+            log.info("📧 Attempting to send welcome email to: {} ({})", toEmail, userName);
+            
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
             helper.setFrom(fromEmail, fromName);
             helper.setTo(toEmail);
-            helper.setSubject("Welcome to AutoNova!");
+            helper.setSubject("Welcome to AutoNova - Your Account is Ready!");
 
             String htmlContent = buildWelcomeEmailHtml(userName);
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
             
-            log.info("✅ Welcome email sent successfully to: {}", toEmail);
+            log.info("✅ Welcome email sent successfully to: {} ({})", toEmail, userName);
             
         } catch (Exception e) {
-            log.error("❌ Failed to send welcome email to: {}", toEmail, e);
-            // Don't throw exception for welcome email - it's not critical
+            log.error("❌ Failed to send welcome email to: {} ({})", toEmail, userName, e);
+            // Don't throw exception for welcome email - it's not critical for registration
+            log.warn("⚠️ Welcome email not sent, but user registration completed successfully");
         }
     }
 
@@ -222,6 +226,7 @@ public class EmailService {
             <html>
             <head>
                 <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body {
                         font-family: Arial, sans-serif;
@@ -230,35 +235,159 @@ public class EmailService {
                         max-width: 600px;
                         margin: 0 auto;
                         padding: 20px;
+                        background-color: #f5f5f5;
                     }
                     .container {
-                        background-color: #f9f9f9;
+                        background-color: #ffffff;
                         border-radius: 10px;
-                        padding: 30px;
-                        border: 1px solid #ddd;
+                        padding: 40px 30px;
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
                     }
                     .header {
                         text-align: center;
                         margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 2px solid #2563eb;
                     }
                     .header h1 {
                         color: #2563eb;
                         margin: 0;
+                        font-size: 28px;
+                    }
+                    .header p {
+                        color: #666;
+                        margin: 10px 0 0 0;
+                        font-size: 16px;
+                    }
+                    .content {
+                        padding: 20px 0;
+                    }
+                    .content h2 {
+                        color: #2563eb;
+                        margin: 0 0 15px 0;
+                        font-size: 22px;
+                    }
+                    .content p {
+                        margin: 15px 0;
+                        font-size: 15px;
+                        line-height: 1.8;
+                    }
+                    .welcome-box {
+                        background: linear-gradient(135deg, #2563eb 0%%, #1d4ed8 100%%);
+                        color: white;
+                        padding: 20px;
+                        border-radius: 8px;
+                        text-align: center;
+                        margin: 25px 0;
+                    }
+                    .welcome-box h3 {
+                        margin: 0 0 10px 0;
+                        font-size: 20px;
+                    }
+                    .features {
+                        background-color: #f8fafc;
+                        padding: 20px;
+                        border-radius: 8px;
+                        margin: 25px 0;
+                    }
+                    .features h3 {
+                        color: #2563eb;
+                        margin: 0 0 15px 0;
+                        font-size: 18px;
+                    }
+                    .features ul {
+                        margin: 0;
+                        padding-left: 20px;
+                    }
+                    .features li {
+                        margin: 10px 0;
+                        color: #555;
+                    }
+                    .cta-button {
+                        display: inline-block;
+                        padding: 14px 35px;
+                        background-color: #2563eb;
+                        color: white !important;
+                        text-decoration: none;
+                        border-radius: 6px;
+                        margin: 25px 0;
+                        font-weight: bold;
+                        font-size: 16px;
+                        transition: background-color 0.3s;
+                    }
+                    .cta-button:hover {
+                        background-color: #1d4ed8;
+                    }
+                    .button-container {
+                        text-align: center;
+                    }
+                    .footer {
+                        text-align: center;
+                        color: #666;
+                        font-size: 13px;
+                        margin-top: 30px;
+                        padding-top: 20px;
+                        border-top: 1px solid #e5e7eb;
+                    }
+                    .footer p {
+                        margin: 5px 0;
+                    }
+                    .highlight {
+                        color: #2563eb;
+                        font-weight: bold;
                     }
                 </style>
             </head>
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🚗 Welcome to AutoNova!</h1>
+                        <h1>🚗 AutoNova</h1>
+                        <p>Your Trusted Automobile Service Partner</p>
                     </div>
-                    <h2>Hello %s,</h2>
-                    <p>Thank you for joining AutoNova! Your account has been created successfully.</p>
-                    <p>You can now access all our automobile services.</p>
-                    <p>Best regards,<br>The AutoNova Team</p>
+                    
+                    <div class="content">
+                        <div class="welcome-box">
+                            <h3>🎉 Welcome Aboard!</h3>
+                            <p style="margin: 0;">Your account has been successfully created</p>
+                        </div>
+                        
+                        <h2>Hello <span class="highlight">%s</span>,</h2>
+                        
+                        <p>Thank you for joining <strong>AutoNova</strong>! We're excited to have you as part of our community.</p>
+                        
+                        <p>Your account is now active, and you can start exploring all the amazing features we offer for your automobile service needs.</p>
+                        
+                        <div class="features">
+                            <h3>✨ What You Can Do:</h3>
+                            <ul>
+                                <li>📅 <strong>Book Appointments</strong> - Schedule service appointments at your convenience</li>
+                                <li>🔧 <strong>Service Tracking</strong> - Monitor your vehicle service progress in real-time</li>
+                                <li>📊 <strong>Service History</strong> - Access complete records of all your services</li>
+                                <li>💳 <strong>Easy Payments</strong> - Secure and convenient payment options</li>
+                                <li>🔔 <strong>Notifications</strong> - Get timely updates about your vehicle services</li>
+                                <li>👤 <strong>Profile Management</strong> - Update your details anytime</li>
+                            </ul>
+                        </div>
+                        
+                        <p>Ready to get started? Log in to your account now and explore all the features we have to offer!</p>
+                        
+                        <div class="button-container">
+                            <a href="%s" class="cta-button">Go to Dashboard</a>
+                        </div>
+                        
+                        <p style="margin-top: 30px;">If you have any questions or need assistance, our support team is always here to help.</p>
+                        
+                        <p style="margin-bottom: 0;"><strong>Best regards,</strong><br>The AutoNova Team</p>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>This is an automated email from AutoNova. Please do not reply to this email.</p>
+                        <p>If you didn't create this account, please contact our support team immediately.</p>
+                        <p>&copy; 2025 AutoNova. All rights reserved.</p>
+                    </div>
                 </div>
             </body>
             </html>
-            """.formatted(userName);
+            """.formatted(userName, frontendUrl);
     }
 }

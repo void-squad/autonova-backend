@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-billing-service
+  labels:
+    app: payments-billing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments-billing-service
+  template:
+    metadata:
+      labels:
+        app: payments-billing-service
+    spec:
+      containers:
+        - name: payments-billing-service
+          image: jalinahirushan02/payments-billing-service:dev-latest
+          ports:
+            - containerPort: 8069
+          envFrom:
+            - secretRef:
+                name: autonova-env
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8069
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "192Mi"

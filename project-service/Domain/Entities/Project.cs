@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using ProjectService.Domain.Enums;
 
 namespace ProjectService.Domain.Entities;
@@ -7,19 +6,20 @@ public class Project
 {
     public Guid ProjectId { get; set; }
     public Guid CustomerId { get; set; }
+    public Guid VehicleId { get; set; }
     public string Title { get; set; } = string.Empty;
-    public ProjectStatus Status { get; set; } = ProjectStatus.Requested;
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
-    public decimal Budget { get; set; }
-    public DateOnly? DueDate { get; set; }
+    public string? Description { get; set; }
+    public ProjectStatus Status { get; set; } = ProjectStatus.PendingReview;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? RequestedStart { get; set; }
+    public DateTimeOffset? RequestedEnd { get; set; }
+    public DateTimeOffset? ApprovedStart { get; set; }
+    public DateTimeOffset? ApprovedEnd { get; set; }
+    public Guid CreatedBy { get; set; }
+    public Guid? AppointmentId { get; set; }
+    public string? AppointmentSnapshot { get; set; }
 
-    [MaxLength(64)]
-    public string? ClientRequestId { get; set; }
-    public uint xmin { get; set; }
-
-    public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
-    public ICollection<Quote> Quotes { get; set; } = new List<Quote>();
-    public ICollection<StatusHistory> StatusHistory { get; set; } = new List<StatusHistory>();
-    public ICollection<ChangeRequest> ChangeRequests { get; set; } = new List<ChangeRequest>();
+    public ICollection<ProjectTask> Tasks { get; set; } = new List<ProjectTask>();
+    public ICollection<ProjectActivity> Activity { get; set; } = new List<ProjectActivity>();
 }

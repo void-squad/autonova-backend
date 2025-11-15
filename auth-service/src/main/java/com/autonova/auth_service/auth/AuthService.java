@@ -58,7 +58,8 @@ public class AuthService {
         String accessToken = jwtService.generateToken(
                 user.getId(),
                 user.getEmail(),
-                user.getRole().name()
+        user.getRole().name(),
+        user.getFirstName()
         );
 
         // Generate refresh token (7 days)
@@ -72,6 +73,9 @@ public class AuthService {
                 user.getRole().name()
         );
 
+        // Emit auth event so downstream services can sync the customer profile immediately
+        authEventPublisher.publishUserLoggedIn(user);
+
         // Return login response with both tokens
         return new LoginResponse(accessToken, refreshToken.getToken(), userInfo);
     }
@@ -84,7 +88,8 @@ public class AuthService {
         String accessToken = jwtService.generateToken(
                 user.getId(),
                 user.getEmail(),
-                user.getRole().name()
+        user.getRole().name(),
+        user.getFirstName()
         );
 
     // Emit login event for downstream services

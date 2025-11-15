@@ -23,5 +23,6 @@ public class TimeLogResponse {
     private String employeeName;
     private BigDecimal hours;
     private String note;
+    private String approvalStatus; // PENDING, APPROVED, REJECTED
     private LocalDateTime loggedAt;
 }
