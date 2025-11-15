@@ -143,4 +143,19 @@ public class TasksController : ControllerBase
 
         return Ok(tasks.Select(t => t.ToDto()));
     }
+
+    [HttpGet("{taskId:guid}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ProjectTaskDto>> GetTaskById(Guid taskId, CancellationToken cancellationToken)
+    {
+        var task = await _db.Tasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TaskId == taskId, cancellationToken);
+
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(task.ToDto());
+    }
 }

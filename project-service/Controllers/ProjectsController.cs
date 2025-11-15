@@ -114,6 +114,20 @@ public class ProjectsController : ControllerBase
         return Ok(projects.Select(p => p.ToSummary()));
     }
 
+    [HttpGet("employee/{employeeId:long}")]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<ProjectSummaryDto>>> GetProjectsByEmployeeId(long employeeId, CancellationToken cancellationToken)
+    {
+        var projects = await _db.Projects
+            .AsNoTracking()
+            .Include(p => p.Tasks)
+            .Where(p => p.Tasks.Any(t => t.AssigneeId == employeeId))
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return Ok(projects.Select(p => p.ToSummary()));
+    }
+
     [HttpGet("{projectId:guid}")]
     [Authorize]
     public async Task<ActionResult<ProjectDetailsDto>> GetProjectById(Guid projectId, CancellationToken cancellationToken)
