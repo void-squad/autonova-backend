@@ -307,16 +307,46 @@ public class TimeLogServiceImpl implements TimeLogService {
         
         List<SmartSuggestionResponse> suggestions = new ArrayList<>();
         
-        // Suggestion 1: Tasks with approaching deadlines
-        // TODO: Fetch from project service - tasks assigned to employee with deadlines within 3 days
+        // Note: Smart suggestions require task data from project-service
+        // This is a basic implementation that returns helpful hints without task data
+        // Frontend should handle cases where suggestions might be empty
         
-        // Suggestion 2: Projects with low recent activity
+        // Suggestion 1: Check for recent activity
         LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
         List<TimeLog> recentLogs = timeLogRepository.findByEmployeeIdAndLoggedAtAfter(employeeId, weekAgo);
         
-        if (recentLogs.isEmpty()) {
+        // Suggestion 2: Check pending approvals
+        List<TimeLog> pendingLogs = timeLogRepository.findByEmployeeIdAndApprovalStatusOrderByLoggedAtDesc(
+            employeeId, "PENDING");
+        
+        if (pendingLogs.size() > 5) {
+            // Create a dummy task response for display purposes
+            TaskResponse dummyTask = TaskResponse.builder()
+                .id("pending-logs")
+                .taskName("Review Pending Time Logs")
+                .description("You have pending time logs awaiting approval")
+                .status("PENDING")
+                .build();
+                
             suggestions.add(SmartSuggestionResponse.builder()
-                .task(null)
+                .task(dummyTask)
+                .projectTitle("Time Log Management")
+                .reason("You have " + pendingLogs.size() + " pending time logs awaiting approval.")
+                .urgency("medium")
+                .icon("deadline")
+                .build());
+        }
+        
+        if (recentLogs.isEmpty()) {
+            TaskResponse dummyTask = TaskResponse.builder()
+                .id("log-hours")
+                .taskName("Log Your Work Hours")
+                .description("Keep your time tracking up to date")
+                .status("TODO")
+                .build();
+                
+            suggestions.add(SmartSuggestionResponse.builder()
+                .task(dummyTask)
                 .projectTitle("All Projects")
                 .reason("No time logs in the past 7 days. Consider logging your work hours.")
                 .urgency("high")
@@ -324,19 +354,9 @@ public class TimeLogServiceImpl implements TimeLogService {
                 .build());
         }
         
-        // Suggestion 3: Pending time logs that need submission
-        List<TimeLog> pendingLogs = timeLogRepository.findByEmployeeIdAndApprovalStatusOrderByLoggedAtDesc(
-            employeeId, "PENDING");
-        
-        if (pendingLogs.size() > 5) {
-            suggestions.add(SmartSuggestionResponse.builder()
-                .task(null)
-                .projectTitle("Time Logs")
-                .reason("You have " + pendingLogs.size() + " pending time logs awaiting approval.")
-                .urgency("medium")
-                .icon("deadline")
-                .build());
-        }
+        // TODO: Integrate with project-service to fetch actual tasks with approaching deadlines
+        // This would require calling projectServiceClient.getTasksByEmployee(employeeId)
+        // and filtering by deadline dates
         
         return suggestions;
     }
