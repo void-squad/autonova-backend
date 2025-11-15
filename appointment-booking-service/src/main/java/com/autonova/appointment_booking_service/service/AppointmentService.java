@@ -18,6 +18,14 @@ public class AppointmentService {
     // capacity: number of concurrent service bays; configurable in production
     private final int serviceCapacity = 3;
 
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "PENDING",
+            "CONFIRMED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED"
+    );
+
     public AppointmentService(AppointmentRepository repository) {
         this.repository = repository;
     }
@@ -125,6 +133,45 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
+    public List<AppointmentResponseDto> searchForAdmin(String status, OffsetDateTime from, OffsetDateTime to) {
+        String normalized = normalizeStatus(status);
+        return repository.searchForAdmin(normalized, from, to)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AppointmentResponseDto getById(UUID id) {
+        Appointment appt = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+        return toDto(appt);
+    }
+
+    @Transactional
+    public AppointmentResponseDto updateStatus(UUID id, String newStatus, String adminNote) {
+        Appointment appt = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+
+        String normalized = normalizeStatus(newStatus);
+        if (normalized == null) {
+            throw new IllegalArgumentException("Unsupported status value");
+        }
+
+        appt.setStatus(normalized);
+        if (adminNote != null && !adminNote.isBlank()) {
+            String trimmed = adminNote.trim();
+            if (appt.getNotes() == null || appt.getNotes().isBlank()) {
+                appt.setNotes(trimmed);
+            } else {
+                appt.setNotes(appt.getNotes() + "\n\n" + trimmed);
+            }
+        }
+        appt.setUpdatedAt(OffsetDateTime.now());
+        return toDto(repository.save(appt));
+    }
+
+    @Transactional(readOnly = true)
     public AvailabilityDto checkAvailability(OffsetDateTime start, OffsetDateTime end) {
         List<Appointment> overlaps = repository.findInTimeRange(start, end);
         boolean ok = overlaps.size() < serviceCapacity;
@@ -154,5 +201,13 @@ public class AppointmentService {
                 a.getCreatedAt(),
                 a.getUpdatedAt()
         );
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null) {
+            return null;
+        }
+        String upper = status.trim().toUpperCase(Locale.ROOT);
+        return VALID_STATUSES.contains(upper) ? upper : null;
     }
 }

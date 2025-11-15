@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ProjectService.Dtos;
+using ProjectService.Services;
 
 namespace ProjectService.Controllers;
 
@@ -8,17 +10,35 @@ namespace ProjectService.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class AdminAppointmentsController : ControllerBase
 {
-    [HttpGet]
-    public IActionResult GetAppointments()
+    private readonly IAppointmentServiceClient _appointmentClient;
+
+    public AdminAppointmentsController(IAppointmentServiceClient appointmentClient)
     {
-        // Placeholder response until appointment service integration is available.
-        return Ok(Array.Empty<object>());
+        _appointmentClient = appointmentClient;
     }
 
-    [HttpPost("import")]
-    public IActionResult ImportAppointment([FromBody] object payload)
+    [HttpGet]
+    public async Task<IActionResult> GetAppointments(
+        [FromQuery] string? status,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        CancellationToken cancellationToken)
     {
-        // Store payload for future processing; currently this is a stub.
-        return Accepted(new { message = "Appointment payload received for processing." });
+        var items = await _appointmentClient.GetAdminAppointmentsAsync(status, from, to, cancellationToken);
+        return Ok(items);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetAppointment(Guid id, CancellationToken cancellationToken)
+    {
+        var appointment = await _appointmentClient.GetAppointmentAsync(id, cancellationToken);
+        return appointment is null ? NotFound() : Ok(appointment);
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateAppointmentStatusRequest request, CancellationToken cancellationToken)
+    {
+        await _appointmentClient.UpdateAppointmentStatusAsync(id, request, cancellationToken);
+        return NoContent();
     }
 }

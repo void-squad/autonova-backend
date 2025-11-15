@@ -48,9 +48,28 @@ public class AppointmentController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<AppointmentResponseDto> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(service.getById(id));
+    }
+
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<AppointmentResponseDto>> listByCustomer(@PathVariable UUID customerId) {
         return ResponseEntity.ok(service.listByCustomer(customerId));
+    }
+
+    @GetMapping("/admin")
+    public ResponseEntity<List<AppointmentResponseDto>> listForAdmin(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        return ResponseEntity.ok(service.searchForAdmin(status, from, to));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<AppointmentResponseDto> updateStatus(@PathVariable UUID id,
+                                                               @Valid @RequestBody UpdateAppointmentStatusRequest request) {
+        return ResponseEntity.ok(service.updateStatus(id, request.getStatus(), request.getAdminNote()));
     }
 
     @GetMapping("/availability")
