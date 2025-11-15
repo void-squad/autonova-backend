@@ -4,3 +4,8 @@
 **/target/
 .env
 .env.*
+
+# Migration documentation and SQL scripts
+DATABASE_MIGRATION_GUIDE.md
+MIGRATION_SUMMARY.md
+**/schema-time-logs-only.sql
