@@ -13,13 +13,23 @@ import java.nio.file.StandardCopyOption;
 @Component
 public class LocalAttachmentStorage implements AttachmentStorage {
     private static final Logger log = LoggerFactory.getLogger(LocalAttachmentStorage.class);
-    private final Path root = Path.of("uploads");
+    private final Path root;
 
     public LocalAttachmentStorage() {
-        try { Files.createDirectories(root); } catch (IOException e) {
-            log.error("Failed to create uploads dir", e);
+        // Use /app/uploads in Docker, or ./uploads for local development
+        String uploadPath = System.getenv("UPLOADS_DIR");
+        if (uploadPath == null || uploadPath.isBlank()) {
+            uploadPath = "uploads";
+        }
+        this.root = Path.of(uploadPath);
+        
+        try { 
+            Files.createDirectories(root); 
+        } catch (IOException e) {
+            log.error("Failed to create uploads dir at {}", root.toAbsolutePath(), e);
             throw new AttachmentStorageException("Failed to initialize storage directory", e);
         }
+        log.info("Initialized attachment storage at: {}", root.toAbsolutePath());
     }
 
     @Override

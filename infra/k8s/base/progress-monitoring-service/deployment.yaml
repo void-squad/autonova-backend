@@ -91,6 +91,8 @@ spec:
                 secretKeyRef:
                   name: autonova-env
                   key: JWT_SECRET
+            - name: UPLOADS_DIR
+              value: "/app/uploads"
             - name: JAVA_OPTS
               value: "-Xms256m -Xmx512m"
           readinessProbe:
