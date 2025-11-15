@@ -1,7 +1,7 @@
 package com.voidsquad.chatbot.service.tool;
 
 import com.voidsquad.chatbot.model.ToolCall;
-import com.voidsquad.chatbot.service.tool.Tool;
+import com.voidsquad.chatbot.service.auth.AuthInfo;
 import com.voidsquad.chatbot.service.tool.ToolCallRequest;
 import com.voidsquad.chatbot.service.tool.ToolCallResult;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,18 @@ class ToolExecutionServiceTest {
         private final String name;
         DummyTool(String name) { this.name = name; }
         @Override public String name() { return name; }
-        @Override public ToolCallResult execute(ToolCallRequest request) { return ToolCallResult.success("ok:" + request.getParameters(),name()); }
+
+        @Override
+        public ToolCallResult execute(ToolCallRequest request) {
+            String params = String.valueOf(request.getParameters());
+            String userInput = params.contains("userInput") ? String.valueOf(request.getParameters().get("userInput")) : "null";
+            String user = "null";
+            if (params.contains("userInfo") && request.getParameters().get("userInfo") instanceof AuthInfo) {
+                AuthInfo ai = (AuthInfo) request.getParameters().get("userInfo");
+                user = ai.getUserId() != null ? String.valueOf(ai.getUserId()) : "null";
+            }
+            return ToolCallResult.success("ok:params=" + params + " userInput=" + userInput + " userId=" + user, name());
+        }
     }
 
     @Test
@@ -26,12 +37,14 @@ class ToolExecutionServiceTest {
         ToolRegistry reg = new ToolRegistry(List.of(t));
         ToolExecutionService svc = new ToolExecutionService(reg);
 
+        AuthInfo auth = AuthInfo.builder().userId(42L).firstName("Test").email("t@t.com").build();
         ToolCall call = new ToolCall("d1", Map.of("q", "x"), "explain");
-        List<ToolCallResult> res = svc.executeAll(List.of(call));
+        List<ToolCallResult> res = svc.executeAll(List.of(call), "explain", auth);
 
         assertEquals(1, res.size());
         assertTrue(res.get(0).isSuccess());
         assertNotNull(res.get(0).getResult());
+        assertTrue(res.get(0).getResult().toString().contains("params"));
     }
 
     @Test
@@ -40,7 +53,7 @@ class ToolExecutionServiceTest {
         ToolExecutionService svc = new ToolExecutionService(reg);
 
         ToolCall call = new ToolCall("missing", Map.of(), "x");
-        List<ToolCallResult> res = svc.executeAll(List.of(call));
+        List<ToolCallResult> res = svc.executeAll(List.of(call), "x", null);
         assertEquals(1, res.size());
         assertFalse(res.get(0).isSuccess());
     }

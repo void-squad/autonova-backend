@@ -1,5 +1,7 @@
 package com.voidsquad.chatbot.service.tool;
 
+import com.voidsquad.chatbot.service.auth.AuthInfo;
+
 /**
  * Generic tool contract. Implementations should be stateless and thread-safe.
  */

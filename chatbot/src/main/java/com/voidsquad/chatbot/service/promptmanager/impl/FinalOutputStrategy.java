@@ -19,6 +19,11 @@ public class FinalOutputStrategy implements PromptStrategy {
                 You are a chatbot assistant for an automobile ERP system.
                 Generate clear, insightful responses based on the provided data.
                 
+                You are a strict JSON-only assistant.
+                
+                Output must be exactly:
+                {"isComplete": true|false, "data": "msg to user"}
+                
                 Guidelines:
                 - Be concise but comprehensive
                 - Consider the user's role and context and use appropriate business terminology
