@@ -54,28 +54,28 @@ public class TimeLogController {
     }
     
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByEmployee(@PathVariable String employeeId) {
+    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByEmployee(@PathVariable Long employeeId) {
         log.info("REST request to get time logs for employee: {}", employeeId);
         List<TimeLogResponse> response = timeLogService.getTimeLogsByEmployee(employeeId);
         return ResponseEntity.ok(response);
     }
     
     @GetMapping("/project/{projectId}")
-    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByProject(@PathVariable String projectId) {
+    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByProject(@PathVariable UUID projectId) {
         log.info("REST request to get time logs for project: {}", projectId);
         List<TimeLogResponse> response = timeLogService.getTimeLogsByProject(projectId);
         return ResponseEntity.ok(response);
     }
     
     @GetMapping("/task/{taskId}")
-    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByTask(@PathVariable String taskId) {
+    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByTask(@PathVariable UUID taskId) {
         log.info("REST request to get time logs for task: {}", taskId);
         List<TimeLogResponse> response = timeLogService.getTimeLogsByTask(taskId);
         return ResponseEntity.ok(response);
     }
     
     @GetMapping("/employee/{employeeId}/total-hours")
-    public ResponseEntity<BigDecimal> getTotalHoursByEmployee(@PathVariable String employeeId) {
+    public ResponseEntity<BigDecimal> getTotalHoursByEmployee(@PathVariable Long employeeId) {
         log.info("REST request to get total hours for employee: {}", employeeId);
         BigDecimal totalHours = timeLogService.getTotalHoursByEmployee(employeeId);
         return ResponseEntity.ok(totalHours);
@@ -98,8 +98,10 @@ public class TimeLogController {
     @PatchMapping("/{id}/approve")
     public ResponseEntity<TimeLogResponse> approveTimeLog(
             @PathVariable UUID id,
-            @RequestBody(required = false) Map<String, String> body) {
-        String approvedBy = body != null ? body.get("approvedBy") : "ADMIN";
+            @RequestBody(required = false) Map<String, Object> body) {
+        Long approvedBy = body != null && body.get("approvedBy") != null 
+            ? Long.parseLong(body.get("approvedBy").toString()) 
+            : 1L; // Default admin user ID
         log.info("REST request to approve time log: {} by user: {}", id, approvedBy);
         TimeLogResponse response = timeLogService.approveTimeLog(id, approvedBy);
         return ResponseEntity.ok(response);
@@ -108,9 +110,11 @@ public class TimeLogController {
     @PatchMapping("/{id}/reject")
     public ResponseEntity<TimeLogResponse> rejectTimeLog(
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body) {
-        String rejectedBy = body.getOrDefault("rejectedBy", "ADMIN");
-        String reason = body.getOrDefault("reason", "No reason provided");
+            @RequestBody Map<String, Object> body) {
+        Long rejectedBy = body.get("rejectedBy") != null 
+            ? Long.parseLong(body.get("rejectedBy").toString()) 
+            : 1L; // Default admin user ID
+        String reason = body.getOrDefault("reason", "No reason provided").toString();
         log.info("REST request to reject time log: {} by user: {} with reason: {}", id, rejectedBy, reason);
         TimeLogResponse response = timeLogService.rejectTimeLog(id, rejectedBy, reason);
         return ResponseEntity.ok(response);
