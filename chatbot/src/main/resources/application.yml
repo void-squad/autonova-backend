@@ -48,7 +48,7 @@ spring:
     virtual-host: /
 app:
   llm:
-    provider: OLLAMA  #GEMINI
+    provider: ${LLM_PROVIDER:GEMINI}  #GEMINI or OLLAMA
     gemini:
       model: ${CHATBOT_MODEL_SELECTED:gemini-1.5-flash}
       apikey: ${GEMINI_API_KEY:your-gemini-api-key}

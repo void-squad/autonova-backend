@@ -1,6 +1,7 @@
 package com.voidsquad.chatbot.service.language;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voidsquad.chatbot.service.auth.AuthInfo;
 import com.voidsquad.chatbot.service.language.provider.ChatClient;
 import com.voidsquad.chatbot.service.language.provider.ChatResponse;
 import com.voidsquad.chatbot.service.promptmanager.PromptManager;
@@ -62,7 +63,6 @@ public class LanguageProcessor {
             // Build user prompt
             log.info("Processing request of type: " + request.type());
             String userPrompt = promptManager.buildUserPrompt(request);
-            log.info("User prompt built: " + userPrompt);
             // Get config for temperature/maxTokens
             PromptConfig config = promptManager.getPromptConfig(request.type());
             log.info("Prompt config retrieved: " + config.systemPrompt() , config.outputFormat(), config.userPromptTemplate(), config.maxTokens());
@@ -90,7 +90,8 @@ public class LanguageProcessor {
         return processUserMessage(request);
     }
 
-    public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole, String useFullTools) {
+    public ProcessingResult findHelperToolCalls(String userPrompt, String vectorContext, String userRole) {
+
         ProcessingRequest request = new ProcessingRequest(
                 userPrompt,
                 vectorContext,

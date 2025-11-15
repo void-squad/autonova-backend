@@ -19,21 +19,46 @@ import org.springframework.web.multipart.MultipartFile;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import com.voidsquad.chatbot.dto.ChatbotResponseDTO;
+import com.voidsquad.chatbot.dto.AuthInfoDTO;
+import com.voidsquad.chatbot.service.auth.AuthInfo;
+import com.voidsquad.chatbot.mapper.ChatbotResponseMapper;
+import com.voidsquad.chatbot.mapper.AuthInfoMapper;
+import com.voidsquad.chatbot.service.auth.AuthHeaderDecoderService;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/chatbot")
 public class ChatbotController {
 
     private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
     private final SimpMessagingTemplate messaging;
     private final AIService aiService;
     private final WorkflowStepService workflowStepService;
+    private final ChatbotResponseMapper responseMapper;
+    private final AuthHeaderDecoderService authHeaderDecoderService;
+    private final AuthInfoMapper authInfoMapper;
 
 
-    public ChatbotController(SimpMessagingTemplate messaging, AIService aiService, WorkflowStepRepository workflowStepRepository, EmbeddingService embeddingService, WorkflowStepService workflowStepService){
+    public ChatbotController(SimpMessagingTemplate messaging,
+                             AIService aiService,
+                             WorkflowStepRepository workflowStepRepository,
+                             EmbeddingService embeddingService,
+                             WorkflowStepService workflowStepService,
+                             ChatbotResponseMapper responseMapper,
+                             AuthHeaderDecoderService authHeaderDecoderService,
+                             AuthInfoMapper authInfoMapper){
         this.aiService = aiService;
         this.messaging = messaging;
         this.workflowStepService = workflowStepService;
+        this.responseMapper = responseMapper;
+        this.authHeaderDecoderService = authHeaderDecoderService;
+        this.authInfoMapper = authInfoMapper;
+    }
+
+    @GetMapping("/debug/auth")
+    public AuthInfoDTO decodeAuthorization(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        AuthInfo info = authHeaderDecoderService.decode(authorization);
+        return authInfoMapper.toDto(info);
     }
 
     @GetMapping("/hello")
@@ -86,13 +111,18 @@ public class ChatbotController {
         return "msg sent";
     }
 
-    @GetMapping("ai")
-    public String simpleAIResponse(@Param("prompt") String prompt){
+    @GetMapping(value = {"", "/"})
+    public ChatbotResponseDTO simpleAIResponse(@Param("prompt") String prompt,
+                                               @RequestHeader(value = "Authorization", required = false) String authorization){
         try {
-            return aiService.requestHandler(prompt);
+            AuthInfo authInfo = authHeaderDecoderService.decode(authorization);
+
+            String resp = aiService.requestHandler(prompt,authInfo);
+            // token tracking not yet implemented; return zeros by default
+            return responseMapper.toDto(resp, 0, 0);
         }catch (Exception e){
             log.error("Error in AI response: " + e.getMessage());
-            return "Error processing request";
+            return responseMapper.toDto("Error processing request", 0, 0);
         }
     }
 

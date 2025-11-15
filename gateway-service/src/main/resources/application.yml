@@ -81,7 +81,7 @@ spring:
         - id: chatbot-service
           uri: ${CHATBOT_SERVICE_URL:http://localhost:8097}
           predicates:
-            - Path=/api/chatbot/**
+            - Path=/api/v1/chatbot,/api/v1/chatbot/**
 
 management:
   endpoints:
@@ -91,3 +91,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: DEBUG
