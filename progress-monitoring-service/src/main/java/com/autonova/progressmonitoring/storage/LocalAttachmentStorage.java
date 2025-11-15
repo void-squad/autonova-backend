@@ -44,7 +44,7 @@ public class LocalAttachmentStorage implements AttachmentStorage {
             throw new AttachmentStorageException("Failed to store file", e);
         }
         return StoredAttachment.builder()
-                .url("/uploads/" + sanitized)
+                .url("/api/projects/progress/uploads/" + sanitized)
                 .contentType(file.getContentType())
                 .originalFilename(original)
                 .size(file.getSize())
