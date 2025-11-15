@@ -16,17 +16,17 @@ import java.util.UUID;
 public class TimeLogResponse {
     
     private UUID id;
-    private String projectId;
+    private UUID projectId;
     private String projectTitle;
-    private String taskId;
+    private UUID taskId;
     private String taskName;
-    private String employeeId;
+    private Long employeeId;
     private String employeeName;
     private BigDecimal hours;
     private String note;
     private String approvalStatus; // PENDING, APPROVED, REJECTED
     private String rejectionReason;
-    private String approvedBy;
+    private Long approvedBy;
     private LocalDateTime approvedAt;
     private LocalDateTime loggedAt;
 }
