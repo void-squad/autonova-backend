@@ -5,7 +5,7 @@ namespace ProjectService.Domain.Entities;
 public class Project
 {
     public Guid ProjectId { get; set; }
-    public Guid CustomerId { get; set; }
+    public long CustomerId { get; set; }
     public Guid VehicleId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -16,7 +16,7 @@ public class Project
     public DateTimeOffset? RequestedEnd { get; set; }
     public DateTimeOffset? ApprovedStart { get; set; }
     public DateTimeOffset? ApprovedEnd { get; set; }
-    public Guid CreatedBy { get; set; }
+    public long CreatedBy { get; set; }
     public Guid? AppointmentId { get; set; }
     public string? AppointmentSnapshot { get; set; }
 

@@ -48,9 +48,9 @@ public class AdminProjectsController : ControllerBase
         return Ok(projects.Select(p => p.ToSummary()));
     }
 
-    [HttpGet("customer/{customerId:guid}")]
+    [HttpGet("customer/{customerId:long}")]
     public async Task<ActionResult<IEnumerable<ProjectSummaryDto>>> GetProjectsByCustomer(
-        Guid customerId,
+        long customerId,
         CancellationToken cancellationToken)
     {
         var projects = await _db.Projects

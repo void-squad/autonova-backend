@@ -10,7 +10,7 @@ public class ApproveProjectRequest
 public class ApproveProjectTaskUpdate
 {
     public Guid TaskId { get; set; }
-    public Guid? AssigneeId { get; set; }
+    public long? AssigneeId { get; set; }
     public DateTimeOffset? ScheduledStart { get; set; }
     public DateTimeOffset? ScheduledEnd { get; set; }
 }
