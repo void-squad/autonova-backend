@@ -18,17 +18,76 @@ spec:
         - name: notification-service
           image: jalinahirushan02/notification-service:dev-latest
           ports:
-            - containerPort: 8084
-          envFrom:
-            - secretRef:
-                name: autonova-env
+            - containerPort: 8085
+          env:
+            - name: SPRING_RABBITMQ_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_HOST
+            - name: SPRING_RABBITMQ_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_PORT
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_USERNAME
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_PASSWORD
+            - name: APP_RABBIT_EXCHANGE
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: APP_RABBIT_EXCHANGE
+            - name: APP_RABBIT_QUEUE
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: APP_RABBIT_QUEUE
+            - name: APP_RABBIT_ROUTING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: APP_RABBIT_ROUTING_KEY
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: POSTGRES_HOST
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: POSTGRES_PORT
+            - name: DB_USER
+              value: "notification_service"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: NOTIFICATION_DB_PASSWORD
+            - name: DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: DB_SSLMODE
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: 8084
-            initialDelaySeconds: 40
-            periodSeconds: 20
+              port: 8085
+            initialDelaySeconds: 60
+            periodSeconds: 30
           resources:
             requests:
-              cpu: "150m"
-              memory: "192Mi"
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+

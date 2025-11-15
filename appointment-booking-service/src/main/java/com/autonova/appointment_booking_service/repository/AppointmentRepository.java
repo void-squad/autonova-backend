@@ -37,9 +37,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             WHERE (:status IS NULL OR UPPER(a.status) = UPPER(:status))
               AND a.startTime >= COALESCE(:from, a.startTime)
               AND a.startTime <= COALESCE(:to, a.startTime)
+              AND (:vehicleId IS NULL OR a.vehicleId = :vehicleId)
             ORDER BY a.startTime DESC
             """)
     List<Appointment> searchForAdmin(@Param("status") String status,
                                      @Param("from") OffsetDateTime from,
-                                     @Param("to") OffsetDateTime to);
+                                     @Param("to") OffsetDateTime to,
+                                     @Param("vehicleId") UUID vehicleId);
 }

@@ -96,8 +96,8 @@ public class AdminProjectsController : ControllerBase
         }
 
         project.Status = ProjectStatus.Approved;
-        project.ApprovedStart = request.ApprovedStart;
-        project.ApprovedEnd = request.ApprovedEnd;
+        project.ApprovedStart = NormalizeUtc(request.ApprovedStart);
+        project.ApprovedEnd = NormalizeUtc(request.ApprovedEnd);
         project.UpdatedAt = DateTimeOffset.UtcNow;
         var actorId = User.GetUserId();
 
@@ -110,8 +110,8 @@ public class AdminProjectsController : ControllerBase
             }
 
             task.AssigneeId = update.AssigneeId;
-            task.ScheduledStart = update.ScheduledStart;
-            task.ScheduledEnd = update.ScheduledEnd;
+            task.ScheduledStart = NormalizeUtc(update.ScheduledStart);
+            task.ScheduledEnd = NormalizeUtc(update.ScheduledEnd);
             task.Status = update.AssigneeId.HasValue ? TaskStatusEnum.Accepted : TaskStatusEnum.Requested;
             task.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -185,4 +185,6 @@ public class AdminProjectsController : ControllerBase
 
         return CreatedAtAction(nameof(GetProject), new { projectId }, task.ToDto());
     }
+
+    private static DateTimeOffset? NormalizeUtc(DateTimeOffset? value) => value?.ToUniversalTime();
 }

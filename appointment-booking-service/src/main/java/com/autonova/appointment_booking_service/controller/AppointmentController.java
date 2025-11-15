@@ -49,6 +49,17 @@ public class AppointmentController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/admin")
+    public ResponseEntity<List<AppointmentResponseDto>> searchForAdmin(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "from", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(value = "to", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId) {
+        return ResponseEntity.ok(service.searchForAdmin(status, from, to, vehicleId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AppointmentResponseDto> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(service.getById(id));
@@ -81,12 +92,12 @@ public class AppointmentController {
         return ResponseEntity.ok(service.listAll());
     }
 
-    @PutMapping("/{id}/status")
+    @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AppointmentResponseDto> updateStatus(
             @PathVariable UUID id,
-            @RequestParam String status) {
-        return ResponseEntity.ok(service.updateStatus(id, status));
+            @Valid @RequestBody UpdateAppointmentStatusRequest request) {
+        return ResponseEntity.ok(service.updateStatus(id, request.getStatus(), request.getAdminNote()));
     }
 
 //    @PutMapping("/{id}/assign")

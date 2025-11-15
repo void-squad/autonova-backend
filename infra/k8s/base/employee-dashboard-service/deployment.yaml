@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee-dashboard-service
+  labels:
+    app: employee-dashboard-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: employee-dashboard-service
+  template:
+    metadata:
+      labels:
+        app: employee-dashboard-service
+    spec:
+      containers:
+        - name: employee-dashboard-service
+          image: jalinahirushan02/employee-dashboard-service:dev-latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: JWT_SECRET
+            - name: EUREKA_SERVER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: EUREKA_SERVER_URL
+            - name: SERVICES_GATEWAY_URL
+              value: "http://gateway-service:8080"
+            - name: SERVICES_CUSTOMER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: CUSTOMER_SERVICE_URL
+            - name: SERVICES_APPOINTMENT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: APPOINTMENT_BOOKING_SERVICE_URL
+            - name: SERVICES_PROJECT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: PROJECT_SERVICE_URL
+            - name: SERVICES_PAYMENT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: PAYMENTS_BILLING_SERVICE_URL
+            - name: SERVICES_PROGRESS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: PROGRESS_MONITORING_SERVICE_URL
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
