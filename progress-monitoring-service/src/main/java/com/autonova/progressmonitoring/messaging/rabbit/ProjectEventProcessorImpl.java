@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
@@ -34,6 +35,7 @@ public class ProjectEventProcessorImpl implements ProjectEventProcessor {
         this(publisher, mapper, messageMapper, messageService, null);
     }
 
+    @Autowired
     public ProjectEventProcessorImpl(EventPublisher publisher, ObjectMapper mapper, EventMessageMapper messageMapper, ProjectMessageService messageService, DomainEventAdapter domainEventAdapter) {
         this.publisher = publisher;
         this.mapper = mapper;

@@ -8,7 +8,7 @@ spring:
       globalcors:
         add-to-simple-url-handler-mapping: true
         corsConfigurations:
-          '[/**]':
+          "[/**]":
             allowedOrigins:
               - http://localhost:5173
             allowedMethods:
@@ -18,9 +18,16 @@ spring:
               - DELETE
               - PATCH
               - OPTIONS
-            allowedHeaders: '*'
+            allowedHeaders: "*"
             allowCredentials: true
       routes:
+        - id: progress-monitoring
+          uri: ${PROGRESS_MONITORING_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/projects/*/messages/**,/api/projects/*/messages,/sse/projects/**
+          filters:
+            - StripPrefix=0
+
         - id: auth-service
           uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
@@ -33,6 +40,10 @@ spring:
           uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
+        - id: customer-service-vehicles
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/api/vehicles/**
         - id: project-service
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:

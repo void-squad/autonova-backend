@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: time-logging-deployment
+  labels:
+    app: time-logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: time-logging
+  template:
+    metadata:
+      labels:
+        app: time-logging
+    spec:
+      containers:
+        - name: time-logging
+          image: jalinahirushan02/time-logging-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres:5432/time_logging_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "time_logging_service"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: time-logging-secrets
+                  key: db-password
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: EUREKA_SERVER_URL
+              value: "http://discovery-service:8761/eureka/"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 20

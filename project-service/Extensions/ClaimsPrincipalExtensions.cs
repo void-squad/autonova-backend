@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Security.Claims;
 
 namespace ProjectService.Extensions;
