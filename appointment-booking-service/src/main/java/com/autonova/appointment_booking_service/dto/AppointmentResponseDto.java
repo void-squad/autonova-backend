@@ -10,7 +10,9 @@ import java.util.UUID;
 public class AppointmentResponseDto {
     private UUID id;
     private UUID customerId;
+    private String customerUsername;
     private UUID vehicleId;
+    private String vehicleName;
     private String serviceType;
     private OffsetDateTime startTime;
     private OffsetDateTime endTime;
