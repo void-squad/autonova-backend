@@ -16,6 +16,7 @@ using Npgsql;
 using ProjectService.Data;
 using ProjectService.Dtos;
 using ProjectService.HealthChecks;
+using ProjectService.Services;
 using ProjectService.Seeding;
 using ProjectService.Swagger;
 using ProjectService.Validators;
@@ -224,6 +225,14 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectRequestValidator>();
 builder.Services.AddEurekaDiscoveryClient();
+var appointmentBaseUrl = builder.Configuration["AppointmentService:BaseUrl"];
+builder.Services.AddHttpClient<IAppointmentServiceClient, AppointmentServiceClient>(client =>
+{
+    if (!string.IsNullOrWhiteSpace(appointmentBaseUrl) && Uri.TryCreate(appointmentBaseUrl, UriKind.Absolute, out var uri))
+    {
+        client.BaseAddress = uri;
+    }
+});
 
 var app = builder.Build();
 

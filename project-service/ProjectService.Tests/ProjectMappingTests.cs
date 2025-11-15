@@ -14,7 +14,7 @@ public class ProjectMappingTests
         var project = new Project
         {
             ProjectId = Guid.NewGuid(),
-            CustomerId = Guid.NewGuid(),
+            CustomerId = 42,
             VehicleId = Guid.NewGuid(),
             Title = "Test",
             Status = ProjectStatus.PendingReview,

@@ -18,6 +18,14 @@ public class AppointmentService {
     // capacity: number of concurrent service bays; configurable in production
     private final int serviceCapacity = 3;
 
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "PENDING",
+            "CONFIRMED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED"
+    );
+
     public AppointmentService(AppointmentRepository repository) {
         this.repository = repository;
     }
@@ -124,6 +132,13 @@ public class AppointmentService {
     public List<AppointmentResponseDto> listByCustomer(UUID customerId) {
         return repository.findByCustomerIdOrderByStartTimeDesc(customerId)
                 .stream().map(this::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AppointmentResponseDto getById(UUID id) {
+        Appointment appt = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+        return toDto(appt);
     }
 
     @Transactional(readOnly = true)

@@ -5,12 +5,12 @@ namespace ProjectService.Extensions;
 
 public static class ClaimsPrincipalExtensions
 {
-    public static Guid GetUserId(this ClaimsPrincipal principal)
+    public static long GetUserId(this ClaimsPrincipal principal)
     {
         var claim = principal.FindFirst("sub") ?? principal.FindFirst(ClaimTypes.NameIdentifier);
-        return claim is not null && Guid.TryParse(claim.Value, out var parsed)
+        return claim is not null && long.TryParse(claim.Value, out var parsed)
             ? parsed
-            : Guid.Empty;
+            : 0L;
     }
 
     public static string GetPrimaryRole(this ClaimsPrincipal principal)

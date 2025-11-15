@@ -6,6 +6,11 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: progressmonitoring
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
