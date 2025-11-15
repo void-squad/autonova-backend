@@ -1,13 +1,21 @@
 package com.autonova.employee_dashboard_service.service;
 
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
+import com.autonova.employee_dashboard_service.dto.task.TaskDto;
+import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * BFF Service - Backend For Frontend
@@ -15,7 +23,12 @@ import java.util.Objects;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmployeeDashboardBFFService {
+
+        private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+
+        private final ProjectServiceClient projectServiceClient;
 
         /**
          * Main method to aggregate all dashboard data.
@@ -28,13 +41,14 @@ public class EmployeeDashboardBFFService {
                         log.debug("Authorization header present for user {}: {}", userId, StringUtils.hasText(authorizationHeader));
                 }
 
-                return Mono.fromSupplier(() -> EmployeeDashboardResponse.builder()
-                                .employeeInfo(getEmployeeInfo(userId, userEmail, userRole))
-                                .stats(getDashboardStats(userId))
-                                .recentActivities(getRecentActivities(userId))
-                                .upcomingTasks(getUpcomingTasks(userId))
-                                .activeProjects(getActiveProjects(userId))
-                                .build())
+                return fetchUpcomingTasks(userId, authorizationHeader)
+                                .map(upcomingTasks -> EmployeeDashboardResponse.builder()
+                                                .employeeInfo(getEmployeeInfo(userId, userEmail, userRole))
+                                                .stats(getDashboardStats(userId))
+                                                .recentActivities(getRecentActivities(userId))
+                                                .upcomingTasks(upcomingTasks)
+                                                .activeProjects(getActiveProjects(userId))
+                                                .build())
                                 .doOnSuccess(response -> log.info("Successfully prepared dashboard data for user: {}", userId))
                                 .doOnError(error -> log.error("Error preparing dashboard data for user {}: {}", userId, error.getMessage()))
                                 .onErrorResume(error -> {
@@ -47,6 +61,53 @@ public class EmployeeDashboardBFFService {
                                                         .activeProjects(List.of())
                                                         .build());
                                 });
+        }
+        private Mono<List<EmployeeDashboardResponse.UpcomingTask>> fetchUpcomingTasks(Long userId, String authorizationHeader) {
+                if (!StringUtils.hasText(authorizationHeader)) {
+                        log.warn("Missing authorization header while fetching tasks for user {}", userId);
+                        return Mono.just(List.of());
+                }
+
+                return projectServiceClient.getTasksByAssignee(String.valueOf(userId), null, 1, 50, authorizationHeader)
+                                .map(response -> {
+                                        if (response == null || response.getItems() == null) {
+                                                return List.<EmployeeDashboardResponse.UpcomingTask>of();
+                                        }
+
+                                        return response.getItems().stream()
+                                                        .sorted(Comparator.comparing((TaskDto task) -> Optional.ofNullable(task.getScheduledStart()).orElse(task.getCreatedAt()))
+                                                                        .thenComparing(TaskDto::getTitle, Comparator.nullsLast(String::compareToIgnoreCase)))
+                                                        .limit(10)
+                                                        .map(this::mapToUpcomingTask)
+                                                        .collect(Collectors.toList());
+                                })
+                                .onErrorResume(error -> {
+                                        log.warn("Falling back to empty task list for user {} due to downstream error: {}", userId, error.getMessage());
+                                        return Mono.just(List.of());
+                                });
+        }
+
+        private EmployeeDashboardResponse.UpcomingTask mapToUpcomingTask(TaskDto task) {
+                return EmployeeDashboardResponse.UpcomingTask.builder()
+                                .id(task.getTaskId())
+                                .title(task.getTitle())
+                                .description(task.getDescription())
+                                .dueDate(formatDate(task.getScheduledEnd(), task.getScheduledStart()))
+                                .priority(task.getStatus())
+                                .projectId(resolveProjectId(task))
+                                .build();
+        }
+
+        private String resolveProjectId(TaskDto task) {
+                if (StringUtils.hasText(task.getProjectId())) {
+                        return task.getProjectId();
+                }
+                return task.getProject() != null ? task.getProject().getProjectId() : null;
+        }
+
+        private String formatDate(OffsetDateTime primary, OffsetDateTime fallback) {
+                OffsetDateTime value = primary != null ? primary : fallback;
+                return value != null ? ISO_FORMATTER.format(value) : null;
         }
 
         /**
@@ -85,14 +146,6 @@ public class EmployeeDashboardBFFService {
          */
         private List<EmployeeDashboardResponse.RecentActivity> getRecentActivities(Long userId) {
                 log.debug("No activity feed available for user: {}", userId);
-                return List.of();
-        }
-
-        /**
-         * Placeholder for future upcoming tasks integration.
-         */
-        private List<EmployeeDashboardResponse.UpcomingTask> getUpcomingTasks(Long userId) {
-                log.debug("No upcoming tasks available for user: {}", userId);
                 return List.of();
         }
 

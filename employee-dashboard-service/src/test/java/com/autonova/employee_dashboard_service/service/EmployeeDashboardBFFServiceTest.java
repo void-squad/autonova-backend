@@ -1,17 +1,34 @@
 package com.autonova.employee_dashboard_service.service;
 
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
+import com.autonova.employee_dashboard_service.dto.task.TaskDto;
+import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+
+import java.time.OffsetDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @DisplayName("EmployeeDashboardBFFService Unit Tests")
+@ExtendWith(MockitoExtension.class)
 class EmployeeDashboardBFFServiceTest {
 
     private EmployeeDashboardBFFService service;
+
+    @Mock
+    private ProjectServiceClient projectServiceClient;
 
     private Long testUserId;
     private String testUserEmail;
@@ -25,7 +42,31 @@ class EmployeeDashboardBFFServiceTest {
         testUserRole = "EMPLOYEE";
         testToken = "Bearer test-token";
 
-        service = new EmployeeDashboardBFFService();
+        service = new EmployeeDashboardBFFService(projectServiceClient);
+
+        TaskDto task = TaskDto.builder()
+            .taskId("task-1")
+            .title("Vehicle inspection")
+            .description("Complete vehicle inspection before delivery")
+            .status("Scheduled")
+            .scheduledStart(OffsetDateTime.now().plusDays(1))
+            .scheduledEnd(OffsetDateTime.now().plusDays(2))
+            .build();
+
+        TaskListResponse taskList = TaskListResponse.builder()
+            .page(1)
+            .pageSize(50)
+            .total(1)
+            .items(List.of(task))
+            .build();
+
+        lenient().when(projectServiceClient.getTasksByAssignee(
+            ArgumentMatchers.anyString(),
+            ArgumentMatchers.isNull(),
+            anyInt(),
+            anyInt(),
+            ArgumentMatchers.anyString()
+        )).thenReturn(Mono.just(taskList));
     }
 
     @Test
@@ -90,6 +131,27 @@ class EmployeeDashboardBFFServiceTest {
         EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
 
         // Then
+        assertThat(response.getUpcomingTasks()).isNotEmpty();
+        assertThat(response.getUpcomingTasks().get(0).getTitle()).isEqualTo("Vehicle inspection");
+    }
+
+    @Test
+    @DisplayName("Should return empty tasks list when project service fails")
+    void shouldReturnEmptyTasksWhenProjectServiceFails() {
+        // Given
+        when(projectServiceClient.getTasksByAssignee(
+                ArgumentMatchers.anyString(),
+                ArgumentMatchers.isNull(),
+                anyInt(),
+                anyInt(),
+                ArgumentMatchers.anyString()
+        )).thenReturn(Mono.error(new RuntimeException("project service down")));
+
+        // When
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
+
+        // Then
+        assertNotNull(response);
         assertThat(response.getUpcomingTasks()).isEmpty();
     }
 

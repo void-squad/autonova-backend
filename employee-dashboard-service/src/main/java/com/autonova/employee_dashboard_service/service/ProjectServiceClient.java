@@ -1,6 +1,7 @@
 package com.autonova.employee_dashboard_service.service;
 
 import com.autonova.employee_dashboard_service.dto.project.ProjectDto;
+import com.autonova.employee_dashboard_service.dto.task.TaskDto;
 import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Client service to interact with Project Service through the Gateway
@@ -82,37 +84,51 @@ public class ProjectServiceClient {
             int pageSize,
             String authorizationHeader
     ) {
-        log.info("Fetching tasks for assignee: {} with status: {}", assigneeId, status);
+        log.info("Fetching assigned tasks via gateway for assignee hint: {} with status: {}", assigneeId, status);
 
-        WebClient.RequestHeadersUriSpec<?> requestSpec = webClientBuilder.build()
-                .get();
+        int resolvedPage = page < 1 ? 1 : page;
+        int resolvedPageSize = pageSize < 1 ? 20 : pageSize;
+        String normalizedStatus = status != null ? status.toLowerCase(Locale.ROOT) : null;
 
-        return requestSpec
-                .uri(gatewayUrl + "/api/tasks",
-                        uriBuilder -> {
-                            uriBuilder.queryParam("assigneeId", assigneeId)
-                                    .queryParam("page", page)
-                                    .queryParam("pageSize", pageSize);
-                            
-                            if (status != null && !status.isEmpty()) {
-                                uriBuilder.queryParam("status", status);
-                            }
-                            
-                            return uriBuilder.build();
-                        })
+        return webClientBuilder.build()
+                .get()
+                .uri(gatewayUrl + "/api/tasks/assigned")
                 .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                 .retrieve()
-                .bodyToMono(TaskListResponse.class)
-                .doOnSuccess(response -> log.info("Successfully fetched {} tasks", response != null ? response.getTotal() : 0))
-                .doOnError(error -> log.error("Error fetching tasks: {}", error.getMessage()))
+                .bodyToFlux(TaskDto.class)
+                .collectList()
+                .map(tasks -> filterAndPaginateTasks(tasks, normalizedStatus, resolvedPage, resolvedPageSize))
+                .doOnSuccess(response -> log.info("Successfully fetched {} tasks after filtering", response.getTotal()))
+                .doOnError(error -> log.error("Error fetching assigned tasks: {}", error.getMessage()))
                 .onErrorResume(error -> {
-                    log.error("Failed to fetch tasks for assignee {}: {}", assigneeId, error.getMessage());
+                    log.error("Failed to fetch assigned tasks for assignee {}: {}", assigneeId, error.getMessage());
                     return Mono.just(TaskListResponse.builder()
-                            .page(page)
-                            .pageSize(pageSize)
+                            .page(resolvedPage)
+                            .pageSize(resolvedPageSize)
                             .total(0)
                             .items(List.of())
                             .build());
                 });
+    }
+
+    private TaskListResponse filterAndPaginateTasks(List<TaskDto> allTasks, String normalizedStatus, int page, int pageSize) {
+        List<TaskDto> filtered = allTasks;
+        if (normalizedStatus != null && !normalizedStatus.isBlank()) {
+            filtered = allTasks.stream()
+                    .filter(task -> task.getStatus() != null && task.getStatus().toLowerCase(Locale.ROOT).equals(normalizedStatus))
+                    .toList();
+        }
+
+        int total = filtered.size();
+        int fromIndex = Math.min(Math.max((page - 1) * pageSize, 0), total);
+        int toIndex = Math.min(fromIndex + pageSize, total);
+        List<TaskDto> paged = filtered.subList(fromIndex, toIndex);
+
+        return TaskListResponse.builder()
+                .page(page)
+                .pageSize(pageSize)
+                .total(total)
+                .items(paged)
+                .build();
     }
 }
