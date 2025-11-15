@@ -18,17 +18,82 @@ spec:
         - name: progress-monitoring
           image: jalinahirushan02/progress-monitoring-service:dev-latest
           ports:
-            - containerPort: 8080
-          envFrom:
-            - secretRef:
-                name: autonova-env
+            - containerPort: 8086
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: POSTGRES_PORT
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: PROGRESS_MONITORING_DB_PASSWORD
+            - name: POSTGRES_DB
+              value: "progress"
+            - name: SPRING_RABBITMQ_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_HOST
+            - name: SPRING_RABBITMQ_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_PORT
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_USERNAME
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_PASSWORD
+            - name: APP_RABBIT_EXCHANGE
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: APP_RABBIT_EXCHANGE
+            - name: APP_RABBIT_QUEUE
+              value: "progress.project.queue"
+            - name: APP_RABBIT_ROUTING_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: APP_RABBIT_ROUTING_KEYS
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: JWT_SECRET
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx512m"
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 15
+              port: 8086
+            initialDelaySeconds: 60
+            periodSeconds: 30
           resources:
             requests:
-              cpu: "120m"
-              memory: "160Mi"
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
