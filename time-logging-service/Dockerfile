@@ -17,12 +17,14 @@ COPY src ./src
 RUN chmod +x ./mvnw && ./mvnw clean package -DskipTests
 
 # Stage 2: Runtime image
-FROM eclipse-temurin:17-jre-alpine
+# Use the jammy JRE image which is multi-arch (supports amd64 and arm64) instead of the alpine variant
+# (the alpine variant may not have an arm64 manifest and causes "no match for platform" errors in CI)
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-# Create a non-root user
-RUN addgroup -S spring && adduser -S spring -G spring
+# Create a non-root user (Debian/Ubuntu-friendly flags)
+RUN addgroup --system spring && adduser --system --ingroup spring --no-create-home spring
 USER spring:spring
 
 # Copy the built JAR file from builder stage
