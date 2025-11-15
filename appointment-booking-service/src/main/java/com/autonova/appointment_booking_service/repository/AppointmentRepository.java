@@ -35,8 +35,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     @Query("""
             SELECT a FROM Appointment a
             WHERE (:status IS NULL OR UPPER(a.status) = UPPER(:status))
-              AND (:from IS NULL OR a.startTime >= :from)
-              AND (:to IS NULL OR a.startTime <= :to)
+              AND a.startTime >= COALESCE(:from, a.startTime)
+              AND a.startTime <= COALESCE(:to, a.startTime)
             ORDER BY a.startTime DESC
             """)
     List<Appointment> searchForAdmin(@Param("status") String status,
