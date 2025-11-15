@@ -37,6 +37,7 @@ SERVICES=(
     "progress_monitoring_db:progress_monitoring_service:PROGRESS_MONITORING_DB_PASSWORD"
     "employee_dashboard_db:employee_dashboard_service:EMPLOYEE_DASHBOARD_DB_PASSWORD"
     "time_logging_db:time_logging_service:TIME_LOGGING_DB_PASSWORD"
+    "time_logging_db2:time_logging_service_v2:TIME_LOGGING_DB2_PASSWORD"
     "vector_db:chatbot_service:CHATBOT_DB_PASSWORD"
     "notifications_db:notification_service:NOTIFICATION_DB_PASSWORD"
     "user_management_db:user_management_service:USER_MANAGEMENT_DB_PASSWORD"

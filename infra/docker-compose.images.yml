@@ -324,9 +324,9 @@ services:
       - "8083:8083"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      SPRING_DATASOURCE_URL: "jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/time_logging_db"
-      SPRING_DATASOURCE_USERNAME: time_logging_service
-      SPRING_DATASOURCE_PASSWORD: ${TIME_LOGGING_DB_PASSWORD}
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/time_logging_db2"
+      SPRING_DATASOURCE_USERNAME: ${TIME_LOGGING_DB2_USER:-time_logging_service_v2}
+      SPRING_DATASOURCE_PASSWORD: ${TIME_LOGGING_DB2_PASSWORD}
       RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       EUREKA_SERVER_URL: "${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}"
