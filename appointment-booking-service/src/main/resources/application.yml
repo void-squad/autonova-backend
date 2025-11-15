@@ -1,8 +1,8 @@
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/appointmentdb
-    username: postgres
-    password: root123
+#  datasource:
+#    url: jdbc:postgresql://localhost:5432/appointmentdb
+#    username: postgres
+#    password: root123
   jpa:
     show-sql: true
     properties:
