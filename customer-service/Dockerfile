@@ -19,7 +19,8 @@ RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
 COPY customer-service/src ./src
 
 # Build the jar (skip tests for faster image build)
-RUN ./mvnw clean package -DskipTests
+# RUN ./mvnw clean package -DskipTests
+RUN ./mvnw clean package spring-boot:repackage -DskipTests
 
 # Stage 2: runtime image
 FROM eclipse-temurin:17-jre-jammy
