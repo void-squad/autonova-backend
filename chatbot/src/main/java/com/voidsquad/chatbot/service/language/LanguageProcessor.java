@@ -106,7 +106,7 @@ public class LanguageProcessor {
                 userPrompt,
                 extractedContext,
                 ProcessingType.FINAL_OUTPUT_GENERATION,
-                Map.of("userInfo", userInfo)
+                Map.of("userInfo", userInfo != null ? userInfo : "GUEST")
         );
         return processUserMessage(request);
     }

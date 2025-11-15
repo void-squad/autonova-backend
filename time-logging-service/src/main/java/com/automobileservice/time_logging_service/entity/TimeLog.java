@@ -5,9 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "time_logs")
@@ -15,20 +17,21 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TimeLog {
+    
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(columnDefinition = "UUID")
+    private UUID id;
     
-    @ManyToOne
-    @JoinColumn(name = "project_id", nullable = false)
-    private Project project;
+    // Foreign references to external services
+    @Column(name = "project_id", nullable = false, columnDefinition = "UUID")
+    private UUID projectId;
     
-    @ManyToOne
-    @JoinColumn(name = "task_id", nullable = false)
-    private ProjectTask task;
+    @Column(name = "task_id", nullable = false, columnDefinition = "UUID")
+    private UUID taskId;
     
-    @ManyToOne
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee;
+    @Column(name = "employee_id", nullable = false)
+    private Long employeeId;
     
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal hours;
@@ -39,7 +42,24 @@ public class TimeLog {
     @Column(name = "approval_status", nullable = false, length = 20)
     private String approvalStatus = "PENDING"; // PENDING, APPROVED, REJECTED
     
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+    
+    @Column(name = "approved_by")
+    private Long approvedBy; // Employee ID who approved/rejected
+    
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+    
     @CreationTimestamp
     @Column(name = "logged_at", nullable = false, updatable = false)
     private LocalDateTime loggedAt;
+    
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }
