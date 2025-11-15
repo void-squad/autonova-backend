@@ -23,15 +23,15 @@ public class TimeLog {
     @Column(columnDefinition = "UUID")
     private UUID id;
     
-    // Foreign keys as strings - reference external services
-    @Column(name = "project_id", nullable = false)
-    private String projectId;
+    // Foreign references to external services
+    @Column(name = "project_id", nullable = false, columnDefinition = "UUID")
+    private UUID projectId;
     
-    @Column(name = "task_id", nullable = false)
-    private String taskId;
+    @Column(name = "task_id", nullable = false, columnDefinition = "UUID")
+    private UUID taskId;
     
     @Column(name = "employee_id", nullable = false)
-    private String employeeId;
+    private Long employeeId;
     
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal hours;
@@ -46,7 +46,7 @@ public class TimeLog {
     private String rejectionReason;
     
     @Column(name = "approved_by")
-    private String approvedBy; // Employee ID who approved/rejected
+    private Long approvedBy; // Employee ID who approved/rejected
     
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
