@@ -13,19 +13,24 @@ WORKDIR /build/analytics-service
 RUN mvn clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
+
+# Install curl for the container-level health check
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y curl \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy the built JAR from build stage
 COPY --from=build /build/analytics-service/target/analytics-service.jar app.jar
 
-# Expose port 8085
+# Expose port 8089
 EXPOSE 8089
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8085/api/analytics/health || exit 1
+  CMD curl -f --silent http://localhost:8089/api/analytics/health || exit 1
 
 # Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
