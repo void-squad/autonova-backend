@@ -1,6 +1,10 @@
 package com.autonova.employee_dashboard_service.service;
 
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,7 +14,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.autonova.employee_dashboard_service.dto.project.ProjectDto;
+import com.autonova.employee_dashboard_service.dto.task.TaskDto;
+import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
+
+import reactor.core.publisher.Mono;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -19,6 +34,9 @@ class EmployeeDashboardBFFServiceTest {
 
     @Mock
     private WebClient.Builder webClientBuilder;
+
+    @Mock
+    private ProjectServiceClient projectServiceClient;
 
     @InjectMocks
     private EmployeeDashboardBFFService service;
@@ -34,6 +52,12 @@ class EmployeeDashboardBFFServiceTest {
         testUserEmail = "test.employee@autonova.com";
         testUserRole = "EMPLOYEE";
         testToken = "Bearer test-token";
+
+        lenient().when(projectServiceClient.getProjectsByAssignee(anyString(), anyBoolean(), anyInt(), anyInt(), anyString()))
+            .thenReturn(Mono.just(sampleProjects()));
+
+        lenient().when(projectServiceClient.getTasksByAssignee(anyString(), anyString(), anyInt(), anyInt(), anyString()))
+            .thenReturn(Mono.just(sampleTaskList()));
     }
 
     @Test
@@ -158,12 +182,10 @@ class EmployeeDashboardBFFServiceTest {
     }
 
     @Test
-    @DisplayName("Should handle null userId gracefully")
-    void shouldHandleNullUserId() {
-        // When/Then - should not throw exception
-        assertDoesNotThrow(() -> 
-            service.getEmployeeDashboard(null, testUserEmail, testUserRole, testToken).block()
-        );
+    @DisplayName("Should throw when userId is null")
+    void shouldThrowWhenUserIdIsNull() {
+        assertThrows(NullPointerException.class, () ->
+                service.getEmployeeDashboard(null, testUserEmail, testUserRole, testToken).block());
     }
 
     @Test
@@ -178,4 +200,47 @@ class EmployeeDashboardBFFServiceTest {
         assertThat(response1.getUpcomingTasks()).hasSameSizeAs(response2.getUpcomingTasks());
         assertThat(response1.getActiveProjects()).hasSameSizeAs(response2.getActiveProjects());
     }
+
+        private List<ProjectDto> sampleProjects() {
+        ProjectDto.TaskDto completedTask = ProjectDto.TaskDto.builder()
+            .taskId("TASK-001")
+            .title("Completed Task")
+            .status("Completed")
+            .build();
+
+        ProjectDto.TaskDto inProgressTask = ProjectDto.TaskDto.builder()
+            .taskId("TASK-002")
+            .title("In Progress Task")
+            .status("InProgress")
+            .build();
+
+        ProjectDto project = ProjectDto.builder()
+            .projectId("PRJ-001")
+            .title("Sample Project")
+            .status("InProgress")
+            .createdAt(OffsetDateTime.now())
+            .dueDate(OffsetDateTime.now().plusDays(7).toLocalDate())
+            .budget(BigDecimal.valueOf(10000))
+            .tasks(List.of(completedTask, inProgressTask))
+            .build();
+
+        return List.of(project);
+        }
+
+        private TaskListResponse sampleTaskList() {
+        TaskDto task = TaskDto.builder()
+            .taskId("TASK-101")
+            .projectId("PRJ-001")
+            .title("Sample Task")
+            .description("Sample description")
+            .status("InProgress")
+            .build();
+
+        return TaskListResponse.builder()
+            .page(1)
+            .pageSize(50)
+            .total(1)
+            .items(List.of(task))
+            .build();
+        }
 }

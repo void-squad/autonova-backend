@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -32,7 +33,7 @@ public class ProjectServiceClient {
      * @param includeTasks Whether to include tasks in the response
      * @param page Page number
      * @param pageSize Number of items per page
-     * @param token JWT token for authentication
+     * @param authorizationHeader Authorization header value to forward
      * @return List of projects
      */
     public Mono<List<ProjectDto>> getProjectsByAssignee(
@@ -40,7 +41,7 @@ public class ProjectServiceClient {
             boolean includeTasks,
             int page,
             int pageSize,
-            String token
+            String authorizationHeader
     ) {
         log.info("Fetching projects for assignee: {}", assigneeId);
 
@@ -53,7 +54,7 @@ public class ProjectServiceClient {
                                 .queryParam("page", page)
                                 .queryParam("pageSize", pageSize)
                                 .build())
-                .header("Authorization", "Bearer " + token)
+                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<ProjectDto>>() {})
                 .doOnSuccess(projects -> log.info("Successfully fetched {} projects", projects != null ? projects.size() : 0))
@@ -71,7 +72,7 @@ public class ProjectServiceClient {
      * @param status Task status filter (optional)
      * @param page Page number
      * @param pageSize Number of items per page
-     * @param token JWT token for authentication
+     * @param authorizationHeader Authorization header value to forward
      * @return Task list response with pagination
      */
     public Mono<TaskListResponse> getTasksByAssignee(
@@ -79,7 +80,7 @@ public class ProjectServiceClient {
             String status,
             int page,
             int pageSize,
-            String token
+            String authorizationHeader
     ) {
         log.info("Fetching tasks for assignee: {} with status: {}", assigneeId, status);
 
@@ -99,7 +100,7 @@ public class ProjectServiceClient {
                             
                             return uriBuilder.build();
                         })
-                .header("Authorization", "Bearer " + token)
+                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                 .retrieve()
                 .bodyToMono(TaskListResponse.class)
                 .doOnSuccess(response -> log.info("Successfully fetched {} tasks", response != null ? response.getTotal() : 0))

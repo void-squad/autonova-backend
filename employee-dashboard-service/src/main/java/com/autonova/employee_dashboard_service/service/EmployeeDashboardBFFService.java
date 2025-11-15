@@ -35,10 +35,10 @@ public class EmployeeDashboardBFFService {
      * @param userId User ID from JWT token
      * @param userEmail User email from JWT token
      * @param userRole User role from JWT token
-     * @param token JWT token for service-to-service authentication
+     * @param authorizationHeader Authorization header to forward to downstream services
      * @return Complete dashboard data
      */
-    public Mono<EmployeeDashboardResponse> getEmployeeDashboard(Long userId, String userEmail, String userRole, String token) {
+    public Mono<EmployeeDashboardResponse> getEmployeeDashboard(Long userId, String userEmail, String userRole, String authorizationHeader) {
         log.info("Fetching aggregated dashboard data for user: {} (ID: {})", userEmail, userId);
 
         String userIdString = userId.toString();
@@ -48,10 +48,10 @@ public class EmployeeDashboardBFFService {
             Mono.just(getEmployeeInfo(userId, userEmail, userRole));
         
         Mono<List<ProjectDto>> projectsMono = 
-            projectServiceClient.getProjectsByAssignee(userIdString, true, 1, 20, token);
+            projectServiceClient.getProjectsByAssignee(userIdString, true, 1, 20, authorizationHeader);
         
         Mono<TaskListResponse> tasksMono = 
-            projectServiceClient.getTasksByAssignee(userIdString, "InProgress", 1, 50, token);
+            projectServiceClient.getTasksByAssignee(userIdString, "InProgress", 1, 50, authorizationHeader);
         
         Mono<List<EmployeeDashboardResponse.RecentActivity>> activitiesMono = 
             Mono.just(getRecentActivities(userId));

@@ -9,7 +9,7 @@ namespace ProjectService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Policy = "EmployeeAccess")]
 [ProducesResponseType(typeof(TaskListResponse), StatusCodes.Status200OK)]
 public class TasksController : ControllerBase
 {
@@ -64,6 +64,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<TaskListResponse>> Get(
         [FromQuery] long? assigneeId,
         [FromQuery] string? status,

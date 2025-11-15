@@ -35,11 +35,11 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> 
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/**", "/actuator/health").permitAll()
-                        .requestMatchers("/api/employee/dashboard/**").hasRole("EMPLOYEE")
-                        .anyRequest().authenticated()
-                )
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/actuator/**", "/actuator/health").permitAll()
+            .requestMatchers("/api/employee-dashboard/**").permitAll()
+            .anyRequest().authenticated()
+        )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();

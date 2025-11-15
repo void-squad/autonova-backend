@@ -137,6 +137,9 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("ADMIN"));
+
+    options.AddPolicy("EmployeeAccess", policy =>
+        policy.RequireRole("ADMIN", "EMPLOYEE"));
 });
 
 builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));

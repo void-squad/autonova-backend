@@ -96,7 +96,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IEnumerable<ProjectResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProjectListResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProjects(

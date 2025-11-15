@@ -1,18 +1,17 @@
 package com.autonova.employee_dashboard_service.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
 import com.autonova.employee_dashboard_service.dto.project.ProjectDto;
 import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
-import com.autonova.employee_dashboard_service.security.JwtService;
 import com.autonova.employee_dashboard_service.service.EmployeeDashboardBFFService;
 import com.autonova.employee_dashboard_service.service.ProjectServiceClient;
 
@@ -29,17 +28,15 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/employee/dashboard")
+@RequestMapping("/api/employee-dashboard")
 @RequiredArgsConstructor
 public class EmployeeDashboardBFFController {
 
     private final EmployeeDashboardBFFService bffService;
     private final ProjectServiceClient projectServiceClient;
-    private final JwtService jwtService;
 
     /**
      * Main dashboard endpoint - aggregates all employee dashboard data
-     * Security: Only accessible by users with EMPLOYEE role
      * 
      * This is the ONLY endpoint frontend needs to call!
      * It aggregates data from:
@@ -54,27 +51,33 @@ public class EmployeeDashboardBFFController {
      * @return Complete dashboard data with all aggregated information
      */
     @GetMapping
-    @PreAuthorize("hasRole('EMPLOYEE')")
     public Mono<ResponseEntity<EmployeeDashboardResponse>> getEmployeeDashboard(
             Authentication authentication,
             HttpServletRequest request
     ) {
+        if (authentication == null) {
+            log.error("Authentication not present in security context");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+
         String username = authentication.getName();
         Long userId = (Long) request.getAttribute("userId");
         String userRole = (String) request.getAttribute("userRole");
-        
-        // Extract JWT token for service-to-service calls
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.error("No valid Authorization header found");
-            return Mono.just(ResponseEntity.badRequest().build());
+
+        if (userId == null || userRole == null) {
+            log.error("Request context missing identity attributes; rejecting dashboard request");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
         
-        String token = authHeader.substring(7); // Remove "Bearer " prefix
+        String authorizationHeader = request.getHeader("Authorization");
+        if (!StringUtils.hasText(authorizationHeader)) {
+            log.error("No Authorization header found on dashboard request");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
 
         log.info("Dashboard request from employee: {} (ID: {}, Role: {})", username, userId, userRole);
 
-        return bffService.getEmployeeDashboard(userId, username, userRole, token)
+        return bffService.getEmployeeDashboard(userId, username, userRole, authorizationHeader)
                 .map(ResponseEntity::ok)
                 .onErrorResume(error -> {
                     log.error("Error fetching dashboard data for user {}: {}", userId, error.getMessage(), error);
@@ -100,26 +103,22 @@ public class EmployeeDashboardBFFController {
      * @return Mono of List of projects
      */
     @GetMapping("/projects")
-    @PreAuthorize("hasRole('EMPLOYEE')")
     public Mono<ResponseEntity<List<ProjectDto>>> getMyProjects(
             @RequestParam(defaultValue = "true") boolean includeTasks,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             HttpServletRequest request
     ) {
-        // Extract JWT token from Authorization header
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.error("No valid Authorization header found");
-            return Mono.just(ResponseEntity.badRequest().build());
+        String authorizationHeader = request.getHeader("Authorization");
+        if (!StringUtils.hasText(authorizationHeader)) {
+            log.error("No Authorization header found on projects request");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
-        
-        String token = authHeader.substring(7); // Remove "Bearer " prefix
-        Long userId = jwtService.extractUserId(token);
-        
+
+        Long userId = (Long) request.getAttribute("userId");
         if (userId == null) {
-            log.error("Could not extract userId from token");
-            return Mono.just(ResponseEntity.badRequest().build());
+            log.error("Could not resolve userId from request context");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
         
         log.info("Fetching projects for user ID: {}", userId);
@@ -127,7 +126,7 @@ public class EmployeeDashboardBFFController {
         // Convert Long userId to UUID string for the project service
         String userIdString = userId.toString();
         
-        return projectServiceClient.getProjectsByAssignee(userIdString, includeTasks, page, pageSize, token)
+        return projectServiceClient.getProjectsByAssignee(userIdString, includeTasks, page, pageSize, authorizationHeader)
                 .map(ResponseEntity::ok)
                 .onErrorResume(error -> {
                     log.error("Error fetching projects: {}", error.getMessage());
@@ -145,26 +144,22 @@ public class EmployeeDashboardBFFController {
      * @return Mono of TaskListResponse with pagination
      */
     @GetMapping("/tasks")
-    @PreAuthorize("hasRole('EMPLOYEE')")
     public Mono<ResponseEntity<TaskListResponse>> getMyTasks(
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int pageSize,
             HttpServletRequest request
     ) {
-        // Extract JWT token from Authorization header
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.error("No valid Authorization header found");
-            return Mono.just(ResponseEntity.badRequest().build());
+        String authorizationHeader = request.getHeader("Authorization");
+        if (!StringUtils.hasText(authorizationHeader)) {
+            log.error("No Authorization header found on tasks request");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
-        
-        String token = authHeader.substring(7); // Remove "Bearer " prefix
-        Long userId = jwtService.extractUserId(token);
-        
+
+        Long userId = (Long) request.getAttribute("userId");
         if (userId == null) {
-            log.error("Could not extract userId from token");
-            return Mono.just(ResponseEntity.badRequest().build());
+            log.error("Could not resolve userId from request context");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
         
         log.info("Fetching tasks for user ID: {} with status: {}", userId, status);
@@ -172,7 +167,7 @@ public class EmployeeDashboardBFFController {
         // Convert Long userId to UUID string for the project service
         String userIdString = userId.toString();
         
-        return projectServiceClient.getTasksByAssignee(userIdString, status, page, pageSize, token)
+        return projectServiceClient.getTasksByAssignee(userIdString, status, page, pageSize, authorizationHeader)
                 .map(ResponseEntity::ok)
                 .onErrorResume(error -> {
                     log.error("Error fetching tasks: {}", error.getMessage());
