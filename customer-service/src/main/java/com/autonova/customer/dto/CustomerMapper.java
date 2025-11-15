@@ -78,6 +78,21 @@ public final class CustomerMapper {
         );
     }
 
+    /**
+     * Convert Vehicle to public VehicleDetailsDto for cross-service consumption.
+     * Used by other services (e.g., Project Service) to fetch vehicle details.
+     * Format: "2020 Toyota Camry (ABC-123)"
+     */
+    public static VehicleDetailsDto toVehicleDetailsDto(Vehicle vehicle) {
+        return new VehicleDetailsDto(
+                vehicle.getId(),
+                vehicle.getLicensePlate(),
+                vehicle.getMake(),
+                vehicle.getModel(),
+                vehicle.getYear(),
+                vehicle.getVin()
+        );
+    }
     private static String normalize(String value) {
         return value == null ? null : value.trim();
     }

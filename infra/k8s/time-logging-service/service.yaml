@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: time-logging-service
+  labels:
+    app: time-logging
+spec:
+  selector:
+    app: time-logging
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
+  type: ClusterIP

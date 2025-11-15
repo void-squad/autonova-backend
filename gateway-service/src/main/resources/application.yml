@@ -33,6 +33,10 @@ spring:
           uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
+        - id: customer-service-vehicles
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/api/vehicles/**
         - id: project-service
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
@@ -61,6 +65,10 @@ spring:
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
           predicates:
             - Path=/api/notifications/**
+        - id: chatbot-service
+          uri: ${CHATBOT_SERVICE_URL:http://localhost:8097}
+          predicates:
+            - Path=/api/chatbot/**
 
 management:
   endpoints:

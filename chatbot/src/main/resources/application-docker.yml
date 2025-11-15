@@ -1,0 +1,99 @@
+server:
+  port: ${SERVER_PORT:8097}
+spring:
+  application:
+    name: chatbot
+  ai:
+    ollama:
+      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: llama3
+    chat:
+      client:
+        enabled: false
+    model:
+      chat: vertexai
+    vertex:
+      ai:
+        gemini:
+          api-key: ${GEMINI_API_KEY:your-gemini-api-key}
+          project-id: ${SPRING_AI_VERTEXAI_GEMINI_PROJECT_ID:YOUR_PROJECT_ID}
+          location: ${GEMINI_LOCATION:us-central1}
+          chat:
+            options:
+              model: ${GEMINI_CHAT_MODEL:gemini-1.5-flash}
+              temperature: 0.5
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  cloud:
+    gateway:
+      routes:
+        - id: chatbot-api
+          uri: http://chatbot:8097
+          predicates:
+            - Path=/chatbot/**
+          filters:
+            - StripPrefix=1
+            - AddRequestHeader=X-Forwarded-Host, "#{request.headers.Host[0]}"
+        - id: chatbot-actuator
+          uri: http://chatbot:8098
+          predicates:
+            - Path=/actuator/**
+          filters:
+            - AddRequestHeader=X-Gateway-Token, ${GATEWAY_ACTUATOR_SECRET}
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/vector_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+app:
+  llm:
+    provider: GEMINI
+    gemini:
+      model: ${CHATBOT_MODEL_SELECTED:gemini-1.5-flash}
+      apikey: ${GEMINI_API_KEY:your-gemini-api-key}
+    ollama:
+      apiUrl: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+logging:
+  level:
+    org:
+      springframework:
+        ai: DEBUG
+      flywaydb: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+jwt:
+  secret: ${JWT_SECRET:your-jwt-secret-key}

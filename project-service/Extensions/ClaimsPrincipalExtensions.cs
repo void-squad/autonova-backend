@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Security.Claims;
 
 namespace ProjectService.Extensions;
@@ -37,6 +38,11 @@ public static class ClaimsPrincipalExtensions
             .Select(r => r.Trim().ToLowerInvariant())
             .Where(r => r.Length > 0)
             .ToList();
+
+        if (roles.Contains("admin"))
+        {
+            return "admin";
+        }
 
         if (roles.Contains("manager"))
         {
