@@ -135,6 +135,13 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
+    public AppointmentResponseDto getById(UUID id) {
+        Appointment appt = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+        return toDto(appt);
+    }
+
+    @Transactional(readOnly = true)
     public List<Map<String, OffsetDateTime>> getAvailableSlots(OffsetDateTime start, OffsetDateTime end) {
         List<Map<String, OffsetDateTime>> availableSlots = new ArrayList<>();
 
