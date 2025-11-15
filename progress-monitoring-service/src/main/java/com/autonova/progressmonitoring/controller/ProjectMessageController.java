@@ -105,7 +105,7 @@ public class ProjectMessageController {
     }
 
     @GetMapping("/{projectId}/messages")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'CUSTOMER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE', 'CUSTOMER')")
     public ResponseEntity<List<ProjectMessageDto>> getMessages(@PathVariable String projectId) {
         UUID id;
         try {
@@ -190,7 +190,7 @@ public class ProjectMessageController {
     }
 
     @PostMapping("/{projectId}/messages")
-    @PreAuthorize("hasRole('EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<ProjectMessageDto> postStatusMessage(@PathVariable String projectId,
                                                                @RequestBody CreateStatusRequest request) {
         UUID id;
@@ -230,7 +230,7 @@ public class ProjectMessageController {
     }
 
     @PostMapping(value = "/{projectId}/messages/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<ProjectMessageDto> uploadAndCreateMessage(@PathVariable String projectId,
                                                                     @RequestPart("file") MultipartFile file,
                                                                     @RequestPart("message") String message,
@@ -262,4 +262,10 @@ public class ProjectMessageController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    @GetMapping(value = "/{projectId}/messages/test")
+    public String test() {
+        return "Test";
+    }
+
 }
