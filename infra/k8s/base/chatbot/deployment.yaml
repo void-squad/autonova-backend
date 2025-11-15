@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot
+  labels:
+    app: chatbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatbot
+  template:
+    metadata:
+      labels:
+        app: chatbot
+    spec:
+      containers:
+        - name: chatbot
+          image: jalinahirushan02/chatbot:dev-latest
+          ports:
+            - containerPort: 8097
+          env:
+            - name: SERVER_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: CHATBOT_SERVER_PORT
+            - name: SPRING_AI_OLLAMA_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: SPRING_AI_OLLAMA_BASE_URL
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: GEMINI_API_KEY
+            - name: SPRING_AI_VERTEXAI_GEMINI_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: SPRING_AI_VERTEXAI_GEMINI_PROJECT_ID
+            - name: GEMINI_LOCATION
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: GEMINI_LOCATION
+            - name: GEMINI_CHAT_MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: GEMINI_CHAT_MODEL
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: DB_PASSWORD
+            - name: LLM_PROVIDER
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: LLM_PROVIDER
+            - name: CHATBOT_MODEL_SELECTED
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: CHATBOT_MODEL_SELECTED
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: JWT_SECRET
+            - name: AUTH_EVENTS_EXCHANGE
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: AUTH_EVENTS_EXCHANGE
+            - name: AUTH_EVENTS_LOGIN_QUEUE
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: AUTH_EVENTS_LOGIN_QUEUE
+            - name: AUTH_EVENTS_LOGIN_ROUTING
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: AUTH_EVENTS_LOGIN_ROUTING
+            - name: RABBITMQ_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_HOST
+            - name: RABBITMQ_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_PORT
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_USERNAME
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: RABBITMQ_PASSWORD
+            - name: EUREKA_SERVER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autonova-env
+                  key: EUREKA_SERVER_URL
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8097
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"

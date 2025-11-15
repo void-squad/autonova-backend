@@ -42,6 +42,18 @@ resources:
   - payments-billing-service/deployment.yaml
   - payments-billing-service/service.yaml
 
+  - time-logging-service/deployment.yaml
+  - time-logging-service/service.yaml
+
+  - employee-dashboard-service/deployment.yaml
+  - employee-dashboard-service/service.yaml
+
+  - appointment-booking-service/deployment.yaml
+  - appointment-booking-service/service.yaml
+
+  - chatbot/deployment.yaml
+  - chatbot/service.yaml
+
   # Frontend (from docker-compose.dev.images.yml)
   - frontend/web-deployment.yaml
   - frontend/web-service.yaml
@@ -64,8 +76,17 @@ images:
     newTag: dev-latest
   - name: jalinahirushan02/payments-billing-service
     newTag: dev-latest
+  - name: jalinahirushan02/time-logging-service
+    newTag: dev-latest
+  - name: jalinahirushan02/employee-dashboard-service
+    newTag: dev-latest
+  - name: jalinahirushan02/appointment-booking-service
+    newTag: dev-latest
+  - name: jalinahirushan02/chatbot
+    newTag: dev-latest
   - name: sachinthalk/autonova-frontend-v1
     newTag: dev-latest
 
 commonLabels:
   app.kubernetes.io/managed-by: kustomize
+
