@@ -5,11 +5,12 @@ namespace ProjectService.Extensions;
 
 public static class ValidationExtensions
 {
-    public static IDictionary<string, string[]> ToProblemDictionary(this ValidationResult validationResult) =>
-        validationResult.Errors
-            .GroupBy(e => e.PropertyName, StringComparer.OrdinalIgnoreCase)
+    public static IDictionary<string, string[]> ToDictionary(this ValidationResult result)
+    {
+        return result.Errors
+            .GroupBy(e => e.PropertyName)
             .ToDictionary(
-                g => g.Key,
-                g => g.Select(e => e.ErrorMessage).Distinct().ToArray(),
-                StringComparer.OrdinalIgnoreCase);
+                group => group.Key,
+                group => group.Select(e => e.ErrorMessage).ToArray());
+    }
 }
