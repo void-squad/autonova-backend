@@ -93,4 +93,40 @@ public interface TimeLogService {
      * @return Updated time log
      */
     TimeLogResponse rejectTimeLog(UUID id, Long rejectedBy, String reason);
+    
+    /**
+     * Get employee summary (total hours, earnings, etc.)
+     * @param employeeId Employee ID
+     * @return Employee summary
+     */
+    EmployeeSummaryResponse getEmployeeSummary(Long employeeId);
+    
+    /**
+     * Get weekly summary for an employee
+     * @param employeeId Employee ID
+     * @return Weekly summary with daily hours and project breakdown
+     */
+    WeeklySummaryResponse getWeeklySummary(Long employeeId);
+    
+    /**
+     * Get smart suggestions for an employee
+     * @param employeeId Employee ID
+     * @return List of smart suggestions
+     */
+    List<SmartSuggestionResponse> getSmartSuggestions(Long employeeId);
+    
+    /**
+     * Get efficiency metrics for an employee
+     * @param employeeId Employee ID
+     * @return Efficiency metrics
+     */
+    EfficiencyMetricsResponse getEfficiencyMetrics(Long employeeId);
+    
+    /**
+     * Get time logs for a specific employee and project
+     * @param employeeId Employee ID
+     * @param projectId Project ID
+     * @return List of time logs
+     */
+    List<TimeLogResponse> getTimeLogsByEmployeeAndProject(Long employeeId, UUID projectId);
 }

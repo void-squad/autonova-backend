@@ -1,7 +1,7 @@
 package com.automobileservice.time_logging_service.controller;
 
 import com.automobileservice.time_logging_service.dto.request.TimeLogRequest;
-import com.automobileservice.time_logging_service.dto.response.TimeLogResponse;
+import com.automobileservice.time_logging_service.dto.response.*;
 import com.automobileservice.time_logging_service.service.TimeLogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -117,6 +117,43 @@ public class TimeLogController {
         String reason = body.getOrDefault("reason", "No reason provided").toString();
         log.info("REST request to reject time log: {} by user: {} with reason: {}", id, rejectedBy, reason);
         TimeLogResponse response = timeLogService.rejectTimeLog(id, rejectedBy, reason);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/employee/{employeeId}/summary")
+    public ResponseEntity<EmployeeSummaryResponse> getEmployeeSummary(@PathVariable Long employeeId) {
+        log.info("REST request to get employee summary for: {}", employeeId);
+        EmployeeSummaryResponse response = timeLogService.getEmployeeSummary(employeeId);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/employee/{employeeId}/weekly-summary")
+    public ResponseEntity<WeeklySummaryResponse> getWeeklySummary(@PathVariable Long employeeId) {
+        log.info("REST request to get weekly summary for employee: {}", employeeId);
+        WeeklySummaryResponse response = timeLogService.getWeeklySummary(employeeId);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/employee/{employeeId}/smart-suggestions")
+    public ResponseEntity<List<SmartSuggestionResponse>> getSmartSuggestions(@PathVariable Long employeeId) {
+        log.info("REST request to get smart suggestions for employee: {}", employeeId);
+        List<SmartSuggestionResponse> response = timeLogService.getSmartSuggestions(employeeId);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/employee/{employeeId}/efficiency-metrics")
+    public ResponseEntity<EfficiencyMetricsResponse> getEfficiencyMetrics(@PathVariable Long employeeId) {
+        log.info("REST request to get efficiency metrics for employee: {}", employeeId);
+        EfficiencyMetricsResponse response = timeLogService.getEfficiencyMetrics(employeeId);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/employee/{employeeId}/project/{projectId}")
+    public ResponseEntity<List<TimeLogResponse>> getTimeLogsByEmployeeAndProject(
+            @PathVariable Long employeeId,
+            @PathVariable UUID projectId) {
+        log.info("REST request to get time logs for employee: {} and project: {}", employeeId, projectId);
+        List<TimeLogResponse> response = timeLogService.getTimeLogsByEmployeeAndProject(employeeId, projectId);
         return ResponseEntity.ok(response);
     }
 }

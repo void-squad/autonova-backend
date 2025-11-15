@@ -3,7 +3,7 @@ package com.automobileservice.time_logging_service.service.impl;
 import com.automobileservice.time_logging_service.client.AuthServiceClient;
 import com.automobileservice.time_logging_service.client.ProjectServiceClient;
 import com.automobileservice.time_logging_service.dto.request.TimeLogRequest;
-import com.automobileservice.time_logging_service.dto.response.TimeLogResponse;
+import com.automobileservice.time_logging_service.dto.response.*;
 import com.automobileservice.time_logging_service.entity.TimeLog;
 import com.automobileservice.time_logging_service.exception.ResourceNotFoundException;
 import com.automobileservice.time_logging_service.repository.TimeLogRepository;
@@ -14,9 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.time.format.TextStyle;
+import java.time.temporal.TemporalAdjusters;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -210,5 +213,199 @@ public class TimeLogServiceImpl implements TimeLogService {
         response.setApprovedAt(timeLog.getApprovedAt());
         response.setLoggedAt(timeLog.getLoggedAt());
         return response;
+    }
+    
+    @Override
+    public EmployeeSummaryResponse getEmployeeSummary(Long employeeId) {
+        log.info("Getting employee summary for: {}", employeeId);
+        
+        BigDecimal totalHours = timeLogRepository.getTotalHoursByEmployee(employeeId);
+        BigDecimal approvedHours = timeLogRepository.getTotalApprovedHoursByEmployee(employeeId);
+        
+        List<TimeLog> pendingLogs = timeLogRepository.findByEmployeeIdAndApprovalStatusOrderByLoggedAtDesc(
+            employeeId, "PENDING");
+        BigDecimal pendingHours = pendingLogs.stream()
+            .map(TimeLog::getHours)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Default hourly rate - this should come from employee service in real scenario
+        BigDecimal hourlyRate = new BigDecimal("50.00");
+        BigDecimal totalEarnings = approvedHours.multiply(hourlyRate);
+        
+        return EmployeeSummaryResponse.builder()
+            .employeeId(employeeId.toString())
+            .employeeName("Employee " + employeeId) // TODO: Fetch from auth service
+            .department("Engineering") // TODO: Fetch from auth service
+            .totalHoursLogged(totalHours)
+            .hourlyRate(hourlyRate)
+            .totalEarnings(totalEarnings)
+            .build();
+    }
+    
+    @Override
+    public WeeklySummaryResponse getWeeklySummary(Long employeeId) {
+        log.info("Getting weekly summary for employee: {}", employeeId);
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfWeek = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .withHour(0).withMinute(0).withSecond(0);
+        LocalDateTime endOfWeek = now.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+            .withHour(23).withMinute(59).withSecond(59);
+        
+        List<TimeLog> weekLogs = timeLogRepository.findByEmployeeIdAndLoggedAtBetween(
+            employeeId, startOfWeek, endOfWeek);
+        
+        // Group by day of week
+        Map<DayOfWeek, BigDecimal> hoursByDay = new HashMap<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            hoursByDay.put(day, BigDecimal.ZERO);
+        }
+        
+        for (TimeLog log : weekLogs) {
+            DayOfWeek day = log.getLoggedAt().getDayOfWeek();
+            hoursByDay.put(day, hoursByDay.get(day).add(log.getHours()));
+        }
+        
+        List<WeeklySummaryResponse.DailyHours> dailyHours = hoursByDay.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(entry -> WeeklySummaryResponse.DailyHours.builder()
+                .day(entry.getKey().getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
+                .hours(entry.getValue())
+                .build())
+            .collect(Collectors.toList());
+        
+        // Group by project
+        Map<UUID, List<TimeLog>> logsByProject = weekLogs.stream()
+            .collect(Collectors.groupingBy(TimeLog::getProjectId));
+        
+        List<WeeklySummaryResponse.ProjectBreakdown> projectBreakdown = logsByProject.entrySet().stream()
+            .map(entry -> {
+                UUID projectId = entry.getKey();
+                List<TimeLog> logs = entry.getValue();
+                BigDecimal totalHours = logs.stream()
+                    .map(TimeLog::getHours)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+                return WeeklySummaryResponse.ProjectBreakdown.builder()
+                    .projectId(projectId.toString())
+                    .projectTitle("Project " + projectId.toString().substring(0, 8)) // TODO: Fetch from project service
+                    .taskCount((int) logs.stream().map(TimeLog::getTaskId).distinct().count())
+                    .totalHours(totalHours)
+                    .build();
+            })
+            .collect(Collectors.toList());
+        
+        return WeeklySummaryResponse.builder()
+            .dailyHours(dailyHours)
+            .projectBreakdown(projectBreakdown)
+            .build();
+    }
+    
+    @Override
+    public List<SmartSuggestionResponse> getSmartSuggestions(Long employeeId) {
+        log.info("Getting smart suggestions for employee: {}", employeeId);
+        
+        List<SmartSuggestionResponse> suggestions = new ArrayList<>();
+        
+        // Suggestion 1: Tasks with approaching deadlines
+        // TODO: Fetch from project service - tasks assigned to employee with deadlines within 3 days
+        
+        // Suggestion 2: Projects with low recent activity
+        LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
+        List<TimeLog> recentLogs = timeLogRepository.findByEmployeeIdAndLoggedAtAfter(employeeId, weekAgo);
+        
+        if (recentLogs.isEmpty()) {
+            suggestions.add(SmartSuggestionResponse.builder()
+                .task(null)
+                .projectTitle("All Projects")
+                .reason("No time logs in the past 7 days. Consider logging your work hours.")
+                .urgency("high")
+                .icon("progress")
+                .build());
+        }
+        
+        // Suggestion 3: Pending time logs that need submission
+        List<TimeLog> pendingLogs = timeLogRepository.findByEmployeeIdAndApprovalStatusOrderByLoggedAtDesc(
+            employeeId, "PENDING");
+        
+        if (pendingLogs.size() > 5) {
+            suggestions.add(SmartSuggestionResponse.builder()
+                .task(null)
+                .projectTitle("Time Logs")
+                .reason("You have " + pendingLogs.size() + " pending time logs awaiting approval.")
+                .urgency("medium")
+                .icon("deadline")
+                .build());
+        }
+        
+        return suggestions;
+    }
+    
+    @Override
+    public EfficiencyMetricsResponse getEfficiencyMetrics(Long employeeId) {
+        log.info("Getting efficiency metrics for employee: {}", employeeId);
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime weekAgo = now.minusDays(7);
+        LocalDateTime twoWeeksAgo = now.minusDays(14);
+        
+        // Current week hours
+        List<TimeLog> currentWeekLogs = timeLogRepository.findByEmployeeIdAndLoggedAtBetween(
+            employeeId, weekAgo, now);
+        BigDecimal currentWeekHours = currentWeekLogs.stream()
+            .map(TimeLog::getHours)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Previous week hours
+        List<TimeLog> previousWeekLogs = timeLogRepository.findByEmployeeIdAndLoggedAtBetween(
+            employeeId, twoWeeksAgo, weekAgo);
+        BigDecimal previousWeekHours = previousWeekLogs.stream()
+            .map(TimeLog::getHours)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Calculate trend
+        BigDecimal weeklyTrend = BigDecimal.ZERO;
+        if (previousWeekHours.compareTo(BigDecimal.ZERO) > 0) {
+            weeklyTrend = currentWeekHours.subtract(previousWeekHours)
+                .divide(previousWeekHours, 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+        }
+        
+        // Calculate efficiency breakdown
+        List<TimeLog> allLogs = timeLogRepository.findByEmployeeIdOrderByLoggedAtDesc(employeeId);
+        int totalTasks = (int) allLogs.stream().map(TimeLog::getTaskId).distinct().count();
+        
+        // Simple metrics calculation
+        BigDecimal avgTaskTime = totalTasks > 0 
+            ? timeLogRepository.getTotalHoursByEmployee(employeeId)
+                .divide(new BigDecimal(totalTasks), 2, RoundingMode.HALF_UP)
+            : BigDecimal.ZERO;
+        
+        EfficiencyMetricsResponse.EfficiencyBreakdown breakdown = EfficiencyMetricsResponse.EfficiencyBreakdown.builder()
+            .onTime(new BigDecimal("85.0")) // TODO: Calculate from actual task completion data
+            .overEstimate(new BigDecimal("15.0")) // TODO: Calculate from task estimates
+            .avgTaskTime(avgTaskTime)
+            .build();
+        
+        // Overall efficiency score (placeholder calculation)
+        BigDecimal efficiency = new BigDecimal("85.5");
+        
+        return EfficiencyMetricsResponse.builder()
+            .efficiency(efficiency)
+            .weeklyTrend(weeklyTrend)
+            .breakdown(breakdown)
+            .build();
+    }
+    
+    @Override
+    public List<TimeLogResponse> getTimeLogsByEmployeeAndProject(Long employeeId, UUID projectId) {
+        log.info("Getting time logs for employee: {} and project: {}", employeeId, projectId);
+        
+        List<TimeLog> timeLogs = timeLogRepository.findByEmployeeIdAndProjectIdOrderByLoggedAtDesc(
+            employeeId, projectId);
+        
+        return timeLogs.stream()
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
     }
 }
