@@ -37,6 +37,7 @@ services:
       VECTOR_DB_PASSWORD: ${VECTOR_DB_PASSWORD} # Added from dev
       PBS_DB_PASSWORD: ${PBS_DB_PASSWORD:-payments_billing_service}
       ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+      APPOINTMENT_DB_PASSWORD: ${APPOINTMENT_DB_PASSWORD:-appointment_booking_service}
     volumes:
       - ./init-scripts:/scripts:ro
     # Run mounted init scripts after stripping Windows CRLFs and using bash
@@ -236,33 +237,6 @@ services:
     networks:
       - autonova-network
 
-  employee-dashboard-service:
-    container_name: autonova-employee-dashboard-service
-    build:
-      context: ..
-      dockerfile: employee-dashboard-service/Dockerfile
-    ports:
-      - "8084:8084"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
-      SERVICES_GATEWAY_URL: http://gateway-service:8080
-      JAVA_OPTS: -Xms256m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
-    depends_on:
-      - gateway-service
-      - discovery-service
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - autonova-network
-
   project-service:
     container_name: autonova-project-service
     build:
@@ -393,9 +367,20 @@ services:
       - "8088:8088"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      SPRING_DATASOURCE_URL: ${APPOINTMENT_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/appointment_booking_db}
+      SPRING_DATASOURCE_USERNAME: ${APPOINTMENT_DB_USERNAME:-appointment_booking_service}
+      SPRING_DATASOURCE_PASSWORD: ${APPOINTMENT_DB_PASSWORD:-appointment_booking_service}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+      APP_RABBIT_EXCHANGE: ${APP_RABBIT_EXCHANGE:-autonova.events}
+      APP_SECURITY_ENABLED: ${APP_SECURITY_ENABLED:-false}
       SERVER_PORT: 8088
     depends_on:
       - postgres-init
+      - rabbitmq
       - discovery-service
     healthcheck:
       test:
@@ -488,7 +473,7 @@ services:
       context: ..
       dockerfile: analytics-service/Dockerfile
     ports:
-      - '8089:8089'
+      - "8089:8089"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
 
@@ -526,12 +511,12 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8085/api/analytics/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8085/api/analytics/health",
         ]
       interval: 30s
       timeout: 10s
