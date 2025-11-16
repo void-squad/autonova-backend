@@ -1,7 +1,7 @@
 package com.automobileservice.time_logging_service.client.dto;
 
 import lombok.Data;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
@@ -12,8 +12,10 @@ public class TaskResponse {
     private String serviceType;
     private String detail;
     private String status;
-    private UUID assigneeId;
+    private Long assigneeId;
     private Double estimateHours;
-    private LocalDateTime scheduledStart;
-    private LocalDateTime scheduledEnd;
+    private OffsetDateTime scheduledStart;
+    private OffsetDateTime scheduledEnd;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }
