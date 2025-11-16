@@ -16,6 +16,7 @@ public class EmployeeDashboardResponse {
     private DashboardStats stats;
     private List<RecentActivity> recentActivities;
     private List<UpcomingTask> upcomingTasks;
+    private List<TimeLogSummary> recentTimeLogs;
     private List<ProjectSummary> activeProjects;
     
     @Data
@@ -79,5 +80,22 @@ public class EmployeeDashboardResponse {
         private String startDate;
         private String expectedCompletionDate;
         private int progressPercentage;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TimeLogSummary {
+        private String id;
+        private String projectId;
+        private String projectTitle;
+        private String taskId;
+        private String taskName;
+        private double hours;
+        private String note;
+        private String approvalStatus;
+        private String rejectionReason;
+        private String loggedAt;
     }
 }

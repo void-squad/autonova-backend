@@ -3,6 +3,8 @@ package com.autonova.employee_dashboard_service.service;
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
 import com.autonova.employee_dashboard_service.dto.task.TaskDto;
 import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
+import com.autonova.employee_dashboard_service.dto.timelog.TimeLogDto;
+import com.autonova.employee_dashboard_service.dto.timelog.TimeLogListResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -30,6 +34,9 @@ class EmployeeDashboardBFFServiceTest {
     @Mock
     private ProjectServiceClient projectServiceClient;
 
+    @Mock
+    private TimeLoggingServiceClient timeLoggingServiceClient;
+
     private Long testUserId;
     private String testUserEmail;
     private String testUserRole;
@@ -42,7 +49,7 @@ class EmployeeDashboardBFFServiceTest {
         testUserRole = "EMPLOYEE";
         testToken = "Bearer test-token";
 
-        service = new EmployeeDashboardBFFService(projectServiceClient);
+        service = new EmployeeDashboardBFFService(projectServiceClient, timeLoggingServiceClient);
 
         TaskDto task = TaskDto.builder()
             .taskId("task-1")
@@ -67,6 +74,30 @@ class EmployeeDashboardBFFServiceTest {
             anyInt(),
             ArgumentMatchers.anyString()
         )).thenReturn(Mono.just(taskList));
+
+        TimeLogDto timeLog = TimeLogDto.builder()
+            .id("log-1")
+            .projectId("project-1")
+            .taskId("task-1")
+            .hours(BigDecimal.valueOf(3.5))
+            .approvalStatus("PENDING")
+            .note("Initial inspection")
+            .loggedAt(LocalDateTime.now())
+            .build();
+
+        TimeLogListResponse timeLogList = TimeLogListResponse.builder()
+            .page(1)
+            .pageSize(50)
+            .total(1)
+            .items(List.of(timeLog))
+            .build();
+
+        lenient().when(timeLoggingServiceClient.getTimeLogsByEmployee(
+            ArgumentMatchers.anyString(),
+            anyInt(),
+            anyInt(),
+            ArgumentMatchers.anyString()
+        )).thenReturn(Mono.just(timeLogList));
     }
 
     @Test
@@ -81,6 +112,7 @@ class EmployeeDashboardBFFServiceTest {
         assertNotNull(response.getStats(), "Dashboard stats should be present");
         assertNotNull(response.getRecentActivities(), "Recent activities should be present");
         assertNotNull(response.getUpcomingTasks(), "Upcoming tasks should be present");
+        assertNotNull(response.getRecentTimeLogs(), "Recent time logs should be present");
         assertNotNull(response.getActiveProjects(), "Active projects should be present");
     }
 
@@ -136,6 +168,15 @@ class EmployeeDashboardBFFServiceTest {
     }
 
     @Test
+    @DisplayName("Should return recent time logs list")
+    void shouldReturnRecentTimeLogs() {
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
+
+        assertThat(response.getRecentTimeLogs()).isNotEmpty();
+        assertThat(response.getRecentTimeLogs().get(0).getId()).isEqualTo("log-1");
+    }
+
+    @Test
     @DisplayName("Should return empty tasks list when project service fails")
     void shouldReturnEmptyTasksWhenProjectServiceFails() {
         // Given
@@ -153,6 +194,22 @@ class EmployeeDashboardBFFServiceTest {
         // Then
         assertNotNull(response);
         assertThat(response.getUpcomingTasks()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should return empty time logs when time logging service fails")
+    void shouldReturnEmptyTimeLogsWhenServiceFails() {
+        when(timeLoggingServiceClient.getTimeLogsByEmployee(
+                ArgumentMatchers.anyString(),
+                anyInt(),
+                anyInt(),
+                ArgumentMatchers.anyString()
+        )).thenReturn(Mono.error(new RuntimeException("time logging down")));
+
+        EmployeeDashboardResponse response = service.getEmployeeDashboard(testUserId, testUserEmail, testUserRole, testToken).block();
+
+        assertNotNull(response);
+        assertThat(response.getRecentTimeLogs()).isEmpty();
     }
 
     @Test
@@ -210,6 +267,7 @@ class EmployeeDashboardBFFServiceTest {
         // Then
         assertThat(response1.getRecentActivities()).hasSameSizeAs(response2.getRecentActivities());
         assertThat(response1.getUpcomingTasks()).hasSameSizeAs(response2.getUpcomingTasks());
+        assertThat(response1.getRecentTimeLogs()).hasSameSizeAs(response2.getRecentTimeLogs());
         assertThat(response1.getActiveProjects()).hasSameSizeAs(response2.getActiveProjects());
     }
 }

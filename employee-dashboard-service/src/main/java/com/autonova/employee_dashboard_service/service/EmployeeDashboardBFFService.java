@@ -3,13 +3,15 @@ package com.autonova.employee_dashboard_service.service;
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
 import com.autonova.employee_dashboard_service.dto.task.TaskDto;
 import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
-import lombok.RequiredArgsConstructor;
+import com.autonova.employee_dashboard_service.dto.timelog.TimeLogDto;
+import com.autonova.employee_dashboard_service.dto.timelog.TimeLogListResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -23,12 +25,19 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmployeeDashboardBFFService {
 
         private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+        private static final DateTimeFormatter ISO_LOCAL_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
         private final ProjectServiceClient projectServiceClient;
+        private final TimeLoggingServiceClient timeLoggingServiceClient;
+
+        public EmployeeDashboardBFFService(ProjectServiceClient projectServiceClient,
+                        TimeLoggingServiceClient timeLoggingServiceClient) {
+                this.projectServiceClient = projectServiceClient;
+                this.timeLoggingServiceClient = timeLoggingServiceClient;
+        }
 
         /**
          * Main method to aggregate all dashboard data.
@@ -41,12 +50,16 @@ public class EmployeeDashboardBFFService {
                         log.debug("Authorization header present for user {}: {}", userId, StringUtils.hasText(authorizationHeader));
                 }
 
-                return fetchUpcomingTasks(userId, authorizationHeader)
-                                .map(upcomingTasks -> EmployeeDashboardResponse.builder()
+                Mono<List<EmployeeDashboardResponse.UpcomingTask>> upcomingTasksMono = fetchUpcomingTasks(userId, authorizationHeader);
+                Mono<List<EmployeeDashboardResponse.TimeLogSummary>> recentTimeLogsMono = fetchRecentTimeLogs(userId, authorizationHeader);
+
+                return Mono.zip(upcomingTasksMono, recentTimeLogsMono)
+                                .map(tuple -> EmployeeDashboardResponse.builder()
                                                 .employeeInfo(getEmployeeInfo(userId, userEmail, userRole))
                                                 .stats(getDashboardStats(userId))
                                                 .recentActivities(getRecentActivities(userId))
-                                                .upcomingTasks(upcomingTasks)
+                                                .upcomingTasks(tuple.getT1())
+                                                .recentTimeLogs(tuple.getT2())
                                                 .activeProjects(getActiveProjects(userId))
                                                 .build())
                                 .doOnSuccess(response -> log.info("Successfully prepared dashboard data for user: {}", userId))
@@ -58,6 +71,7 @@ public class EmployeeDashboardBFFService {
                                                         .stats(getDashboardStats(userId))
                                                         .recentActivities(List.of())
                                                         .upcomingTasks(List.of())
+                                                        .recentTimeLogs(List.of())
                                                         .activeProjects(List.of())
                                                         .build());
                                 });
@@ -108,6 +122,49 @@ public class EmployeeDashboardBFFService {
         private String formatDate(OffsetDateTime primary, OffsetDateTime fallback) {
                 OffsetDateTime value = primary != null ? primary : fallback;
                 return value != null ? ISO_FORMATTER.format(value) : null;
+        }
+
+        private String formatLocalDate(LocalDateTime value) {
+                return value != null ? ISO_LOCAL_FORMATTER.format(value) : null;
+        }
+
+        private Mono<List<EmployeeDashboardResponse.TimeLogSummary>> fetchRecentTimeLogs(Long userId, String authorizationHeader) {
+                if (!StringUtils.hasText(authorizationHeader)) {
+                        log.warn("Missing authorization header while fetching time logs for user {}", userId);
+                        return Mono.just(List.of());
+                }
+
+                return timeLoggingServiceClient.getTimeLogsByEmployee(String.valueOf(userId), 1, 50, authorizationHeader)
+                                .map(response -> {
+                                        if (response == null || response.getItems() == null) {
+                                                return List.<EmployeeDashboardResponse.TimeLogSummary>of();
+                                        }
+
+                                        return response.getItems().stream()
+                                                        .sorted(Comparator.comparing(TimeLogDto::getLoggedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                                                        .limit(5)
+                                                        .map(this::mapToTimeLogSummary)
+                                                        .collect(Collectors.toList());
+                                })
+                                .onErrorResume(error -> {
+                                        log.warn("Falling back to empty time log list for user {} due to downstream error: {}", userId, error.getMessage());
+                                        return Mono.just(List.of());
+                                });
+        }
+
+        private EmployeeDashboardResponse.TimeLogSummary mapToTimeLogSummary(TimeLogDto timeLog) {
+                return EmployeeDashboardResponse.TimeLogSummary.builder()
+                                .id(timeLog.getId())
+                                .projectId(timeLog.getProjectId())
+                                .projectTitle(timeLog.getProjectTitle())
+                                .taskId(timeLog.getTaskId())
+                                .taskName(timeLog.getTaskName())
+                                .hours(timeLog.getHours() != null ? timeLog.getHours().doubleValue() : 0.0)
+                                .note(timeLog.getNote())
+                                .approvalStatus(timeLog.getApprovalStatus())
+                                .rejectionReason(timeLog.getRejectionReason())
+                                .loggedAt(formatLocalDate(timeLog.getLoggedAt()))
+                                .build();
         }
 
         /**

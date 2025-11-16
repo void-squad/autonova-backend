@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.autonova.employee_dashboard_service.dto.EmployeeDashboardResponse;
 import com.autonova.employee_dashboard_service.dto.project.ProjectDto;
 import com.autonova.employee_dashboard_service.dto.task.TaskListResponse;
+import com.autonova.employee_dashboard_service.dto.timelog.TimeLogListResponse;
 import com.autonova.employee_dashboard_service.service.EmployeeDashboardBFFService;
 import com.autonova.employee_dashboard_service.service.ProjectServiceClient;
+import com.autonova.employee_dashboard_service.service.TimeLoggingServiceClient;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class EmployeeDashboardBFFController {
 
     private final EmployeeDashboardBFFService bffService;
     private final ProjectServiceClient projectServiceClient;
+    private final TimeLoggingServiceClient timeLoggingServiceClient;
 
     /**
      * Main dashboard endpoint - aggregates all employee dashboard data
@@ -171,6 +174,44 @@ public class EmployeeDashboardBFFController {
                 .map(ResponseEntity::ok)
                 .onErrorResume(error -> {
                     log.error("Error fetching tasks: {}", error.getMessage());
+                    return Mono.just(ResponseEntity.internalServerError().build());
+                });
+    }
+
+    /**
+     * Get time logs recorded by the authenticated user
+     *
+     * @param page Page number (default: 1)
+     * @param pageSize Number of items per page (default: 20)
+     * @param request HTTP request to extract JWT token
+     * @return Mono of TimeLogListResponse with pagination
+     */
+    @GetMapping("/time-logs")
+    public Mono<ResponseEntity<TimeLogListResponse>> getMyTimeLogs(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            HttpServletRequest request
+    ) {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (!StringUtils.hasText(authorizationHeader)) {
+            log.error("No Authorization header found on time logs request");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            log.error("Could not resolve userId from request context");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+
+        log.info("Fetching time logs for user ID: {}", userId);
+
+        String userIdString = userId.toString();
+
+        return timeLoggingServiceClient.getTimeLogsByEmployee(userIdString, page, pageSize, authorizationHeader)
+                .map(ResponseEntity::ok)
+                .onErrorResume(error -> {
+                    log.error("Error fetching time logs: {}", error.getMessage(), error);
                     return Mono.just(ResponseEntity.internalServerError().build());
                 });
     }
