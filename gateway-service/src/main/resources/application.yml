@@ -30,7 +30,7 @@ spring:
         - id: progress-monitoring
           uri: ${PROGRESS_MONITORING_SERVICE_URL:http://localhost:8086}
           predicates:
-            - Path=/api/projects/*/messages/**,/api/projects/*/messages,/sse/projects/**,/api/my/statuses/**,/api/projects/progress/uploads/**
+            - Path=/api/projects/*/messages/**,/api/projects/*/messages,/api/projects/my/statuses,/sse/projects/**,/api/my/statuses/**,/api/projects/progress/uploads/**
           filters:
             - StripPrefix=0
 
