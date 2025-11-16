@@ -77,7 +77,10 @@ spring:
         - id: appointment-booking-service
           uri: ${APPOINTMENT_BOOKING_SERVICE_URL:http://localhost:8088}
           predicates:
+            # Use a single Path predicate with both patterns so either matches (OR).
             - Path=/api/v1/appointments,/api/v1/appointments/**
+
+
         - id: notification-service
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
           predicates:
