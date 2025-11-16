@@ -369,6 +369,20 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Internal endpoint for service-to-service user lookup
+     * No authentication required - meant for inter-service communication only
+     * Should be secured at gateway level to only allow internal service calls
+     */
+    @GetMapping("/internal/{id}")
+    public ResponseEntity<?> getUserByIdInternal(@PathVariable Long id) {
+        return userService.getUserById(id)
+            .map(UserMapper::toResponse)
+            .<ResponseEntity<?>>map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(createErrorResponse("User not found with id: " + id)));
+    }
+
     // Helper method to create error response
     private Map<String, String> createErrorResponse(String message) {
         Map<String, String> error = new HashMap<>();

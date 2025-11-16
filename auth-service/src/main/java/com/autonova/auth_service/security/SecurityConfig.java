@@ -49,6 +49,7 @@ public class SecurityConfig {
                     "/api/users", // POST to create user (registration)
                     "/api/users/email-exists/**", // Deprecated - Email validation (URL path)
                     "/api/users/email-exists", // Secure POST endpoint for email validation
+                    "/api/users/internal/**", // Internal service-to-service calls
                     "/oauth2/**", // OAuth2 login endpoints
                     "/login/oauth2/**", // OAuth2 callback
                     "/actuator/**"

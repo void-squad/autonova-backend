@@ -11,7 +11,7 @@ import java.util.List;
 @FeignClient(name = "auth-service")
 public interface AuthServiceClient {
     
-    @GetMapping("/api/users/{id}")
+    @GetMapping("/api/users/internal/{id}")
     UserResponse getUserById(@PathVariable("id") Long id);
     
     @GetMapping("/api/users")
