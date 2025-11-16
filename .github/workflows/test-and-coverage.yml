@@ -109,8 +109,8 @@ jobs:
         with:
           name: test-results-${{ matrix.service }}
           path: |
-            ${{ matrix.service }}/target/surefire-reports/*.xml
-            ${{ matrix.service }}/target/failsafe-reports/*.xml
+            ${{ matrix.service }}/target/surefire-reports/TEST-*.xml
+            ${{ matrix.service }}/target/failsafe-reports/TEST-*.xml
           retention-days: 30
 
       - name: Upload coverage reports
@@ -138,8 +138,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: |
-            ${{ matrix.service }}/target/surefire-reports/*.xml
-            ${{ matrix.service }}/target/failsafe-reports/*.xml
+            ${{ matrix.service }}/target/surefire-reports/TEST-*.xml
+            ${{ matrix.service }}/target/failsafe-reports/TEST-*.xml
           check_name: "Test Results - Java - ${{ matrix.service }}"
           comment_mode: off
 
@@ -209,7 +209,6 @@ jobs:
           name: test-results-dotnet-${{ matrix.service }}
           path: |
             ${{ matrix.service }}/TestResults/**/*.trx
-            ${{ matrix.service }}/TestResults/**/*.xml
           retention-days: 30
 
       - name: Upload coverage reports
@@ -383,8 +382,9 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: |
-            test-results/**/*.xml
-            test-results/**/*.trx
+            test-results/test-results-*/surefire-reports/TEST-*.xml
+            test-results/test-results-*/failsafe-reports/TEST-*.xml
+            test-results/test-results-dotnet-*/**/*.trx
           check_name: "Combined Test Results"
           comment_title: "Test Results Summary"
 
