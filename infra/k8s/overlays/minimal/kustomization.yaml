@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: autonova
+
+resources:
+  - ../../base/rabbitmq
+  - ../../base/discovery-service
+  - ../../base/auth-service
+  - ../../base/customer-service
+  - ../../base/gateway-service
+  - ../../base/project-service
+  - ../../base/progress-monitoring-service
+  - ../../base/notification-service
+  - ../../base/payments-billing-service
+  - ../../base/time-logging-service
+  - ../../base/employee-dashboard-service
+  - ../../base/appointment-booking-service
+  - ../../base/chatbot
+  - ../../base/frontend
+
+patches:
+  - path: patches/minimal-resources.yaml

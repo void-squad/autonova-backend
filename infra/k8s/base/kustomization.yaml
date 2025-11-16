@@ -7,8 +7,8 @@ resources:
   - namespace.yaml
 
   # Common templates (kept for reference / reuse)
-  - common/deployment-template.yaml
-  - common/service-template.yaml
+  # - common/deployment-template.yaml
+  # - common/service-template.yaml
 
   # Core infra
   - postgres/init-scripts-configmap.yaml

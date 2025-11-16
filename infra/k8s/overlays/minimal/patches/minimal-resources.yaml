@@ -1,0 +1,237 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-booking-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: appointment-booking-service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: auth-service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot
+spec:
+  template:
+    spec:
+      containers:
+        - name: chatbot
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: customer-service
+          resources:
+            requests:
+              cpu: 75m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: discovery-service
+          resources:
+            requests:
+              cpu: 75m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee-dashboard-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: employee-dashboard-service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: gateway-service
+          resources:
+            requests:
+              cpu: 75m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: notification-service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-billing-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: payments-billing-service
+          resources:
+            requests:
+              cpu: 75m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: progress-monitoring
+spec:
+  template:
+    spec:
+      containers:
+        - name: progress-monitoring
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: project-service
+          resources:
+            requests:
+              cpu: 75m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+spec:
+  template:
+    spec:
+      containers:
+        - name: rabbitmq
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: time-logging-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: time-logging-service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
