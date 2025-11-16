@@ -35,8 +35,7 @@ public class ToolCallStrategy implements PromptStrategy {
                         
                         === AVAILABLE BASIC TOOLS ===
                         - collectFeedbacks()
-                        - getOngoingProjects()
-                        - getCompletedProjects()
+                        - getActiveProjects()
                         
                         === RULES ===
                         3. If additional context-specific tools exist, they will be provided in the context.
