@@ -305,9 +305,12 @@ services:
       APP_RABBIT_QUEUE: progress.project.queue
       APP_RABBIT_ROUTING_KEYS: "project.*,quote.*,project.change-request.*"
       JWT_SECRET: ${JWT_SECRET}
+      UPLOADS_DIR: /app/uploads
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
       - "8086:8086"
+    volumes:
+      - progress-uploads:/app/uploads
     depends_on:
       - rabbitmq
       - postgres-init
@@ -559,6 +562,8 @@ services:
 volumes:
   postgres_data:
     name: autonova_postgres_data
+  progress-uploads:
+    name: autonova_progress_uploads
 
 networks:
   autonova-network:

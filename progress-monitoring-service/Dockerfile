@@ -18,7 +18,9 @@ WORKDIR /app
 
 COPY --from=builder /workspace/target/*-SNAPSHOT.jar /app/progressmonitoring.jar
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh && useradd -m appuser
+RUN chmod +x entrypoint.sh && useradd -m appuser && \
+    mkdir -p /app/uploads && \
+    chown -R appuser:appuser /app/uploads
 USER appuser
 
 EXPOSE 8080

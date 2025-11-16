@@ -48,6 +48,10 @@ app:
 jwt:
   secret: ${JWT_SECRET:YXV0b25vdmEtc2VjcmV0LWtleS1mb3Itand0LWF1dGhlbnRpY2F0aW9uLXNlcnZpY2UtMjAyNQ==}
 
+# File Upload Configuration
+uploads:
+  dir: ${UPLOADS_DIR:/app/uploads}
+
 # Logging Configuration
 logging:
   level:

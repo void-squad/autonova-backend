@@ -9,6 +9,7 @@ import com.autonova.progressmonitoring.storage.AttachmentStorage;
 import com.autonova.progressmonitoring.storage.StoredAttachment;
 import com.autonova.progressmonitoring.service.ProjectClientService;
 import com.autonova.progressmonitoring.client.ProjectServiceClient.ProjectServiceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -36,12 +37,14 @@ public class ProjectMessageController {
     private final EventPublisher publisher;
     private final AttachmentStorage attachmentStorage;
     private final ProjectClientService projectClientService;
+    private final ObjectMapper objectMapper;
 
-    public ProjectMessageController(ProjectMessageService service, EventPublisher publisher, AttachmentStorage attachmentStorage, ProjectClientService projectClientService) {
+    public ProjectMessageController(ProjectMessageService service, EventPublisher publisher, AttachmentStorage attachmentStorage, ProjectClientService projectClientService, ObjectMapper objectMapper) {
         this.service = service;
         this.publisher = publisher;
         this.attachmentStorage = attachmentStorage;
         this.projectClientService = projectClientService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/my/statuses")
@@ -217,9 +220,12 @@ public class ProjectMessageController {
             );
 
             try {
-                publisher.publishMessageToProject(projectId, saved.getMessage());
+                String jsonPayload = objectMapper.writeValueAsString(saved);
+                log.debug("Publishing SSE message to project {}: {}", projectId, jsonPayload);
+                publisher.publishToProject(projectId, jsonPayload);
+                log.info("Successfully published SSE message for project {}", projectId);
             } catch (Exception ex) {
-                log.warn("Failed to publish status message for project {}", projectId, ex);
+                log.error("Failed to publish status message for project {}: {}", projectId, ex.getMessage(), ex);
             }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -251,9 +257,12 @@ public class ProjectMessageController {
             ProjectMessageDto saved = service.saveMessage(ProjectMessageFactory.fromManualWithAttachment(id, category, message, att));
 
             try {
-                publisher.publishMessageToProject(projectId, saved.getMessage());
+                String jsonPayload = objectMapper.writeValueAsString(saved);
+                log.debug("Publishing SSE message with attachment to project {}: {}", projectId, jsonPayload);
+                publisher.publishToProject(projectId, jsonPayload);
+                log.info("Successfully published SSE message with attachment for project {}", projectId);
             } catch (Exception ex) {
-                log.warn("Failed to publish status message for project {}", projectId, ex);
+                log.error("Failed to publish status message with attachment for project {}: {}", projectId, ex.getMessage(), ex);
             }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
