@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Documentation & SQL Scripts ###
+**/DATABASE_MIGRATION_GUIDE.md
+**/MIGRATION_SUMMARY.md
+**/schema-time-logs-only.sql

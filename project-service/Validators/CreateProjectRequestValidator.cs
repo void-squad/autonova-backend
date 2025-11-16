@@ -7,11 +7,34 @@ public class CreateProjectRequestValidator : AbstractValidator<CreateProjectRequ
 {
     public CreateProjectRequestValidator()
     {
-        RuleFor(x => x.CustomerId)
+        RuleFor(x => x.VehicleId)
             .NotEmpty();
 
         RuleFor(x => x.Title)
             .NotEmpty()
-            .MaximumLength(120);
+            .MaximumLength(200);
+
+        RuleFor(x => x.Description)
+            .MaximumLength(4000);
+
+        RuleForEach(x => x.Tasks)
+            .SetValidator(new CreateProjectTaskRequestValidator());
+    }
+}
+
+public class CreateProjectTaskRequestValidator : AbstractValidator<CreateProjectTaskRequest>
+{
+    public CreateProjectTaskRequestValidator()
+    {
+        RuleFor(x => x.Title)
+            .NotEmpty()
+            .MaximumLength(200);
+
+        RuleFor(x => x.ServiceType)
+            .NotEmpty()
+            .MaximumLength(160);
+
+        RuleFor(x => x.Detail)
+            .MaximumLength(2000);
     }
 }

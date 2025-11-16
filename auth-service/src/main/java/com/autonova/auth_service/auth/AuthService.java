@@ -73,6 +73,9 @@ public class AuthService {
                 user.getRole().name()
         );
 
+        // Emit auth event so downstream services can sync the customer profile immediately
+        authEventPublisher.publishUserLoggedIn(user);
+
         // Return login response with both tokens
         return new LoginResponse(accessToken, refreshToken.getToken(), userInfo);
     }

@@ -24,127 +24,42 @@ namespace ProjectService.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "btree_gin");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("ProjectService.Domain.Entities.ChangeRequest", b =>
-                {
-                    b.Property<Guid>("ChangeRequestId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ClientRequestId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("DecidedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DecidedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int?>("ProposedExtraHours")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly?>("ProposedNewDueDate")
-                        .HasColumnType("date");
-
-                    b.Property<decimal?>("ProposedPriceDelta")
-                        .HasColumnType("numeric(12,2)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("ChangeRequestId");
-
-                    b.HasIndex("ClientRequestId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_ChangeRequests_ClientRequestId")
-                        .HasFilter("\"ClientRequestId\" IS NOT NULL");
-
-                    b.HasIndex("ProjectId", "ClientRequestId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_ChangeRequests_ProjectId_ClientRequestId")
-                        .HasFilter("\"ClientRequestId\" IS NOT NULL");
-
-                    b.HasIndex("ProjectId", "CreatedAt")
-                        .IsDescending(false, true)
-                        .HasDatabaseName("IX_ChangeRequests_ProjectId_CreatedAt");
-
-                    b.ToTable("ChangeRequests", "project");
-                });
-
-            modelBuilder.Entity("ProjectService.Domain.Entities.OutboxMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("DispatchedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Topic")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Outbox", "project");
-                });
-
             modelBuilder.Entity("ProjectService.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("ProjectId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("Budget")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("numeric(14,2)")
-                        .HasDefaultValue(0m);
+                    b.Property<Guid?>("AppointmentId")
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("ClientRequestId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                    b.Property<string>("AppointmentSnapshot")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ApprovedEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ApprovedStart")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("CustomerId")
-                        .HasColumnType("uuid");
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
 
-                    b.Property<DateOnly?>("DueDate")
-                        .HasColumnType("date");
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset?>("RequestedEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RequestedStart")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -158,21 +73,10 @@ namespace ProjectService.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("ProjectId");
-
-                    b.HasIndex("ClientRequestId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Projects_ClientRequestId")
-                        .HasFilter("\"ClientRequestId\" IS NOT NULL");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_Projects_Status");
 
                     b.HasIndex("CustomerId", "CreatedAt")
                         .IsDescending(false, true)
@@ -181,60 +85,7 @@ namespace ProjectService.Migrations
                     b.ToTable("Projects", "project");
                 });
 
-            modelBuilder.Entity("ProjectService.Domain.Entities.Quote", b =>
-                {
-                    b.Property<Guid>("QuoteId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ApprovedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ClientRequestId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset>("IssuedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("RejectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("RejectedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("numeric(12,2)");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("QuoteId");
-
-                    b.HasIndex("ClientRequestId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Quotes_ClientRequestId")
-                        .HasFilter("\"ClientRequestId\" IS NOT NULL");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("Quotes", "project");
-                });
-
-            modelBuilder.Entity("ProjectService.Domain.Entities.StatusHistory", b =>
+            modelBuilder.Entity("ProjectService.Domain.Entities.ProjectActivity", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -242,101 +93,112 @@ namespace ProjectService.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTimeOffset>("ChangedAt")
+                    b.Property<long>("ActorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ActorRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("ChangedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("FromStatus")
+                    b.Property<string>("Message")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(240)
-                        .HasColumnType("character varying(240)");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid?>("TaskId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId")
-                        .HasDatabaseName("IX_StatusHistory_ProjectId");
+                    b.HasIndex("ProjectId");
 
-                    b.ToTable("StatusHistory", "project");
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("Activity", "project");
                 });
 
-            modelBuilder.Entity("ProjectService.Domain.Entities.TaskItem", b =>
+            modelBuilder.Entity("ProjectService.Domain.Entities.ProjectTask", b =>
                 {
                     b.Property<Guid>("TaskId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("AssigneeId")
+                    b.Property<Guid?>("AppointmentId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("EstimateHours")
-                        .HasColumnType("numeric(10,2)");
+                    b.Property<long?>("AssigneeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Detail")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("EstimateHours")
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ScheduledEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ScheduledStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ServiceType")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("TaskId");
 
                     b.HasIndex("ProjectId");
 
+                    b.HasIndex("AssigneeId", "Status");
+
                     b.ToTable("Tasks", "project");
                 });
 
-            modelBuilder.Entity("ProjectService.Domain.Entities.ChangeRequest", b =>
+            modelBuilder.Entity("ProjectService.Domain.Entities.ProjectActivity", b =>
                 {
                     b.HasOne("ProjectService.Domain.Entities.Project", "Project")
-                        .WithMany("ChangeRequests")
+                        .WithMany("Activity")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("ProjectService.Domain.Entities.Quote", b =>
-                {
-                    b.HasOne("ProjectService.Domain.Entities.Project", "Project")
-                        .WithMany("Quotes")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("ProjectService.Domain.Entities.ProjectTask", "Task")
+                        .WithMany("Activity")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Project");
+
+                    b.Navigation("Task");
                 });
 
-            modelBuilder.Entity("ProjectService.Domain.Entities.StatusHistory", b =>
-                {
-                    b.HasOne("ProjectService.Domain.Entities.Project", "Project")
-                        .WithMany("StatusHistory")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("ProjectService.Domain.Entities.TaskItem", b =>
+            modelBuilder.Entity("ProjectService.Domain.Entities.ProjectTask", b =>
                 {
                     b.HasOne("ProjectService.Domain.Entities.Project", "Project")
                         .WithMany("Tasks")
@@ -349,13 +211,14 @@ namespace ProjectService.Migrations
 
             modelBuilder.Entity("ProjectService.Domain.Entities.Project", b =>
                 {
-                    b.Navigation("ChangeRequests");
-
-                    b.Navigation("Quotes");
-
-                    b.Navigation("StatusHistory");
+                    b.Navigation("Activity");
 
                     b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("ProjectService.Domain.Entities.ProjectTask", b =>
+                {
+                    b.Navigation("Activity");
                 });
 #pragma warning restore 612, 618
         }

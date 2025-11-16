@@ -31,37 +31,51 @@ services:
       PROGRESS_MONITORING_DB_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
       EMPLOYEE_DASHBOARD_DB_PASSWORD: ${EMPLOYEE_DASHBOARD_DB_PASSWORD}
       TIME_LOGGING_DB_PASSWORD: ${TIME_LOGGING_DB_PASSWORD}
+      TIME_LOGGING_DB2_PASSWORD: ${TIME_LOGGING_DB2_PASSWORD}
       USER_MANAGEMENT_DB_PASSWORD: ${USER_MANAGEMENT_DB_PASSWORD}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD} # Added from dev
       VECTOR_DB_PASSWORD: ${VECTOR_DB_PASSWORD} # Added from dev
       PBS_DB_PASSWORD: ${PBS_DB_PASSWORD:-payments_billing_service}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+      APPOINTMENT_DB_PASSWORD: ${APPOINTMENT_DB_PASSWORD:-appointment_booking_service}
     volumes:
       - ./init-scripts:/scripts:ro
-    entrypoint: >
-      bash -c "
-        echo 'Waiting for PostgreSQL at $PGHOST:$PGPORT...';
-        until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do
-          sleep 2;
-        done;
-        echo 'Starting pgvector extension setup...'; # Added from dev
-        bash /scripts/pgvector-init.sh; # Added from dev
-        echo 'Starting database initialization via db-init.sh';
-        bash /scripts/db-init.sh
-      "
-    restart: 'no'
+    # Run mounted init scripts after stripping Windows CRLFs and using bash
+    # Use $$ to escape environment variable interpolation inside the compose file.
+    entrypoint:
+      [
+        "sh",
+        "-c",
+        "echo 'Waiting for PostgreSQL at $PGHOST:$PGPORT...'; until pg_isready -h $$PGHOST -U $$POSTGRES_USER; do sleep 2; done; echo 'Starting pgvector extension setup...'; tr -d '\\r' </scripts/pgvector-init.sh | bash -s --; echo 'Starting database initialization via db-init.sh'; tr -d '\\r' </scripts/db-init.sh | bash -s --",
+      ]
+    restart: "no"
 
   rabbitmq:
     container_name: autonova-rabbitmq
     image: rabbitmq:4.1.4-management
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
-      test: ['CMD', 'rabbitmqctl', 'status']
+      test: ["CMD", "rabbitmqctl", "status"]
       interval: 5s
       retries: 5
     networks:
       - autonova-network
+
+  # # Ollama local model server for LLM testing
+  # ollama:
+  #   container_name: autonova-ollama
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ./ollama-data:/root/.ollama
+  #     - ./init-scripts:/scripts:ro
+  #   entrypoint: ["sh", "-c", "tr -d '\\r' </scripts/ollama-init.sh | sh -s --"]
+  #   restart: "no"
+  #   networks:
+  #     - autonova-network
 
   # --- New Service: Discovery Service (from dev) ---
   discovery-service:
@@ -73,18 +87,18 @@ services:
       context: ..
       dockerfile: discovery-service/Dockerfile
     ports:
-      - '8761:8761'
+      - "8761:8761"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8761/actuator/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8761/actuator/health",
         ]
       interval: 30s
       timeout: 3s
@@ -96,14 +110,14 @@ services:
   auth-service:
     container_name: autonova-auth-service
     build:
-#      context: ../auth-service
-#      dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
-#      dockerfile: Dockerfile
+      #      context: ../auth-service
+      #      dockerfile: Dockerfile.prebuilt # Uses pre-built JAR (much faster!)
+      #      dockerfile: Dockerfile
 
-      context: ..  # This points to project root (one level up from infra/)
+      context: .. # This points to project root (one level up from infra/)
       dockerfile: auth-service/Dockerfile
     ports:
-      - '8081:8081' # Map host 8082 to container 8081
+      - "8081:8081" # Map host 8082 to container 8081
     environment:
       # Database Configuration (using cloud Neon PostgreSQL)
       DB_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/user_management_db
@@ -136,12 +150,12 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8081/actuator/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8081/actuator/health",
         ]
       interval: 30s
       timeout: 10s
@@ -157,10 +171,10 @@ services:
       context: ..
       dockerfile: customer-service/Dockerfile
     ports:
-      - '8087:8087'
+      - "8087:8087"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      CUSTOMER_SERVICE_DB_URL: '${CUSTOMER_SERVICE_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/customer_service}'
+      CUSTOMER_SERVICE_DB_URL: "${CUSTOMER_SERVICE_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/customer_service}"
       CUSTOMER_SERVICE_DB_USERNAME: ${CUSTOMER_SERVICE_DB_USERNAME:-customer_service}
       CUSTOMER_SERVICE_DB_PASSWORD: ${CUSTOMER_SERVICE_DB_PASSWORD:-customer_service}
       CUSTOMER_SERVICE_PORT: 8087
@@ -168,7 +182,7 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      EUREKA_SERVER_URL: '${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}'
+      EUREKA_SERVER_URL: "${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}"
       CUSTOMER_EVENTS_EXCHANGE: ${CUSTOMER_EVENTS_EXCHANGE:-customer.events}
       AUTH_EVENTS_EXCHANGE: ${AUTH_EVENTS_EXCHANGE:-auth.events}
       AUTH_EVENTS_LOGIN_QUEUE: ${AUTH_EVENTS_LOGIN_QUEUE:-customer-service.auth.user-login}
@@ -181,12 +195,12 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8087/actuator/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8087/actuator/health",
         ]
       interval: 30s
       timeout: 10s
@@ -206,12 +220,18 @@ services:
       dockerfile: gateway-service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081} # Auth internal port
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8087}
-      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8082} # Project internal port
-      PAYMENTS_BILLING_SERVICE_URL: ${PAYMENTS_BILLING_SERVICE_URL:-http://payments-billing-service:${PBS_SERVER_PORT:-8069}}
+      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8082}
+      PROGRESS_MONITORING_SERVICE_URL: ${PROGRESS_MONITORING_SERVICE_URL:-http://progress-monitoring:8086}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8085}
+      PAYMENTS_BILLING_SERVICE_URL: ${PAYMENTS_BILLING_SERVICE_URL:-http://payments-billing-service:8069}
+      APPOINTMENT_BOOKING_SERVICE_URL: ${APPOINTMENT_BOOKING_SERVICE_URL:-http://appointment-booking-service:8088}
+      EMPLOYEE_DASHBOARD_SERVICE_URL: ${EMPLOYEE_DASHBOARD_SERVICE_URL:-http://employee-dashboard-service:8084}
+      TIME_LOGGING_SERVICE_URL: ${TIME_LOGGING_SERVICE_URL:-http://time-logging-service:8083}
+      CHATBOT_SERVICE_URL: ${CHATBOT_SERVICE_URL:-http://chatbot:8097}
     ports:
-      - '8080:8080'
+      - "8080:8080"
     depends_on:
       - discovery-service
     networks:
@@ -231,7 +251,7 @@ services:
       Eureka__Client__ServiceUrl: http://discovery-service:8761/eureka/
       ASPNETCORE_URLS: http://+:8082
     ports:
-      - '8082:8082'
+      - "8082:8082"
     depends_on:
       - postgres-init
       - rabbitmq
@@ -245,17 +265,30 @@ services:
     build:
       context: ../progress-monitoring-service
     environment:
+      SERVER_PORT: 8086
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PROGRESS_MONITORING_DB_PASSWORD}
+      POSTGRES_DB: progress
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
       APP_RABBIT_EXCHANGE: autonova.events
       APP_RABBIT_QUEUE: progress.project.queue
-      APP_RABBIT_ROUTING_KEY: project.*
+      APP_RABBIT_ROUTING_KEYS: "project.*,quote.*,project.change-request.*"
+      JWT_SECRET: ${JWT_SECRET}
+      UPLOADS_DIR: /app/uploads
       JAVA_OPTS: -Xms256m -Xmx512m
     ports:
-      - '8086:8080' # Used 8086 from dev, mapping to container 8080
+      - "8086:8086"
+    volumes:
+      - progress-uploads:/app/uploads
     depends_on:
       - rabbitmq
-      - discovery-service # Added dependency on discovery service
+      - postgres-init
+      - discovery-service
     networks:
       - autonova-network
 
@@ -269,7 +302,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       APP_RABBIT_EXCHANGE: autonova.events
       APP_RABBIT_QUEUE: notification.events.queue
-      APP_RABBIT_ROUTING_KEY: '#'
+      APP_RABBIT_ROUTING_KEY: "#"
       DB_HOST: ${POSTGRES_HOST}
       DB_PORT: ${POSTGRES_PORT}
       DB_USER: notification_service
@@ -277,11 +310,131 @@ services:
       # SSL mode for JDBC: default to disable for local; set DB_SSLMODE=require when using Neon/cloud
       DB_SSLMODE: ${DB_SSLMODE:-disable}
     ports:
-      - '8084:8084'
+      - "8085:8085"
     depends_on:
       - rabbitmq
       - postgres-init
       - discovery-service # Added dependency on discovery service
+    networks:
+      - autonova-network
+
+  time-logging-service:
+    container_name: autonova-time-logging-service
+    build:
+      context: ..
+      dockerfile: time-logging-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/time_logging_db2?sslmode=${DB_SSLMODE:-require}
+      SPRING_DATASOURCE_USERNAME: ${TIME_LOGGING_DB2_USER:-time_logging_service_v2}
+      SPRING_DATASOURCE_PASSWORD: ${TIME_LOGGING_DB2_PASSWORD}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+    depends_on:
+      - postgres-init
+      - rabbitmq
+      - discovery-service
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8083/actuator/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - autonova-network
+
+  appointment-booking-service:
+    container_name: autonova-appointment-booking-service
+    build:
+      context: ..
+      dockerfile: appointment-booking-service/Dockerfile
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      SPRING_DATASOURCE_URL: ${APPOINTMENT_DB_URL:-jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/appointment_booking_db}
+      SPRING_DATASOURCE_USERNAME: ${APPOINTMENT_DB_USERNAME:-appointment_booking_service}
+      SPRING_DATASOURCE_PASSWORD: ${APPOINTMENT_DB_PASSWORD:-appointment_booking_service}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+      APP_RABBIT_EXCHANGE: ${APP_RABBIT_EXCHANGE:-autonova.events}
+      APP_SECURITY_ENABLED: ${APP_SECURITY_ENABLED:-false}
+      SERVER_PORT: 8088
+    depends_on:
+      - postgres-init
+      - rabbitmq
+      - discovery-service
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8088/actuator/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - autonova-network
+
+  employee-dashboard-service:
+    container_name: autonova-employee-dashboard-service
+    build:
+      context: ..
+      dockerfile: employee-dashboard-service/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      JWT_SECRET: ${JWT_SECRET}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+      SERVICES_GATEWAY_URL: http://gateway-service:8080
+      SERVICES_CUSTOMER_URL: ${CUSTOMER_SERVICE_URL:-http://customer-service:8087}
+      SERVICES_APPOINTMENT_URL: ${APPOINTMENT_BOOKING_SERVICE_URL:-http://appointment-booking-service:8088}
+      SERVICES_PROJECT_URL: ${PROJECT_SERVICE_URL:-http://project-service:8082}
+      SERVICES_PAYMENT_URL: ${PAYMENTS_BILLING_SERVICE_URL:-http://payments-billing-service:8069}
+      SERVICES_PROGRESS_URL: ${PROGRESS_MONITORING_SERVICE_URL:-http://progress-monitoring:8086}
+    depends_on:
+      - discovery-service
+      - gateway-service
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8084/actuator/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
     networks:
       - autonova-network
 
@@ -308,16 +461,94 @@ services:
       PBS_INVOICE_EXCHANGE: ${PBS_INVOICE_EXCHANGE:-billing.invoice}
       PBS_PAYMENT_EXCHANGE: ${PBS_PAYMENT_EXCHANGE:-billing.payment}
     ports:
-      - '${PBS_SERVER_PORT:-8069}:${PBS_SERVER_PORT:-8069}'
+      - "${PBS_SERVER_PORT:-8069}:${PBS_SERVER_PORT:-8069}"
     depends_on:
       - postgres-init
       - rabbitmq
     networks:
       - autonova-network
+  analytics-service:
+    container_name: autonova-analytics-service
+    build:
+      context: ..
+      dockerfile: analytics-service/Dockerfile
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/analytics_db
+      SPRING_DATASOURCE_USERNAME: analytics_service
+      SPRING_DATASOURCE_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+
+      # Other Microservices URLs (using internal container names and ports)
+      SERVICES_CUSTOMER_URL: http://customer-service:8087
+      SERVICES_AUTH_URL: http://auth-service:8081
+      SERVICES_PROJECT_URL: http://project-service:8082
+      SERVICES_PAYMENT_URL: http://payments-billing-service:${PBS_SERVER_PORT:-8069}
+      SERVICES_NOTIFICATION_URL: http://notification-service:8084
+
+      # RabbitMQ Configuration
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+
+      # Discovery Service (Eureka)
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+
+      # Server Port
+      SERVER_PORT: 8089
+    depends_on:
+      - postgres-init
+      - rabbitmq
+      - discovery-service
+      - auth-service
+      - customer-service
+      - project-service
+      - payments-billing-service
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8085/api/analytics/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - autonova-network
+
+  # Chatbot service
+  chatbot:
+    container_name: autonova-chatbot
+    build:
+      # Use repository root as build context so parent POM and shared config are available
+      context: ../chatbot
+      dockerfile: Dockerfile
+    env_file:
+      - ../chatbot/.env
+    ports:
+      - "8097:8097"
+    depends_on:
+      - rabbitmq
+      - postgres-init
+    networks:
+      - autonova-network
+    restart: "no"
 
 volumes:
   postgres_data:
     name: autonova_postgres_data
+  progress-uploads:
+    name: autonova_progress_uploads
 
 networks:
   autonova-network:

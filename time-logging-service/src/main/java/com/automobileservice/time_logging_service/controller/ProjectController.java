@@ -1,83 +1,68 @@
 package com.automobileservice.time_logging_service.controller;
 
+import com.automobileservice.time_logging_service.client.ProjectServiceClient;
 import com.automobileservice.time_logging_service.dto.response.ProjectResponse;
-import com.automobileservice.time_logging_service.entity.Project;
-import com.automobileservice.time_logging_service.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
+/**
+ * Controller to proxy project requests to the project-service.
+ * Time-logging service doesn't store projects locally - it calls project-service via Feign.
+ */
 @RestController
 @RequestMapping("/api/projects")
 @RequiredArgsConstructor
 @Slf4j
 public class ProjectController {
     
-    private final ProjectRepository projectRepository;
+    private final ProjectServiceClient projectServiceClient;
     
     /**
      * Get all projects assigned to an employee
+     * This endpoint proxies the request to project-service
      * GET /api/projects/employee/{employeeId}
      */
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<ProjectResponse>> getProjectsForEmployee(@PathVariable String employeeId) {
+    public ResponseEntity<List<ProjectResponse>> getProjectsForEmployee(@PathVariable Long employeeId) {
         log.info("REST request to get projects for employee: {}", employeeId);
-        List<Project> projects = projectRepository.findProjectsAssignedToEmployee(employeeId);
-        List<ProjectResponse> response = projects.stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        
+        try {
+            // Call project-service to get projects assigned to this employee
+            List<com.automobileservice.time_logging_service.client.dto.ProjectResponse> projects = 
+                projectServiceClient.getProjectsByEmployeeId(employeeId);
+            
+            // Map client DTOs to controller response DTOs
+            List<ProjectResponse> response = projects.stream()
+                .map(p -> ProjectResponse.builder()
+                    .id(p.getProjectId().toString())
+                    .title(p.getTitle())
+                    .description(p.getDescription())
+                    .status(p.getStatus())
+                    .build())
+                .toList();
+            
+            log.info("Found {} projects for employee {}", response.size(), employeeId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching projects for employee {}: {}", employeeId, e.getMessage());
+            // Return empty list if project-service is down or employee has no projects
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     /**
-     * Get all active projects
-     * GET /api/projects/active
-     */
-    @GetMapping("/active")
-    public ResponseEntity<List<ProjectResponse>> getActiveProjects() {
-        log.info("REST request to get active projects");
-        List<Project> projects = projectRepository.findActiveProjects();
-        List<ProjectResponse> response = projects.stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
-    }
-    
-    /**
-     * Get project by ID
+     * Get project by ID from project-service
      * GET /api/projects/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ProjectResponse> getProjectById(@PathVariable String id) {
+    public ResponseEntity<com.automobileservice.time_logging_service.client.dto.ProjectResponse> getProjectById(@PathVariable UUID id) {
         log.info("REST request to get project: {}", id);
-        Project project = projectRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Project not found: " + id));
-        return ResponseEntity.ok(mapToResponse(project));
-    }
-    
-    // Helper method to map entity to response
-    private ProjectResponse mapToResponse(Project project) {
-        return ProjectResponse.builder()
-            .id(project.getId())
-            .customerId(project.getCustomer().getUserId())
-            .customerName(project.getCustomer().getUser().getFirstName() + " " + 
-                         project.getCustomer().getUser().getLastName())
-            .vehicleId(project.getVehicle().getId())
-            .vehicleInfo(project.getVehicle().getYear() + " " + 
-                        project.getVehicle().getMake() + " " + 
-                        project.getVehicle().getModel())
-            .projectType(project.getProjectType())
-            .title(project.getTitle())
-            .description(project.getDescription())
-            .status(project.getStatus())
-            .priority(project.getPriority())
-            .estimatedCost(project.getEstimatedCost())
-            .startDate(project.getStartDate())
-            .endDate(project.getEndDate())
-            .build();
+        com.automobileservice.time_logging_service.client.dto.ProjectResponse project = projectServiceClient.getProjectById(id);
+        return ResponseEntity.ok(project);
     }
 }

@@ -34,7 +34,7 @@ public class SseEmitterRegistry implements EventPublisher {
 
         for (SseEmitter emitter : list) {
             try {
-                emitter.send(SseEmitter.event().name("project.update").data(eventJson));
+                emitter.send(SseEmitter.event().name("message").data(eventJson));
             } catch (Exception e) {
                 // IOException, IllegalStateException, or other send issues -> remove emitter
                 remove(projectId, emitter);

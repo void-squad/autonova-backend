@@ -1,8 +1,8 @@
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/appointmentdb
-    username: postgres
-    password: root123
+#  datasource:
+#    url: jdbc:postgresql://localhost:5432/appointmentdb
+#    username: postgres
+#    password: root123
   jpa:
     show-sql: true
     properties:
@@ -22,7 +22,7 @@ spring:
 #              jwk-set-uri: https://auth-server.example.com/.well-known/jwks.json
 
 server:
-  port: 8082
+  port: 8088
 
 # security jwt jwk-set-uri example (resource-server)
 

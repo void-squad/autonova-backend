@@ -1,91 +1,146 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProjectService.Data;
-using ProjectService.Dtos.Tasks;
-using ProjectService.Mapping;
-using ProjectService.Security;
+using ProjectService.Domain.Enums;
+using ProjectService.Dtos;
+using ProjectService.Extensions;
+using TaskStatusEnum = ProjectService.Domain.Enums.TaskStatus;
 
 namespace ProjectService.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Authorize(Policy = "EmployeeOrManager")]
-[ProducesResponseType(typeof(TaskListResponse), StatusCodes.Status200OK)]
+[Route("api/tasks")]
 public class TasksController : ControllerBase
 {
     private readonly AppDb _db;
+    private readonly IValidator<UpdateTaskStatusRequest> _statusValidator;
+    private readonly IValidator<CreateProjectTaskRequest> _taskValidator;
 
-    public TasksController(AppDb db)
+    public TasksController(
+        AppDb db,
+        IValidator<UpdateTaskStatusRequest> statusValidator,
+        IValidator<CreateProjectTaskRequest> taskValidator)
     {
         _db = db;
+        _statusValidator = statusValidator;
+        _taskValidator = taskValidator;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<TaskListResponse>> Get(
-        [FromQuery] Guid? assigneeId,
-        [FromQuery] string? status,
-        [FromQuery] Guid? projectId,
-        [FromQuery] bool includeProject = false,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    [HttpGet("assigned")]
+    [Authorize(Policy = "EmployeeOrAdmin")]
+    public async Task<ActionResult<IEnumerable<ProjectTaskDto>>> GetAssignedTasks(CancellationToken cancellationToken)
     {
-        if (!assigneeId.HasValue && !UserContext.IsManager(User))
+        var userId = User.GetUserId();
+        var isAdmin = User.IsInRole("ADMIN");
+
+        var query = _db.Tasks.AsNoTracking();
+        if (!isAdmin)
         {
-            return BadRequest("assigneeId is required unless you have manager role.");
+            query = query.Where(t => t.AssigneeId == userId);
         }
-
-        if (assigneeId.HasValue && UserContext.IsEmployee(User) && !UserContext.IsManager(User))
-        {
-            var userId = UserContext.UserId(User);
-            if (!userId.HasValue || userId.Value != assigneeId.Value)
-            {
-                return Forbid();
-            }
-        }
-
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 200);
-
-        var query = _db.Tasks.AsNoTracking().AsQueryable();
-
-        if (includeProject)
-        {
-            query = query.Include(t => t.Project);
-        }
-
-        if (assigneeId.HasValue)
-        {
-            query = query.Where(t => t.AssigneeId == assigneeId.Value);
-        }
-
-        if (projectId.HasValue)
-        {
-            query = query.Where(t => t.ProjectId == projectId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            query = query.Where(t => t.Status == status);
-        }
-
-        var total = await query.CountAsync(cancellationToken);
 
         var tasks = await query
-            .OrderByDescending(t => t.TaskId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderBy(t => t.Status)
+            .ThenByDescending(t => t.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var response = new TaskListResponse
+        return Ok(tasks.Select(t => t.ToDto()));
+    }
+
+    [HttpPatch("{taskId:guid}/status")]
+    [Authorize(Policy = "EmployeeOrAdmin")]
+    public async Task<IActionResult> UpdateStatus(Guid taskId, [FromBody] UpdateTaskStatusRequest request, CancellationToken cancellationToken)
+    {
+        var validation = await _statusValidator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
         {
-            Page = page,
-            PageSize = pageSize,
-            Total = total,
-            Items = tasks.Select(t => t.ToDto(includeProject)).ToList()
+            return ValidationProblem(new ValidationProblemDetails(validation.ToDictionary()));
+        }
+
+        var isAdmin = User.IsInRole("ADMIN");
+        var userId = User.GetUserId();
+
+        var task = await _db.Tasks.FirstOrDefaultAsync(t => t.TaskId == taskId, cancellationToken);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (!isAdmin && task.AssigneeId != userId)
+        {
+            return Forbid();
+        }
+
+        if (!isAdmin && request.Status == TaskStatusEnum.Cancelled)
+        {
+            return BadRequest("Only administrators can cancel tasks.");
+        }
+
+        task.Status = request.Status;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _db.Activity.Add(new Domain.Entities.ProjectActivity
+        {
+            ProjectId = task.ProjectId,
+            TaskId = task.TaskId,
+            ActorId = userId,
+            ActorRole = User.GetPrimaryRole() ?? "system",
+            Message = $"Task marked as {request.Status}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{projectId:guid}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<ProjectTaskDto>> CreateTask(Guid projectId, [FromBody] CreateProjectTaskRequest request, CancellationToken cancellationToken)
+    {
+        var validation = await _taskValidator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return ValidationProblem(new ValidationProblemDetails(validation.ToDictionary()));
+        }
+
+        var projectExists = await _db.Projects.AnyAsync(p => p.ProjectId == projectId, cancellationToken);
+        if (!projectExists)
+        {
+            return NotFound();
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var task = new Domain.Entities.ProjectTask
+        {
+            TaskId = Guid.NewGuid(),
+            ProjectId = projectId,
+            Title = request.Title.Trim(),
+            ServiceType = request.ServiceType.Trim(),
+            Detail = request.Detail?.Trim(),
+            ScheduledStart = request.ScheduledStart,
+            ScheduledEnd = request.ScheduledEnd,
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
-        return Ok(response);
+        await _db.Tasks.AddAsync(task, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return CreatedAtAction(nameof(GetAssignedTasks), new { }, task.ToDto());
+    }
+
+    [HttpGet("by-assignee/{assigneeId:long}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<IEnumerable<ProjectTaskDto>>> GetTasksByAssignee(long assigneeId, CancellationToken cancellationToken)
+    {
+        var tasks = await _db.Tasks.AsNoTracking()
+            .Where(t => t.AssigneeId == assigneeId)
+            .OrderBy(t => t.Status)
+            .ThenByDescending(t => t.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return Ok(tasks.Select(t => t.ToDto()));
     }
 }

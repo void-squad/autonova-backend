@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -14,15 +15,18 @@ import java.time.LocalDateTime;
 @Builder
 public class TimeLogResponse {
     
-    private String id;
-    private String projectId;
+    private UUID id;
+    private UUID projectId;
     private String projectTitle;
-    private String taskId;
+    private UUID taskId;
     private String taskName;
-    private String employeeId;
+    private Long employeeId;
     private String employeeName;
     private BigDecimal hours;
     private String note;
     private String approvalStatus; // PENDING, APPROVED, REJECTED
+    private String rejectionReason;
+    private Long approvedBy;
+    private LocalDateTime approvedAt;
     private LocalDateTime loggedAt;
 }

@@ -1,19 +1,27 @@
+# syntax=docker/dockerfile:1.6
 # Multi-stage Docker build for Employee Dashboard Service
 
 # Stage 1: Build
 FROM maven:3.9-eclipse-temurin-17 AS build
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy pom.xml and download dependencies
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
+# Copy parent pom to keep the multi-module hierarchy available
+COPY pom.xml /pom.xml
 
-# Copy source code and build
-COPY src ./src
-RUN mvn clean package -DskipTests
+# Copy Maven wrapper plus module-level descriptors
+COPY employee-dashboard-service/.mvn .mvn
+COPY employee-dashboard-service/mvnw mvnw
+COPY employee-dashboard-service/pom.xml pom.xml
+
+# Pre-fetch dependencies using the wrapper (best effort)
+RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
+
+# Copy module sources and build the jar
+COPY employee-dashboard-service/src ./src
+RUN ./mvnw clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # Install curl for health checks (Debian-based)
@@ -24,7 +32,7 @@ RUN groupadd -r spring && useradd -r -g spring spring
 USER spring:spring
 
 # Copy JAR from build stage
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /workspace/target/*.jar app.jar
 
 # Expose port
 EXPOSE 8084

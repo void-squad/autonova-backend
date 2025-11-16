@@ -8,9 +8,17 @@ spring:
       globalcors:
         add-to-simple-url-handler-mapping: true
         corsConfigurations:
-          '[/**]':
-            allowedOrigins:
-              - http://localhost:5173
+          "[/**]":
+            # allowedOrigins:
+            #   - http://localhost:5173
+            #   - http://127.0.0.1:5173
+            #   - http://[::1]:5173
+            #   - http://localhost:5174
+            #   - http://139.59.219.225
+            # allow origin patterns for flexible local ports
+            allowedOriginPatterns:
+              # - http://localhost:*
+              - "*"  # Allow all origins
             allowedMethods:
               - GET
               - POST
@@ -18,9 +26,16 @@ spring:
               - DELETE
               - PATCH
               - OPTIONS
-            allowedHeaders: '*'
+            allowedHeaders: "*"
             allowCredentials: true
       routes:
+        - id: progress-monitoring
+          uri: ${PROGRESS_MONITORING_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/projects/*/messages/**,/api/projects/*/messages,/api/projects/my/statuses,/sse/projects/**,/api/my/statuses/**,/api/projects/progress/uploads/**
+          filters:
+            - StripPrefix=0
+
         - id: auth-service
           uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
@@ -33,10 +48,14 @@ spring:
           uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/api/customers/**
+        - id: customer-service-vehicles
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/api/vehicles/**
         - id: project-service
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
-            - Path=/api/projects/**
+            - Path=/api/projects/**,/api/admin/projects/**
         - id: project-change-requests
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
@@ -45,18 +64,32 @@ spring:
           uri: ${EMPLOYEE_DASHBOARD_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/api/employee-dashboard/**
-          filters:
-            - StripPrefix=1
         - id: project-tasks
           uri: ${PROJECT_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/tasks/**
           filters:
             - StripPrefix=1
+        - id: time-logging-service
+          uri: ${TIME_LOGGING_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/time-logs/**,/api/projects/employee/**
         - id: payments-billing-service
           uri: ${PAYMENTS_BILLING_SERVICE_URL:http://localhost:8069}
           predicates:
             - Path=/api/invoices/**,/webhooks/stripe/**
+        - id: appointment-booking-service
+          uri: ${APPOINTMENT_BOOKING_SERVICE_URL:http://localhost:8088}
+          predicates:
+            - Path=/api/v1/appointments,/api/v1/appointments/**
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/notifications/**
+        - id: chatbot-service
+          uri: ${CHATBOT_SERVICE_URL:http://localhost:8097}
+          predicates:
+            - Path=/api/v1/chatbot,/api/v1/chatbot/**
 
 management:
   endpoints:
@@ -66,3 +99,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: DEBUG

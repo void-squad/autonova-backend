@@ -92,6 +92,15 @@ Notification-service bindings
   - vehicle.event
 - Optional DLQ: autonova.dlx → notification-service.events.dlq
 
+SSE delivery (notification-service → frontend)
+- Each RabbitMQ event that passes validation is forwarded as an SSE whose event name equals payload.type (routing key). Example: payment.succeeded → SSE event name "payment.succeeded".
+- The SSE data is the JSON payload you published (same shape as contracts/events/*). If the service later introduces a notification-specific DTO, it will be documented here.
+- Frontends must register listeners for these custom event names using EventSource.addEventListener('<eventType>', handler). onmessage only receives the default "message" event.
+- Legacy/fallback: The service may optionally also emit a generic "message" event for compatibility. Treat it as legacy; prefer the typed events.
+- Naming: keep event names lowercase with dots to stay consistent with routing keys and simplify client-side matching.
+- Adding a new routing key automatically creates a new SSE event name; no extra coordination is required as long as bindings cover your prefix.
+- Recommended client defaults: subscribe to ["message", "notification", "status"] and any domain prefixes you use (appointment.*, project.*, payment.*, invoice.*, quote.*, time_log.*).
+
 Publisher rules
 - Use publisher confirms; treat success only after ack.
 - Publish persistent messages; include message_id.

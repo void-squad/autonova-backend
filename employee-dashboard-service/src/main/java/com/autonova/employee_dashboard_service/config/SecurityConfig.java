@@ -35,11 +35,11 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> 
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/**", "/actuator/health").permitAll()
-                        .requestMatchers("/api/employee/dashboard/**").hasRole("EMPLOYEE")
-                        .anyRequest().authenticated()
-                )
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/actuator/**", "/actuator/health").permitAll()
+            .requestMatchers("/api/employee-dashboard/**").permitAll()
+            .anyRequest().authenticated()
+        )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
@@ -48,7 +48,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        // configuration.setAllowedOrigins(List.of(
+        //     "http://localhost:3000",
+        //     "http://localhost:5173",
+        //     "http://139.59.219.225"            
+        // ));
+        configuration.setAllowedOriginPatterns(List.of("*")); // Allow all origins
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

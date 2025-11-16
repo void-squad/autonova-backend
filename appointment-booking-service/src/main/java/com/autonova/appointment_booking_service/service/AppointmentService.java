@@ -3,6 +3,7 @@ package com.autonova.appointment_booking_service.service;
 import com.autonova.appointment_booking_service.dto.*;
 import com.autonova.appointment_booking_service.entity.Appointment;
 import com.autonova.appointment_booking_service.exception.ConflictException;
+import com.autonova.appointment_booking_service.messaging.AppointmentEventPublisher;
 import com.autonova.appointment_booking_service.repository.AppointmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,12 +15,22 @@ import java.util.*;
 public class AppointmentService {
 
     private final AppointmentRepository repository;
+    private final AppointmentEventPublisher eventPublisher;
 
     // capacity: number of concurrent service bays; configurable in production
     private final int serviceCapacity = 3;
 
-    public AppointmentService(AppointmentRepository repository) {
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "PENDING",
+            "CONFIRMED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED"
+    );
+
+    public AppointmentService(AppointmentRepository repository, AppointmentEventPublisher eventPublisher) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -54,17 +65,20 @@ public class AppointmentService {
         Appointment a = Appointment.builder()
                 .id(UUID.randomUUID())
                 .customerId(req.getCustomerId())
+                .customerUsername(req.getCustomerUsername())
                 .vehicleId(req.getVehicleId())
+                .vehicleName(req.getVehicleName())
                 .serviceType(req.getServiceType())
                 .startTime(req.getStartTime())
                 .endTime(req.getEndTime())
-                .status("CONFIRMED")
+                .status("PENDING")
                 .assignedEmployeeId(req.getPreferredEmployeeId())
                 .notes(req.getNotes())
                 .createdAt(OffsetDateTime.now())
                 .build();
 
         Appointment saved = repository.save(a);
+        safePublish("appointment.created", saved);
         return toDto(saved);
     }
 
@@ -105,6 +119,7 @@ public class AppointmentService {
         appt.setEndTime(newEnd);
         appt.setUpdatedAt(OffsetDateTime.now());
         Appointment saved = repository.save(appt);
+        safePublish("appointment.rescheduled", saved);
         return toDto(saved);
     }
 
@@ -115,7 +130,7 @@ public class AppointmentService {
         appt.setStatus("CANCELLED");
         appt.setUpdatedAt(OffsetDateTime.now());
         repository.save(appt);
-        // publish cancellation event to notification service / audit
+        safePublish("appointment.cancelled", appt);
     }
 
     @Transactional(readOnly = true)
@@ -125,26 +140,50 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
-    public AvailabilityDto checkAvailability(OffsetDateTime start, OffsetDateTime end) {
-        List<Appointment> overlaps = repository.findInTimeRange(start, end);
-        boolean ok = overlaps.size() < serviceCapacity;
-        AvailabilityDto dto = new AvailabilityDto();
-        dto.setStart(start);
-        dto.setEnd(end);
-        dto.setAvailable(ok);
-        if(!ok) {
-            dto.setReasons(overlaps.stream()
-                    .map(a -> String.format("conflict appointment %s (%s-%s)", a.getId(), a.getStartTime(), a.getEndTime()))
-                    .toList());
-        }
-        return dto;
+    public AppointmentResponseDto getById(UUID id) {
+        Appointment appt = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+        return toDto(appt);
     }
+
+    @Transactional(readOnly = true)
+    public List<AppointmentResponseDto> searchForAdmin(String status, OffsetDateTime from, OffsetDateTime to, UUID vehicleId) {
+        return repository.searchForAdmin(status, from, to, vehicleId)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, OffsetDateTime>> getAvailableSlots(OffsetDateTime start, OffsetDateTime end) {
+        List<Map<String, OffsetDateTime>> availableSlots = new ArrayList<>();
+
+        OffsetDateTime current = start;
+        while (current.isBefore(end)) {
+            OffsetDateTime slotStart = current;
+            OffsetDateTime slotEnd = current.plusHours(1);
+            if (slotEnd.isAfter(end)) break;
+
+            List<Appointment> conflicts = repository.findInTimeRange(slotStart, slotEnd);
+            if (conflicts.isEmpty())
+            {
+                availableSlots.add(Map.of("start", slotStart, "end", slotEnd));
+            }
+
+            current = slotEnd;
+        }
+
+        return availableSlots;
+    }
+
 
     private AppointmentResponseDto toDto(Appointment a) {
         return new AppointmentResponseDto(
                 a.getId(),
                 a.getCustomerId(),
+                a.getCustomerUsername(),
                 a.getVehicleId(),
+                a.getVehicleName(),
                 a.getServiceType(),
                 a.getStartTime(),
                 a.getEndTime(),
@@ -154,5 +193,88 @@ public class AppointmentService {
                 a.getCreatedAt(),
                 a.getUpdatedAt()
         );
+    }
+
+    // ---------------- ADMIN FUNCTIONS ----------------
+
+    @Transactional(readOnly = true)
+    public List<AppointmentResponseDto> listAll() {
+        return repository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional
+    public AppointmentResponseDto updateStatus(UUID appointmentId, String newStatus, String adminNote) {
+        Appointment appt = repository.findById(appointmentId)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+        appt.setStatus(newStatus.toUpperCase(Locale.ROOT));
+        if (adminNote != null && !adminNote.isBlank()) {
+            String trimmed = adminNote.trim();
+            if (appt.getNotes() == null || appt.getNotes().isBlank()) {
+                appt.setNotes(trimmed);
+            } else {
+                appt.setNotes(appt.getNotes() + "\n\n" + trimmed);
+            }
+        }
+        appt.setUpdatedAt(OffsetDateTime.now());
+        Appointment saved = repository.save(appt);
+        safePublish(mapStatusToEvent(saved.getStatus()), saved);
+        return toDto(saved);
+    }
+
+    @Transactional
+    public AppointmentResponseDto assignEmployee(UUID appointmentId, UUID employeeId) {
+        Appointment appt = repository.findById(appointmentId)
+                .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+        appt.setAssignedEmployeeId(employeeId);
+        appt.setUpdatedAt(OffsetDateTime.now());
+        Appointment saved = repository.save(appt);
+        return toDto(saved);
+    }
+
+// ---------------- ENHANCED AVAILABILITY ----------------
+
+//    @Transactional(readOnly = true)
+//    public List<Map<String, OffsetDateTime>> getAvailableSlots(OffsetDateTime start, OffsetDateTime end) {
+//        List<Map<String, OffsetDateTime>> availableSlots = new ArrayList<>();
+//
+//        // Generate 1-hour time windows between start and end
+//        OffsetDateTime current = start;
+//        while (current.isBefore(end)) {
+//            OffsetDateTime slotStart = current;
+//            OffsetDateTime slotEnd = current.plusHours(1);
+//            if (slotEnd.isAfter(end)) break;
+//
+//            // Check if this 1-hour slot is free
+//            List<Appointment> conflicts = repository.findInTimeRange(slotStart, slotEnd);
+//            if (conflicts.size() < serviceCapacity) {
+//                availableSlots.add(Map.of(
+//                        "start", slotStart,
+//                        "end", slotEnd
+//                ));
+//            }
+//
+//            current = slotEnd; // move to next hour
+//        }
+//
+//        return availableSlots;
+//    }
+
+    private String mapStatusToEvent(String status) {
+        if (status == null) return null;
+        return switch (status.toUpperCase(Locale.ROOT)) {
+            case "CONFIRMED" -> "appointment.accepted";
+            case "IN_PROGRESS" -> "appointment.in_progress";
+            case "COMPLETED" -> "appointment.completed";
+            case "CANCELLED" -> "appointment.cancelled";
+            default -> null; // PENDING or unknown
+        };
+    }
+
+    private void safePublish(String eventType, Appointment appt) {
+        if (eventType == null) return;
+        try { eventPublisher.publish(eventType, appt); } catch (Exception ignored) {}
     }
 }

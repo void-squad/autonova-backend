@@ -2,6 +2,7 @@ package com.autonova.customer.service;
 
 import com.autonova.customer.dto.VehicleRequest;
 import com.autonova.customer.dto.VehicleResponse;
+import com.autonova.customer.dto.VehicleStatsResponse;
 import com.autonova.customer.event.VehicleDomainEventPublisher;
 import com.autonova.customer.event.VehicleEventType;
 import com.autonova.customer.model.Customer;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.when;
 class VehicleServiceTest {
 
     private static final AuthenticatedUser ADMIN = new AuthenticatedUser(1L, "admin@autonova.com", "ADMIN");
+    private static final AuthenticatedUser CUSTOMER_USER = new AuthenticatedUser(2L, "ada@example.com", "CUSTOMER");
 
     @Mock
     private CustomerRepository customerRepository;
@@ -114,5 +116,40 @@ class VehicleServiceTest {
 
         verify(vehicleRepository).saveAndFlush(vehicle);
         verify(vehicleDomainEventPublisher).publish(VehicleEventType.UPDATED, vehicle);
+    }
+
+    @Test
+    void getVehicleStatsForCurrentCustomerReturnsCount() {
+        Customer customer = new Customer();
+        customer.setId(42L);
+        customer.setEmail("ada@example.com");
+
+        when(currentUserProvider.requireCurrentUser()).thenReturn(CUSTOMER_USER);
+        when(customerRepository.findByEmailIgnoreCase("ada@example.com"))
+                .thenReturn(Optional.of(customer));
+        when(vehicleRepository.countByCustomerId(42L)).thenReturn(5L);
+
+        VehicleStatsResponse stats = vehicleService.getVehicleStatsForCurrentCustomer();
+
+        assertThat(stats.totalVehicles()).isEqualTo(5L);
+        assertThat(stats.generatedAt()).isNotNull();
+        verify(vehicleRepository).countByCustomerId(42L);
+    }
+
+    @Test
+    void getVehicleStatsWithCustomerIdChecksAccess() {
+        Long customerId = 99L;
+        Customer customer = new Customer();
+        customer.setId(customerId);
+
+        when(currentUserProvider.requireCurrentUser()).thenReturn(ADMIN);
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(vehicleRepository.countByCustomerId(customerId)).thenReturn(2L);
+
+        VehicleStatsResponse stats = vehicleService.getVehicleStats(customerId);
+
+        assertThat(stats.totalVehicles()).isEqualTo(2L);
+        verify(customerRepository).findById(customerId);
+        verify(vehicleRepository).countByCustomerId(customerId);
     }
 }
