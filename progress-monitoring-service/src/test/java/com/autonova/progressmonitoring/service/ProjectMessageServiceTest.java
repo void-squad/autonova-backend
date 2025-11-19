@@ -91,10 +91,10 @@ class ProjectMessageServiceTest {
         @SuppressWarnings("unchecked")
         Slice<ProjectMessage> repoSlice = (Slice<ProjectMessage>) mock(Slice.class);
         @SuppressWarnings("unchecked")
-        Slice<ProjectMessageDto> mappedSlice = (Slice<ProjectMessageDto>) mock(Slice.class);
+        Slice<ProjectMessageDto> mappedSlice = mock(Slice.class);
 
         when(repository.findByProjectIdOrderByCreatedAtDesc(eq(projectId), any())).thenReturn(repoSlice);
-        when(repoSlice.map(any())).thenReturn(mappedSlice);
+        when(repoSlice.map(any())).thenReturn((Slice) mappedSlice);
 
         Slice<ProjectMessageDto> result = service.getMessagesPage(projectId, -5, 0);
 
