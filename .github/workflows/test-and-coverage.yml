@@ -249,6 +249,8 @@ jobs:
     needs: [test-java-services, test-dotnet-services]
     runs-on: ubuntu-latest
     if: always()
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     
     steps:
       - name: Checkout
@@ -265,6 +267,16 @@ jobs:
         with:
           pattern: coverage-*
           path: ./coverage-reports
+
+      - name: Publish coverage to Codecov
+        if: env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: |
+            coverage-reports/**/jacoco.xml
+            coverage-reports/**/coverage.cobertura.xml
+          fail_ci_if_error: false
 
       - name: Generate aggregated coverage badge
         run: |
