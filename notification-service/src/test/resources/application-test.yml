@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:notification-db;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  sql:
+    init:
+      mode: never
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+eureka:
+  client:
+    enabled: false
+
+logging:
+  level:
+    org.springframework: WARN
+    com.autonova.notification: INFO
