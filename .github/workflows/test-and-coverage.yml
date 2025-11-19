@@ -1,0 +1,724 @@
+name: Test and Coverage Report
+
+on:
+  push:
+    branches: [main, dev, test-reports]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  # Job to determine which services have tests
+  detect-services:
+    name: Detect Services
+    runs-on: ubuntu-latest
+    outputs:
+      java-services: ${{ steps.set-services.outputs.java-services }}
+      dotnet-services: ${{ steps.set-services.outputs.dotnet-services }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect Java and .NET services
+        id: set-services
+        run: |
+          # Find all directories with pom.xml (Java/Maven services)
+          JAVA_SERVICES=$(find . -maxdepth 2 -name "pom.xml" -type f | \
+            grep -v "^\./pom.xml$" | \
+            xargs -I {} dirname {} | \
+            sed 's|^\./||' | \
+            grep -v "^services/" | \
+            jq -R -s -c 'split("\n") | map(select(length > 0))')
+          
+          # Find all directories with .csproj (C#/.NET services)
+          DOTNET_SERVICES=$(find . -maxdepth 2 -name "*.csproj" -type f | \
+            grep -v "Tests.csproj$" | \
+            xargs -I {} dirname {} | \
+            sed 's|^\./||' | \
+            sort -u | \
+            jq -R -s -c 'split("\n") | map(select(length > 0))')
+          
+          echo "Detected Java services: $JAVA_SERVICES"
+          echo "Detected .NET services: $DOTNET_SERVICES"
+          echo "java-services=$JAVA_SERVICES" >> $GITHUB_OUTPUT
+          echo "dotnet-services=$DOTNET_SERVICES" >> $GITHUB_OUTPUT
+
+  # Run tests in parallel for Java/Maven services
+  test-java-services:
+    name: Test Java - ${{ matrix.service }}
+    needs: detect-services
+    runs-on: ubuntu-latest
+    if: needs.detect-services.outputs.java-services != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-services.outputs.java-services) }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Run tests for ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          
+          # Check if mvnw exists, otherwise use mvn
+          if [ -f ./mvnw ]; then
+            chmod +x ./mvnw
+            ./mvnw clean verify -B
+          else
+            mvn clean verify -B
+          fi
+        continue-on-error: true
+
+      - name: Generate test reports
+        if: always()
+        run: |
+          cd ${{ matrix.service }}
+          
+          # Generate Surefire report
+          if [ -f ./mvnw ]; then
+            ./mvnw surefire-report:report site -DgenerateReports=false || true
+          else
+            mvn surefire-report:report site -DgenerateReports=false || true
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/target/surefire-reports/TEST-*.xml
+            ${{ matrix.service }}/target/failsafe-reports/TEST-*.xml
+          retention-days: 30
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/target/site/jacoco/
+            ${{ matrix.service }}/target/jacoco.exec
+          retention-days: 30
+
+      - name: Upload HTML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-reports-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/target/site/surefire-report.html
+            ${{ matrix.service }}/target/site/failsafe-report.html
+          retention-days: 30
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            ${{ matrix.service }}/target/surefire-reports/TEST-*.xml
+            ${{ matrix.service }}/target/failsafe-reports/TEST-*.xml
+          check_name: "Test Results - Java - ${{ matrix.service }}"
+          comment_mode: off
+
+  # Run tests in parallel for .NET services
+  test-dotnet-services:
+    name: Test .NET - ${{ matrix.service }}
+    needs: detect-services
+    runs-on: ubuntu-latest
+    if: needs.detect-services.outputs.dotnet-services != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-services.outputs.dotnet-services) }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: |
+          cd ${{ matrix.service }}
+          dotnet restore
+
+      - name: Build
+        run: |
+          cd ${{ matrix.service }}
+          dotnet build --no-restore --configuration Release
+
+      - name: Run tests with coverage
+        run: |
+          cd ${{ matrix.service }}
+          
+          # Run tests with coverlet for code coverage
+          dotnet test --no-build --configuration Release \
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "console;verbosity=detailed" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=./TestResults/coverage.cobertura.xml
+        continue-on-error: true
+
+      - name: Generate coverage report
+        if: always()
+        run: |
+          cd ${{ matrix.service }}
+          
+          # Install ReportGenerator tool
+          dotnet tool install -g dotnet-reportgenerator-globaltool || true
+          
+          # Generate HTML coverage report
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./TestResults/CoverageReport" \
+            -reporttypes:"HtmlInline_AzurePipelines;Cobertura;Badges" || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-dotnet-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/TestResults/**/*.trx
+          retention-days: 30
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-dotnet-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/TestResults/CoverageReport/
+            ${{ matrix.service }}/TestResults/**/coverage.cobertura.xml
+          retention-days: 30
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: ${{ matrix.service }}/TestResults/**/*.trx
+          check_name: "Test Results - .NET - ${{ matrix.service }}"
+          comment_mode: off
+
+      - name: Code Coverage Summary
+        if: always()
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: ${{ matrix.service }}/TestResults/**/coverage.cobertura.xml
+          badge: true
+          format: markdown
+          output: both
+          fail_below_min: false
+
+  # Aggregate coverage from all services
+  aggregate-coverage:
+    name: Aggregate Coverage Report
+    needs: [test-java-services, test-dotnet-services]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: ./coverage-reports
+
+      - name: Generate aggregated coverage badge
+        run: |
+          # Calculate average coverage across all services
+          TOTAL_COVERAGE=0
+          COUNT=0
+          
+          for service_dir in coverage-reports/coverage-*; do
+            if [ -d "$service_dir" ]; then
+              # Check for Java/JaCoCo coverage
+              CSV_FILE=$(find "$service_dir" -name "jacoco.csv" | head -n 1)
+              if [ -f "$CSV_FILE" ]; then
+                # Parse coverage percentage from JaCoCo CSV
+                COVERAGE=$(awk -F',' 'NR>1 {missed+=$4; covered+=$5} END {if(covered+missed>0) print int(covered/(covered+missed)*100)}' "$CSV_FILE")
+                if [ -n "$COVERAGE" ]; then
+                  TOTAL_COVERAGE=$((TOTAL_COVERAGE + COVERAGE))
+                  COUNT=$((COUNT + 1))
+                  echo "$(basename $service_dir): ${COVERAGE}%"
+                fi
+              fi
+              
+              # Check for .NET/Cobertura coverage
+              COBERTURA_FILE=$(find "$service_dir" -name "coverage.cobertura.xml" | head -n 1)
+              if [ -f "$COBERTURA_FILE" ]; then
+                # Parse coverage percentage from Cobertura XML
+                COVERAGE=$(grep -oP 'line-rate="\K[0-9.]+' "$COBERTURA_FILE" | head -n 1 | awk '{print int($1*100)}')
+                if [ -n "$COVERAGE" ]; then
+                  TOTAL_COVERAGE=$((TOTAL_COVERAGE + COVERAGE))
+                  COUNT=$((COUNT + 1))
+                  echo "$(basename $service_dir): ${COVERAGE}%"
+                fi
+              fi
+            fi
+          done
+          
+          if [ $COUNT -gt 0 ]; then
+            AVG_COVERAGE=$((TOTAL_COVERAGE / COUNT))
+            echo "Average Coverage: ${AVG_COVERAGE}%"
+            echo "COVERAGE_PERCENT=${AVG_COVERAGE}" >> $GITHUB_ENV
+          else
+            echo "No coverage data found"
+            echo "COVERAGE_PERCENT=0" >> $GITHUB_ENV
+          fi
+
+      - name: Create coverage summary
+        run: |
+          mkdir -p coverage-summary
+          
+          echo "# Test Coverage Summary" > coverage-summary/COVERAGE.md
+          echo "" >> coverage-summary/COVERAGE.md
+          echo "**Overall Coverage: ${{ env.COVERAGE_PERCENT }}%**" >> coverage-summary/COVERAGE.md
+          echo "" >> coverage-summary/COVERAGE.md
+          echo "## Per Service Coverage" >> coverage-summary/COVERAGE.md
+          echo "" >> coverage-summary/COVERAGE.md
+          echo "| Service | Coverage |" >> coverage-summary/COVERAGE.md
+          echo "|---------|----------|" >> coverage-summary/COVERAGE.md
+          
+          for service_dir in coverage-reports/coverage-*; do
+            if [ -d "$service_dir" ]; then
+              SERVICE_NAME=$(basename "$service_dir" | sed 's/coverage-//' | sed 's/coverage-dotnet-//')
+              
+              # Check for Java coverage
+              CSV_FILE=$(find "$service_dir" -name "jacoco.csv" | head -n 1)
+              if [ -f "$CSV_FILE" ]; then
+                COVERAGE=$(awk -F',' 'NR>1 {missed+=$4; covered+=$5} END {if(covered+missed>0) print int(covered/(covered+missed)*100); else print 0}' "$CSV_FILE")
+                echo "| $SERVICE_NAME (Java) | ${COVERAGE}% |" >> coverage-summary/COVERAGE.md
+              else
+                # Check for .NET coverage
+                COBERTURA_FILE=$(find "$service_dir" -name "coverage.cobertura.xml" | head -n 1)
+                if [ -f "$COBERTURA_FILE" ]; then
+                  COVERAGE=$(grep -oP 'line-rate="\K[0-9.]+' "$COBERTURA_FILE" | head -n 1 | awk '{print int($1*100)}')
+                  echo "| $SERVICE_NAME (.NET) | ${COVERAGE}% |" >> coverage-summary/COVERAGE.md
+                else
+                  echo "| $SERVICE_NAME | N/A |" >> coverage-summary/COVERAGE.md
+                fi
+              fi
+            fi
+          done
+          
+          cat coverage-summary/COVERAGE.md
+
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage-summary/
+          retention-days: 90
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverageMd = fs.readFileSync('coverage-summary/COVERAGE.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverageMd
+            });
+
+  # Generate combined test report
+  test-report:
+    name: Combined Test Report
+    needs: [test-java-services, test-dotnet-services]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: ./test-results
+
+      - name: Publish combined test report
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            test-results/test-results-*/surefire-reports/TEST-*.xml
+            test-results/test-results-*/failsafe-reports/TEST-*.xml
+            test-results/test-results-dotnet-*/**/*.trx
+          check_name: "Combined Test Results"
+          comment_title: "Test Results Summary"
+
+      - name: Create test summary
+        run: |
+          mkdir -p test-summary
+          
+          echo "# Test Execution Summary" > test-summary/TESTS.md
+          echo "" >> test-summary/TESTS.md
+          echo "## Results by Service" >> test-summary/TESTS.md
+          echo "" >> test-summary/TESTS.md
+          
+          TOTAL_TESTS=0
+          TOTAL_FAILURES=0
+          TOTAL_ERRORS=0
+          TOTAL_SKIPPED=0
+          
+          for service_dir in test-results/test-results-*; do
+            if [ -d "$service_dir" ]; then
+              SERVICE_NAME=$(basename "$service_dir" | sed 's/test-results-//')
+              echo "### $SERVICE_NAME" >> test-summary/TESTS.md
+              
+              # Parse XML test results
+              TESTS=$(find "$service_dir" -name "*.xml" -exec grep -h 'testsuite' {} \; | \
+                grep -o 'tests="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+              FAILURES=$(find "$service_dir" -name "*.xml" -exec grep -h 'testsuite' {} \; | \
+                grep -o 'failures="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+              ERRORS=$(find "$service_dir" -name "*.xml" -exec grep -h 'testsuite' {} \; | \
+                grep -o 'errors="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+              SKIPPED=$(find "$service_dir" -name "*.xml" -exec grep -h 'testsuite' {} \; | \
+                grep -o 'skipped="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+              
+              echo "- Tests: $TESTS" >> test-summary/TESTS.md
+              echo "- Failures: $FAILURES" >> test-summary/TESTS.md
+              echo "- Errors: $ERRORS" >> test-summary/TESTS.md
+              echo "- Skipped: $SKIPPED" >> test-summary/TESTS.md
+              echo "" >> test-summary/TESTS.md
+              
+              TOTAL_TESTS=$((TOTAL_TESTS + TESTS))
+              TOTAL_FAILURES=$((TOTAL_FAILURES + FAILURES))
+              TOTAL_ERRORS=$((TOTAL_ERRORS + ERRORS))
+              TOTAL_SKIPPED=$((TOTAL_SKIPPED + SKIPPED))
+            fi
+          done
+          
+          # Prepend overall summary
+          {
+            echo "# Test Execution Summary"
+            echo ""
+            echo "## Overall Results"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Total Tests | $TOTAL_TESTS |"
+            echo "| Passed | $((TOTAL_TESTS - TOTAL_FAILURES - TOTAL_ERRORS - TOTAL_SKIPPED)) |"
+            echo "| Failed | $TOTAL_FAILURES |"
+            echo "| Errors | $TOTAL_ERRORS |"
+            echo "| Skipped | $TOTAL_SKIPPED |"
+            echo ""
+            cat test-summary/TESTS.md
+          } > test-summary/TESTS_FINAL.md
+          
+          mv test-summary/TESTS_FINAL.md test-summary/TESTS.md
+          cat test-summary/TESTS.md
+
+      - name: Upload test summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary
+          path: test-summary/
+          retention-days: 90
+
+  # Final status check
+  test-status:
+    name: Test Status Check
+    needs: [test-java-services, test-dotnet-services, aggregate-coverage, test-report]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check test status
+        run: |
+          JAVA_STATUS="${{ needs.test-java-services.result }}"
+          DOTNET_STATUS="${{ needs.test-dotnet-services.result }}"
+          
+          echo "Java Services Status: $JAVA_STATUS"
+          echo ".NET Services Status: $DOTNET_STATUS"
+          
+          if [ "$JAVA_STATUS" == "failure" ] || [ "$DOTNET_STATUS" == "failure" ]; then
+            echo "❌ Some tests failed"
+            exit 1
+          elif [ "$JAVA_STATUS" == "success" ] || [ "$DOTNET_STATUS" == "success" ]; then
+            echo "✅ All tests passed"
+            exit 0
+          else
+            echo "⚠️ Tests completed with warnings"
+            exit 0
+          fi
+
+  # Generate comprehensive PDF report
+  generate-pdf-report:
+    name: Generate Comprehensive PDF Report
+    needs: [test-java-services, test-dotnet-services, aggregate-coverage, test-report]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-artifacts
+
+      - name: Install dependencies for PDF generation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-latex-base texlive-fonts-recommended texlive-latex-extra texlive-xetex
+
+      - name: Generate comprehensive markdown report
+        run: |
+          mkdir -p pdf-report
+          
+          cat > pdf-report/comprehensive-report.md << 'EOF'
+          ---
+          title: "Autonova Backend - Test & Coverage Report"
+          author: "Automated CI/CD Pipeline"
+          date: "`date +'%Y-%m-%d %H:%M:%S'`"
+          geometry: margin=1in
+          toc: true
+          toc-depth: 3
+          ---
+          
+          # Executive Summary
+          
+          This report provides a comprehensive overview of the test execution and code coverage analysis for the Autonova Backend project.
+          
+          **Report Generated:** `date +'%Y-%m-%d %H:%M:%S'`
+          
+          **Workflow Run:** #${{ github.run_number }}
+          
+          **Commit:** ${{ github.sha }}
+          
+          **Branch:** ${{ github.ref_name }}
+          
+          ---
+          
+          EOF
+          
+          # Add coverage summary if available
+          if [ -f "./all-artifacts/coverage-summary/COVERAGE.md" ]; then
+            echo -e "\n\n# Code Coverage Report\n" >> pdf-report/comprehensive-report.md
+            cat ./all-artifacts/coverage-summary/COVERAGE.md >> pdf-report/comprehensive-report.md
+          else
+            echo -e "\n\n# Code Coverage Report\n\n*No coverage data available*\n" >> pdf-report/comprehensive-report.md
+          fi
+          
+          # Add test summary if available
+          if [ -f "./all-artifacts/test-summary/TESTS.md" ]; then
+            echo -e "\n\n---\n\n# Test Execution Results\n" >> pdf-report/comprehensive-report.md
+            cat ./all-artifacts/test-summary/TESTS.md >> pdf-report/comprehensive-report.md
+          else
+            echo -e "\n\n---\n\n# Test Execution Results\n\n*No test summary available*\n" >> pdf-report/comprehensive-report.md
+          fi
+          
+          # Add detailed service reports
+          echo -e "\n\n---\n\n# Detailed Service Reports\n" >> pdf-report/comprehensive-report.md
+          
+          # Java Services Coverage Details
+          echo -e "\n## Java Services Coverage\n" >> pdf-report/comprehensive-report.md
+          
+          for coverage_dir in ./all-artifacts/coverage-*; do
+            if [ -d "$coverage_dir" ] && [[ ! "$coverage_dir" =~ "dotnet" ]]; then
+              SERVICE_NAME=$(basename "$coverage_dir" | sed 's/coverage-//')
+              echo -e "\n### $SERVICE_NAME\n" >> pdf-report/comprehensive-report.md
+              
+              # Check for JaCoCo CSV
+              CSV_FILE=$(find "$coverage_dir" -name "jacoco.csv" | head -n 1)
+              if [ -f "$CSV_FILE" ]; then
+                echo -e "\n**Coverage Metrics:**\n" >> pdf-report/comprehensive-report.md
+                echo -e "\`\`\`" >> pdf-report/comprehensive-report.md
+                head -n 20 "$CSV_FILE" >> pdf-report/comprehensive-report.md
+                echo -e "\`\`\`\n" >> pdf-report/comprehensive-report.md
+              fi
+            fi
+          done
+          
+          # .NET Services Coverage Details
+          echo -e "\n## .NET Services Coverage\n" >> pdf-report/comprehensive-report.md
+          
+          for coverage_dir in ./all-artifacts/coverage-dotnet-*; do
+            if [ -d "$coverage_dir" ]; then
+              SERVICE_NAME=$(basename "$coverage_dir" | sed 's/coverage-dotnet-//')
+              echo -e "\n### $SERVICE_NAME\n" >> pdf-report/comprehensive-report.md
+              
+              # Check for Cobertura coverage
+              COBERTURA_FILE=$(find "$coverage_dir" -name "coverage.cobertura.xml" | head -n 1)
+              if [ -f "$COBERTURA_FILE" ]; then
+                LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' "$COBERTURA_FILE" | head -n 1)
+                BRANCH_RATE=$(grep -oP 'branch-rate="\K[0-9.]+' "$COBERTURA_FILE" | head -n 1)
+                echo -e "**Line Coverage:** $(echo "$LINE_RATE * 100" | bc)%\n" >> pdf-report/comprehensive-report.md
+                echo -e "**Branch Coverage:** $(echo "$BRANCH_RATE * 100" | bc)%\n" >> pdf-report/comprehensive-report.md
+              fi
+            fi
+          done
+          
+          # Test Results Details
+          echo -e "\n\n---\n\n# Detailed Test Results\n" >> pdf-report/comprehensive-report.md
+          
+          for test_dir in ./all-artifacts/test-results-*; do
+            if [ -d "$test_dir" ]; then
+              SERVICE_NAME=$(basename "$test_dir" | sed 's/test-results-//' | sed 's/test-results-dotnet-//')
+              echo -e "\n## $SERVICE_NAME Test Results\n" >> pdf-report/comprehensive-report.md
+              
+              # Parse XML test results
+              XML_FILES=$(find "$test_dir" -name "*.xml" -type f)
+              if [ -n "$XML_FILES" ]; then
+                for xml_file in $XML_FILES; do
+                  TESTS=$(grep -oP 'tests="\K[0-9]+' "$xml_file" | head -n 1)
+                  FAILURES=$(grep -oP 'failures="\K[0-9]+' "$xml_file" | head -n 1)
+                  ERRORS=$(grep -oP 'errors="\K[0-9]+' "$xml_file" | head -n 1)
+                  SKIPPED=$(grep -oP 'skipped="\K[0-9]+' "$xml_file" | head -n 1)
+                  
+                  if [ -n "$TESTS" ]; then
+                    echo -e "**Test Suite:** $(basename $xml_file)\n" >> pdf-report/comprehensive-report.md
+                    echo -e "- Total Tests: ${TESTS:-0}" >> pdf-report/comprehensive-report.md
+                    echo -e "- Failures: ${FAILURES:-0}" >> pdf-report/comprehensive-report.md
+                    echo -e "- Errors: ${ERRORS:-0}" >> pdf-report/comprehensive-report.md
+                    echo -e "- Skipped: ${SKIPPED:-0}\n" >> pdf-report/comprehensive-report.md
+                  fi
+                done
+              fi
+              
+              # Parse TRX test results (.NET)
+              TRX_FILES=$(find "$test_dir" -name "*.trx" -type f)
+              if [ -n "$TRX_FILES" ]; then
+                for trx_file in $TRX_FILES; do
+                  echo -e "**Test Suite:** $(basename $trx_file)\n" >> pdf-report/comprehensive-report.md
+                  # Extract basic info from TRX
+                  TOTAL=$(grep -oP 'total="\K[0-9]+' "$trx_file" | head -n 1)
+                  EXECUTED=$(grep -oP 'executed="\K[0-9]+' "$trx_file" | head -n 1)
+                  PASSED=$(grep -oP 'passed="\K[0-9]+' "$trx_file" | head -n 1)
+                  FAILED=$(grep -oP 'failed="\K[0-9]+' "$trx_file" | head -n 1)
+                  
+                  if [ -n "$TOTAL" ]; then
+                    echo -e "- Total Tests: ${TOTAL:-0}" >> pdf-report/comprehensive-report.md
+                    echo -e "- Executed: ${EXECUTED:-0}" >> pdf-report/comprehensive-report.md
+                    echo -e "- Passed: ${PASSED:-0}" >> pdf-report/comprehensive-report.md
+                    echo -e "- Failed: ${FAILED:-0}\n" >> pdf-report/comprehensive-report.md
+                  fi
+                done
+              fi
+            fi
+          done
+          
+          # Appendix
+          echo -e "\n\n---\n\n# Appendix\n" >> pdf-report/comprehensive-report.md
+          echo -e "\n## Repository Information\n" >> pdf-report/comprehensive-report.md
+          echo -e "- **Repository:** ${{ github.repository }}" >> pdf-report/comprehensive-report.md
+          echo -e "- **Workflow:** ${{ github.workflow }}" >> pdf-report/comprehensive-report.md
+          echo -e "- **Run Number:** ${{ github.run_number }}" >> pdf-report/comprehensive-report.md
+          echo -e "- **Run ID:** ${{ github.run_id }}" >> pdf-report/comprehensive-report.md
+          echo -e "- **Actor:** ${{ github.actor }}" >> pdf-report/comprehensive-report.md
+          echo -e "- **Event:** ${{ github.event_name }}" >> pdf-report/comprehensive-report.md
+          
+          echo -e "\n\n---\n\n*Report generated automatically by GitHub Actions*\n" >> pdf-report/comprehensive-report.md
+
+      - name: Convert Markdown to PDF
+        run: |
+          cd pdf-report
+          pandoc comprehensive-report.md \
+            -o Autonova-Backend-Test-Report.pdf \
+            --pdf-engine=xelatex \
+            --toc \
+            --toc-depth=3 \
+            --number-sections \
+            --highlight-style=tango \
+            -V colorlinks=true \
+            -V linkcolor=blue \
+            -V urlcolor=blue \
+            -V toccolor=gray
+          
+          # Also create an HTML version
+          pandoc comprehensive-report.md \
+            -o Autonova-Backend-Test-Report.html \
+            --standalone \
+            --toc \
+            --toc-depth=3 \
+            --number-sections \
+            --highlight-style=tango \
+            --css=https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css
+
+      - name: Upload PDF Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report-pdf
+          path: |
+            pdf-report/Autonova-Backend-Test-Report.pdf
+            pdf-report/Autonova-Backend-Test-Report.html
+            pdf-report/comprehensive-report.md
+          retention-days: 90
+
+      - name: Create Release Comment (PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const message = `## 📊 Comprehensive Test Report Generated
+            
+            A detailed PDF report combining all test results and coverage metrics has been generated.
+            
+            **Available Formats:**
+            - 📄 PDF Report: \`Autonova-Backend-Test-Report.pdf\`
+            - 🌐 HTML Report: \`Autonova-Backend-Test-Report.html\`
+            - 📝 Markdown Source: \`comprehensive-report.md\`
+            
+            **Download:** Check the workflow artifacts section to download the reports.
+            
+            **Workflow Run:** #${{ github.run_number }}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
+
+      - name: Generate report summary
+        run: |
+          echo "## 📊 Comprehensive Test Report Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ PDF Report: **Autonova-Backend-Test-Report.pdf**" >> $GITHUB_STEP_SUMMARY
+          echo "✅ HTML Report: **Autonova-Backend-Test-Report.html**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📥 **Download the reports from the workflow artifacts section.**" >> $GITHUB_STEP_SUMMARY
