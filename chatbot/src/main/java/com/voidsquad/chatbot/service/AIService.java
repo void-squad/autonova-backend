@@ -266,10 +266,10 @@ public class AIService {
                 float[] emb = embeddingService.generateEmbedding(keyword);
                 int count = 0;
                 return staticInfoRepository.findSimilarStaticInfo(emb,5).stream().map(staticInfo -> {
-                    return String.format("""
-                                Topic %s
-                                Description: %s
-                                """, staticInfo.getTopic(), staticInfo.getDescription());
+                    return STR."""
+                                Topic \{staticInfo.getTopic()}
+                                Description: \{staticInfo.getDescription()}
+                                """;
                 }).toList();
             }
 
