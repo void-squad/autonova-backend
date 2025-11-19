@@ -1,0 +1,43 @@
+name: PR Coverage
+
+on:
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    name: Run tests and upload coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'maven'
+
+      - name: Run Maven tests and generate JaCoCo reports
+        run: |
+          set -euo pipefail
+          mvn -B -DskipTests=false verify
+
+      - name: Upload JaCoCo aggregate site as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-site
+          path: target/site/jacoco-aggregate/**
+
+      - name: Publish coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: |
+            target/site/jacoco-aggregate/jacoco.xml
+            **/target/site/jacoco/jacoco.xml
+          fail_ci_if_error: true
