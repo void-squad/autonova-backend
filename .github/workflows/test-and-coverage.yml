@@ -79,6 +79,10 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Run tests for ${{ matrix.service }}
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'testSecretKeyForJwtTokenGenerationAndValidationInTestEnvironmentMinimum256Bits' }}
+          JWT_EXPIRATION: 3600000
+          JWT_REFRESH_EXPIRATION: 86400000
         run: |
           cd ${{ matrix.service }}
           
