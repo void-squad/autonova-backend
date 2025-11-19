@@ -59,6 +59,11 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!-- Use the Spring Boot starter for Security and the OAuth2 resource-server starter
 		     so we get the web/security classes (SecurityFilterChain, RequestMatcher, etc.)
 		-->
