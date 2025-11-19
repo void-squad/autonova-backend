@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:analytics-db;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  sql:
+    init:
+      mode: never
+
+eureka:
+  client:
+    enabled: false
+
+# Service URLs for testing
+services:
+  customer:
+    url: http://localhost:8081
+  appointment:
+    url: http://localhost:8082
+  payment:
+    url: http://localhost:8083
+  project:
+    url: http://localhost:8084
+
+logging:
+  level:
+    org.springframework: WARN
+    com.autonova.analytics: INFO
