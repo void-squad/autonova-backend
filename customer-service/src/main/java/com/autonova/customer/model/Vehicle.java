@@ -32,7 +32,7 @@ public class Vehicle {
     @Column(nullable = false, length = 60)
     private String model;
 
-    @Column(nullable = false)
+    @Column(name = "vehicle_year", nullable = false)
     private Integer year;
 
     @Column(nullable = false, length = 17)

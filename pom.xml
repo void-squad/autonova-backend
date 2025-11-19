@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -5,13 +6,13 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Parent project -->
     <groupId>com.autonova</groupId>
     <artifactId>autonova-backend</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Autonova Backend</name>
+    <description>Parent POM for Autonova Backend Microservices</description>
 
     <!-- Define Spring Boot parent -->
     <parent>
@@ -43,38 +44,85 @@
 
     <!-- Modules: all microservices -->
     <modules>
-        <module>auth-service</module>
-        <module>appointment-booking-service</module>
-        <module>gateway-service</module>
-        <module>discovery-service</module>
-        <module>customer-service</module>
-        <module>chatbot</module>
-        <module>employee-dashboard-service</module>
-        <module>progress-monitoring-service</module>
-        <module>notification-service</module>
         <module>analytics-service</module>
+        <module>appointment-booking-service</module>
+        <module>auth-service</module>
+        <module>chatbot</module>
+        <module>customer-service</module>
+        <module>discovery-service</module>
+        <module>employee-dashboard-service</module>
+        <module>gateway-service</module>
+        <module>notification-service</module>
+        <module>payments-billing-service</module>
+        <module>progress-monitoring-service</module>
+        <module>time-logging-service</module>
     </modules>
 
     <properties>
         <java.version>17</java.version>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
 
     <build>
         <pluginManagement>
             <plugins>
-                <!-- Maven Compiler -->
                 <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.11.0</version>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.11</version>
                     <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
+                        <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
                     </configuration>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <reports>
+                                    <xml>true</xml>
+                                    <html>true</html>
+                                </reports>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <!-- Aggregate JaCoCo report at the root during verify -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <execution>
+                        <id>report-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <reports>
+                                <xml>true</xml>
+                                <html>true</html>
+                            </reports>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>
