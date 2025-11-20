@@ -6,6 +6,7 @@ import com.voidsquad.chatbot.service.tool.ToolCallRequest;
 import com.voidsquad.chatbot.service.tool.ToolCallResult;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +39,9 @@ class ToolExecutionServiceTest {
         ToolExecutionService svc = new ToolExecutionService(reg);
 
         AuthInfo auth = AuthInfo.builder().userId(42L).firstName("Test").email("t@t.com").build();
-        ToolCall call = new ToolCall("d1", Map.of("q", "x"), "explain");
+        Map<String, Object> params = new HashMap<>();
+        params.put("q", "x");
+        ToolCall call = new ToolCall("d1", params, "explain");
         List<ToolCallResult> res = svc.executeAll(List.of(call), "explain", auth);
 
         assertEquals(1, res.size());
@@ -52,7 +55,7 @@ class ToolExecutionServiceTest {
         ToolRegistry reg = new ToolRegistry(List.of());
         ToolExecutionService svc = new ToolExecutionService(reg);
 
-        ToolCall call = new ToolCall("missing", Map.of(), "x");
+        ToolCall call = new ToolCall("missing", new HashMap<>(), "x");
         List<ToolCallResult> res = svc.executeAll(List.of(call), "x", null);
         assertEquals(1, res.size());
         assertFalse(res.get(0).isSuccess());
