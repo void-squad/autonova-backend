@@ -18,6 +18,11 @@ appsettings.Local.json
 # Logs
 *.log
 
+# Test results and coverage
+TestResults/
+*.coverage
+*.coveragexml
+
 # Rider/VS Code
 .idea/
 .vscode/
