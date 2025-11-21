@@ -84,8 +84,8 @@ jobs:
           name: 'Combined Test Report - All Services'
           # glob both JUnit XML and .trx files using brace expansion
           path: '**/*.{xml,trx}'
-          # use auto-detection where possible
-          reporter: java-junit
+          # allow the action to auto-detect report formats (handles .trx + JUnit XML)
+          reporter: auto
           fail-on-error: false
           fail-on-empty: false
           only-summary: true
