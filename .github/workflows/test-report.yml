@@ -77,14 +77,33 @@ jobs:
     needs: [report-java-services, report-dotnet-services]
     if: ${{ always() && github.event.workflow_run.conclusion != 'cancelled' }}
     steps:
-      - uses: dorny/test-reporter@v2
+      - name: "Debug: list artifacts from triggering run"
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: bash .github/scripts/list-artifacts.sh "$RUN_ID"
+
+      - name: "Debug: show matching artifact files (first lines)"
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: bash .github/scripts/inspect-artifacts.sh "$RUN_ID"
+
+      - name: Download all test-results-* artifacts
+        uses: actions/download-artifact@v4
         with:
-          # match artifacts created by the previous jobs; use a wildcard rather than regex
-          artifact: 'test-results-*'
+          pattern: 'test-results-*'
+          path: ./test-results
+
+      - name: Sanitize test result files (skip malformed XML/TRX)
+        run: |
+          set -eux
+          python3 .github/scripts/sanitize-test-results.py
+
+      - name: Generate combined test report from sanitized files
+        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        with:
           name: 'Combined Test Report - All Services'
-          # glob both JUnit XML and .trx files using brace expansion
-          path: '**/*.{xml,trx}'
-          # allow the action to auto-detect report formats (handles .trx + JUnit XML)
+          path: 'test-results-clean/**/*.{xml,trx}'
           reporter: auto
           fail-on-error: false
           fail-on-empty: false
