@@ -116,13 +116,26 @@ jobs:
           set -eux
           python3 .github/scripts/sanitize-test-results.py
 
-      - name: Generate combined test report from sanitized files
+      - name: List sanitized test result files
+        run: |
+          set -eux
+          echo "Sanitized files (test-results-clean):"
+          ls -R test-results-clean || true
+          echo "--- File previews ---"
+          for f in $(find test-results-clean -type f -name '*.xml' -o -name '*.trx' 2>/dev/null); do
+            echo "-- $f --"
+            head -c 400 "$f" || true
+            echo
+          done
+
+      - name: Generate combined test report from sanitized files (JUnit XML only)
         uses: dorny/test-reporter@v2
         continue-on-error: true
         with:
           name: 'Combined Test Report - All Services'
-          path: 'test-results-clean/**/*.{xml,trx}'
-          reporter: auto
+          # only include JUnit XML files; skip TRX to avoid non-junit TRX issues
+          path: 'test-results-clean/**/*.xml'
+          reporter: java-junit
           fail-on-error: false
           fail-on-empty: false
           only-summary: true
