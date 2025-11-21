@@ -95,15 +95,15 @@ jobs:
     needs: [report-java-services, report-dotnet-services]
     if: ${{ always() && github.event.workflow_run.conclusion != 'cancelled' }}
     steps:
-      - name: "Debug: list artifacts from triggering run"
-        env:
-          RUN_ID: ${{ github.event.workflow_run.id }}
-        run: bash .github/scripts/list-artifacts.sh "$RUN_ID"
+      # - name: "Debug: list artifacts from triggering run"
+      #   env:
+      #     RUN_ID: ${{ github.event.workflow_run.id }}
+      #   run: bash .github/scripts/list-artifacts.sh "$RUN_ID"
 
-      - name: "Debug: show matching artifact files (first lines)"
-        env:
-          RUN_ID: ${{ github.event.workflow_run.id }}
-        run: bash .github/scripts/inspect-artifacts.sh "$RUN_ID"
+      # - name: "Debug: show matching artifact files (first lines)"
+      #   env:
+      #     RUN_ID: ${{ github.event.workflow_run.id }}
+      #   run: bash .github/scripts/inspect-artifacts.sh "$RUN_ID"
 
       - name: Download all test-results-* artifacts
         uses: actions/download-artifact@v4
