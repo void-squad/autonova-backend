@@ -128,19 +128,31 @@ jobs:
             echo
           done
 
-      - name: Generate combined test report from sanitized files (JUnit XML only)
+      - name: Generate combined test report - JUnit XML
         uses: dorny/test-reporter@v2
         continue-on-error: true
         with:
-          name: 'Combined Test Report - All Services'
-          # only include JUnit XML files; skip TRX to avoid non-junit TRX issues
+          name: 'Combined Test Report - All Services (XML)'
           path: 'test-results-clean/**/*.xml'
           reporter: java-junit
           fail-on-error: false
           fail-on-empty: false
           only-summary: true
-          badge-title: 'All Services'
-          report-title: '📊 Complete Test Suite Results'
+          badge-title: 'All Services (XML)'
+          report-title: '📊 Complete Test Suite Results (XML)'
+
+      - name: Generate combined test report - .TRX
+        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        with:
+          name: 'Combined Test Report - All Services (TRX)'
+          path: 'test-results-clean/**/*.trx'
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
+          only-summary: true
+          badge-title: 'All Services (TRX)'
+          report-title: '📊 Complete Test Suite Results (TRX)'
 
   # Status check
   report-status:
