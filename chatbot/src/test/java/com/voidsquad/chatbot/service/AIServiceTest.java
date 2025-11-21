@@ -61,7 +61,7 @@ class AIServiceTest {
     @Test
     void getAllStaticInfoByEmbeddings_formatsResults() {
         when(embeddingService.generateEmbedding(any())).thenReturn(new float[]{1f, 2f, 3f});
-        when(staticInfoRepository.findSimilarStaticInfo(any(), any())).thenReturn(
+        when(staticInfoRepository.findSimilarStaticInfo(any(float[].class), org.mockito.ArgumentMatchers.anyInt())).thenReturn(
                 List.of(StaticInfo.builder().topic("T1").description("D1").build())
         );
 
