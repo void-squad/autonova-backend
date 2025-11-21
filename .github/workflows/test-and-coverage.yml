@@ -147,6 +147,51 @@ jobs:
           check_name: "Test Results - Java - ${{ matrix.service }}"
           comment_mode: off
 
+      - name: Generate test summary with integration test breakdown
+        if: always()
+        run: |
+          mkdir -p test-breakdown
+          SERVICE="${{ matrix.service }}"
+          
+          echo "## $SERVICE Test Breakdown" > test-breakdown/summary.md
+          echo "" >> test-breakdown/summary.md
+          
+          # Unit tests
+          if [ -d "$SERVICE/target/surefire-reports" ]; then
+            UNIT_TESTS=$(find "$SERVICE/target/surefire-reports" -name "*.xml" -exec grep -h 'testsuite' {} \; | \
+              grep -o 'tests="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+            UNIT_FAILURES=$(find "$SERVICE/target/surefire-reports" -name "*.xml" -exec grep -h 'testsuite' {} \; | \
+              grep -o 'failures="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+            echo "### Unit Tests" >> test-breakdown/summary.md
+            echo "- Total: $UNIT_TESTS" >> test-breakdown/summary.md
+            echo "- Failures: $UNIT_FAILURES" >> test-breakdown/summary.md
+            echo "" >> test-breakdown/summary.md
+          fi
+          
+          # Integration tests
+          if [ -d "$SERVICE/target/failsafe-reports" ] && [ -n "$(find "$SERVICE/target/failsafe-reports" -name 'TEST-*.xml' 2>/dev/null)" ]; then
+            INT_TESTS=$(find "$SERVICE/target/failsafe-reports" -name "TEST-*.xml" -exec grep -h 'testsuite' {} \; | \
+              grep -o 'tests="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+            INT_FAILURES=$(find "$SERVICE/target/failsafe-reports" -name "TEST-*.xml" -exec grep -h 'testsuite' {} \; | \
+              grep -o 'failures="[0-9]*"' | cut -d'"' -f2 | awk '{s+=$1} END {print s}' || echo "0")
+            echo "### Integration Tests ✓" >> test-breakdown/summary.md
+            echo "- Total: $INT_TESTS" >> test-breakdown/summary.md
+            echo "- Failures: $INT_FAILURES" >> test-breakdown/summary.md
+          else
+            echo "### Integration Tests" >> test-breakdown/summary.md
+            echo "- No integration tests found" >> test-breakdown/summary.md
+          fi
+          
+          cat test-breakdown/summary.md
+
+      - name: Upload test breakdown
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-breakdown-${{ matrix.service }}
+          path: test-breakdown/
+          retention-days: 30
+
   # Run tests in parallel for .NET services
   test-dotnet-services:
     name: Test .NET - ${{ matrix.service }}
@@ -473,10 +518,104 @@ jobs:
           path: test-summary/
           retention-days: 90
 
+  # Integration test summary job
+  integration-test-summary:
+    name: Integration Test Summary
+    needs: [test-java-services, test-dotnet-services]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all test breakdown artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-breakdown-*
+          path: ./test-breakdowns
+
+      - name: Create integration test summary
+        run: |
+          mkdir -p integration-summary
+          
+          echo "# Integration Test Summary" > integration-summary/INTEGRATION.md
+          echo "" >> integration-summary/INTEGRATION.md
+          echo "## Services with Integration Tests" >> integration-summary/INTEGRATION.md
+          echo "" >> integration-summary/INTEGRATION.md
+          
+          TOTAL_INT_TESTS=0
+          TOTAL_INT_FAILURES=0
+          SERVICES_WITH_IT=0
+          
+          for breakdown_dir in test-breakdowns/test-breakdown-*; do
+            if [ -d "$breakdown_dir" ] && [ -f "$breakdown_dir/summary.md" ]; then
+              SERVICE_NAME=$(basename "$breakdown_dir" | sed 's/test-breakdown-//')
+              
+              # Check if this service has integration tests
+              if grep -q "Integration Tests ✓" "$breakdown_dir/summary.md"; then
+                SERVICES_WITH_IT=$((SERVICES_WITH_IT + 1))
+                echo "### ✅ $SERVICE_NAME" >> integration-summary/INTEGRATION.md
+                
+                # Extract integration test counts
+                INT_TESTS=$(grep -A 2 "Integration Tests ✓" "$breakdown_dir/summary.md" | grep "Total:" | grep -o '[0-9]*' || echo "0")
+                INT_FAILURES=$(grep -A 2 "Integration Tests ✓" "$breakdown_dir/summary.md" | grep "Failures:" | grep -o '[0-9]*' || echo "0")
+                
+                echo "- Tests: $INT_TESTS" >> integration-summary/INTEGRATION.md
+                echo "- Failures: $INT_FAILURES" >> integration-summary/INTEGRATION.md
+                echo "" >> integration-summary/INTEGRATION.md
+                
+                TOTAL_INT_TESTS=$((TOTAL_INT_TESTS + INT_TESTS))
+                TOTAL_INT_FAILURES=$((TOTAL_INT_FAILURES + INT_FAILURES))
+              fi
+            fi
+          done
+          
+          # Prepend overall summary
+          {
+            echo "# Integration Test Summary"
+            echo ""
+            echo "## Overall Results"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Services with Integration Tests | $SERVICES_WITH_IT |"
+            echo "| Total Integration Tests | $TOTAL_INT_TESTS |"
+            echo "| Passed | $((TOTAL_INT_TESTS - TOTAL_INT_FAILURES)) |"
+            echo "| Failed | $TOTAL_INT_FAILURES |"
+            echo ""
+            cat integration-summary/INTEGRATION.md
+          } > integration-summary/INTEGRATION_FINAL.md
+          
+          mv integration-summary/INTEGRATION_FINAL.md integration-summary/INTEGRATION.md
+          cat integration-summary/INTEGRATION.md
+
+      - name: Upload integration test summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-summary
+          path: integration-summary/
+          retention-days: 90
+
+      - name: Comment integration test summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const integrationMd = fs.readFileSync('integration-summary/INTEGRATION.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: integrationMd
+            });
+
   # Final status check
   test-status:
     name: Test Status Check
-    needs: [test-java-services, test-dotnet-services, aggregate-coverage, test-report]
+    needs: [test-java-services, test-dotnet-services, aggregate-coverage, test-report, integration-test-summary]
     runs-on: ubuntu-latest
     if: always()
     
@@ -503,7 +642,7 @@ jobs:
   # Generate comprehensive PDF report
   generate-pdf-report:
     name: Generate Comprehensive PDF Report
-    needs: [test-java-services, test-dotnet-services, aggregate-coverage, test-report]
+    needs: [test-java-services, test-dotnet-services, aggregate-coverage, test-report, integration-test-summary]
     runs-on: ubuntu-latest
     if: always()
     
@@ -565,6 +704,14 @@ jobs:
             cat ./all-artifacts/test-summary/TESTS.md >> pdf-report/comprehensive-report.md
           else
             echo -e "\n\n---\n\n# Test Execution Results\n\n*No test summary available*\n" >> pdf-report/comprehensive-report.md
+          fi
+
+          # Add integration test summary if available
+          if [ -f "./all-artifacts/integration-test-summary/INTEGRATION.md" ]; then
+            echo -e "\n\n---\n\n# Integration Test Results\n" >> pdf-report/comprehensive-report.md
+            cat ./all-artifacts/integration-test-summary/INTEGRATION.md >> pdf-report/comprehensive-report.md
+          else
+            echo -e "\n\n---\n\n# Integration Test Results\n\n*No integration test summary available*\n" >> pdf-report/comprehensive-report.md
           fi
           
           # Add detailed service reports

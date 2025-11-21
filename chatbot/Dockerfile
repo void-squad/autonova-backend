@@ -13,7 +13,7 @@ COPY src ./src
 RUN mvn -B -e -DskipTests package
 
 # Stage 2 - runtime
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends dumb-init wget ca-certificates \
