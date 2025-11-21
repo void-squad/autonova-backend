@@ -77,7 +77,7 @@ class AIServiceRequestFlowTest {
         ProcessingResult toolIdentify = new ProcessingResult("{\"tool_calls\":[{" +
                 "\"toolName\":\"echo\",\"parameters\":{}}]}", OutputFormat.JSON, ProcessingType.TOOL_CALL_IDENTIFICATION, Map.of());
         when(languageProcessor.findHelperToolCalls(any(), any(), any())).thenReturn(toolIdentify);
-        when(toolCallDecoder.decode(any())).thenReturn(List.of(new ToolCall("echo", Map.of())));
+        when(toolCallDecoder.decode(any())).thenReturn(List.of(new ToolCall("echo", Map.of(), "explanation")));
         when(toolExecutionService.executeAll(any(), any(), any())).thenReturn(List.of(ToolCallResult.success("res", "echo")));
 
         // Final output
