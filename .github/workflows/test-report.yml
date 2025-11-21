@@ -79,9 +79,12 @@ jobs:
     steps:
       - uses: dorny/test-reporter@v2
         with:
-          artifact: /test-results-(.*)/
+          # match artifacts created by the previous jobs; use a wildcard rather than regex
+          artifact: 'test-results-*'
           name: 'Combined Test Report - All Services'
-          path: '**/*.xml,**/*.trx'
+          # glob both JUnit XML and .trx files using brace expansion
+          path: '**/*.{xml,trx}'
+          # use auto-detection where possible
           reporter: java-junit
           fail-on-error: false
           fail-on-empty: false
