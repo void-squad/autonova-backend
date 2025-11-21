@@ -1,1 +1,62 @@
-package com.automobileservice.time_logging_service.service.impl;import com.automobileservice.time_logging_service.entity.TimeLog;import com.automobileservice.time_logging_service.repository.TimeLogRepository;import org.junit.jupiter.api.BeforeEach;import org.junit.jupiter.api.Test;import org.mockito.Mock;import org.mockito.MockitoAnnotations;import java.math.BigDecimal;import java.time.LocalDateTime;import java.util.List;import java.util.UUID;import static org.assertj.core.api.Assertions.assertThat;import static org.mockito.ArgumentMatchers.any;import static org.mockito.Mockito.when;class TimeLogServiceEfficiencyMetricsTest {    @Mock TimeLogRepository repo;    TimeLogServiceImpl service;    @BeforeEach void init(){ MockitoAnnotations.openMocks(this); service = new TimeLogServiceImpl(repo,null,null);}    @Test void getEfficiencyMetrics_calculatesTrend(){        Long emp=1L;        // previous week logs (twoWeeksAgo..weekAgo) -> simulate via repository call order matching impl        when(repo.findByEmployeeIdAndLoggedAtBetween(emp, any(), any())).thenReturn(List.of());        when(repo.findByEmployeeIdOrderByLoggedAtDesc(emp)).thenReturn(List.of());        when(repo.getTotalHoursByEmployee(emp)).thenReturn(new BigDecimal("10"));        // For breakdown approved hours not needed directly here        TimeLog prev = new TimeLog(); prev.setEmployeeId(emp); prev.setProjectId(UUID.randomUUID()); prev.setTaskId(UUID.randomUUID()); prev.setHours(new BigDecimal("5")); prev.setLoggedAt(LocalDateTime.now().minusDays(8));        TimeLog curr = new TimeLog(); curr.setEmployeeId(emp); curr.setProjectId(UUID.randomUUID()); curr.setTaskId(UUID.randomUUID()); curr.setHours(new BigDecimal("7")); curr.setLoggedAt(LocalDateTime.now().minusDays(1));        when(repo.findByEmployeeIdAndLoggedAtBetween(emp, any(), any())).thenReturn(List.of(curr));        var metrics = service.getEfficiencyMetrics(emp);        assertThat(metrics.getEfficiency()).isNotNull();        assertThat(metrics.getBreakdown().getAvgTaskTime()).isNotNull();    }}
+package com.automobileservice.time_logging_service.service.impl;
+
+import com.automobileservice.time_logging_service.entity.TimeLog;
+import com.automobileservice.time_logging_service.repository.TimeLogRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+class TimeLogServiceEfficiencyMetricsTest {
+
+	@Mock
+	TimeLogRepository repo;
+
+	TimeLogServiceImpl service;
+
+	@BeforeEach
+	void init() {
+		MockitoAnnotations.openMocks(this);
+		service = new TimeLogServiceImpl(repo, null, null);
+	}
+
+	@Test
+	void getEfficiencyMetrics_calculatesTrend() {
+		Long emp = 1L;
+
+		// previous week logs (twoWeeksAgo..weekAgo) -> simulate via repository call order matching impl
+		when(repo.findByEmployeeIdAndLoggedAtBetween(org.mockito.ArgumentMatchers.eq(emp), any(), any())).thenReturn(List.of());
+		when(repo.findByEmployeeIdOrderByLoggedAtDesc(emp)).thenReturn(List.of());
+		when(repo.getTotalHoursByEmployee(emp)).thenReturn(new BigDecimal("10"));
+
+		// For breakdown approved hours not needed directly here
+		TimeLog prev = new TimeLog();
+		prev.setEmployeeId(emp);
+		prev.setProjectId(UUID.randomUUID());
+		prev.setTaskId(UUID.randomUUID());
+		prev.setHours(new BigDecimal("5"));
+		prev.setLoggedAt(LocalDateTime.now().minusDays(8));
+
+		TimeLog curr = new TimeLog();
+		curr.setEmployeeId(emp);
+		curr.setProjectId(UUID.randomUUID());
+		curr.setTaskId(UUID.randomUUID());
+		curr.setHours(new BigDecimal("7"));
+		curr.setLoggedAt(LocalDateTime.now().minusDays(1));
+
+		when(repo.findByEmployeeIdAndLoggedAtBetween(org.mockito.ArgumentMatchers.eq(emp), any(), any())).thenReturn(List.of(curr));
+
+		var metrics = service.getEfficiencyMetrics(emp);
+		assertThat(metrics.getEfficiency()).isNotNull();
+		assertThat(metrics.getBreakdown().getAvgTaskTime()).isNotNull();
+	}
+}

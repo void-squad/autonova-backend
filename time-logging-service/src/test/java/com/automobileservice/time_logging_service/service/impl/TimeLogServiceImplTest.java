@@ -62,7 +62,7 @@ class TimeLogServiceImplTest {
         t2.setHours(new BigDecimal("3.0"));
         t2.setLoggedAt(LocalDateTime.now().minusDays(2));
 
-        when(timeLogRepository.findByEmployeeIdAndLoggedAtBetween(empId, org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        when(timeLogRepository.findByEmployeeIdAndLoggedAtBetween(org.mockito.ArgumentMatchers.eq(empId), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
             .thenReturn(List.of(t1, t2));
 
         var resp = service.getWeeklySummary(empId);
