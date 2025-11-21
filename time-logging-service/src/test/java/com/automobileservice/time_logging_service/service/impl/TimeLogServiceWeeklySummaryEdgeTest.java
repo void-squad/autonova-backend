@@ -1,0 +1,72 @@
+package com.automobileservice.time_logging_service.service.impl;
+
+import com.automobileservice.time_logging_service.entity.TimeLog;
+import com.automobileservice.time_logging_service.repository.TimeLogRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+class TimeLogServiceWeeklySummaryEdgeTest {
+
+	@Mock
+	TimeLogRepository repository;
+
+	TimeLogServiceImpl service;
+
+	@BeforeEach
+	void init() {
+		MockitoAnnotations.openMocks(this);
+		service = new TimeLogServiceImpl(repository, null, null);
+	}
+
+	@Test
+	void getWeeklySummary_handlesEmptyLogs() {
+		when(repository.findByEmployeeIdAndLoggedAtBetween(any(), any(), any())).thenReturn(List.of());
+		var resp = service.getWeeklySummary(99L);
+		assertThat(resp.getDailyHours()).hasSize(7); // one entry per day
+		assertThat(resp.getProjectBreakdown()).isEmpty();
+	}
+
+	@Test
+	void getWeeklySummary_groupsHoursSameDay() {
+		Long emp = 55L;
+		UUID proj = UUID.randomUUID();
+		LocalDateTime now = LocalDateTime.now();
+
+		TimeLog a = new TimeLog();
+		a.setEmployeeId(emp);
+		a.setProjectId(proj);
+		a.setTaskId(UUID.randomUUID());
+		a.setHours(new BigDecimal("1.25"));
+		a.setLoggedAt(now);
+
+		TimeLog b = new TimeLog();
+		b.setEmployeeId(emp);
+		b.setProjectId(proj);
+		b.setTaskId(UUID.randomUUID());
+		b.setHours(new BigDecimal("2.75"));
+		b.setLoggedAt(now);
+
+		when(repository.findByEmployeeIdAndLoggedAtBetween(org.mockito.ArgumentMatchers.eq(emp), any(), any())).thenReturn(List.of(a, b));
+
+		var resp = service.getWeeklySummary(emp);
+		var totalForToday = resp.getDailyHours().stream()
+			.filter(d -> d.getHours().compareTo(BigDecimal.ZERO) > 0)
+			.map(d -> d.getHours())
+			.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		assertThat(totalForToday).isEqualByComparingTo(new BigDecimal("4.00"));
+		assertThat(resp.getProjectBreakdown()).hasSize(1);
+		assertThat(resp.getProjectBreakdown().get(0).getTotalHours()).isEqualByComparingTo(new BigDecimal("4.00"));
+	}
+}

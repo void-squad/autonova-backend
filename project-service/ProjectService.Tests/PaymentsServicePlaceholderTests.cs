@@ -1,0 +1,2 @@
+// Placeholder to ensure test discovery remains stable after additions.
+using Xunit;namespace ProjectService.Tests { public class PaymentsServicePlaceholderTests { [Fact] public void Placeholder() { Assert.True(true); } } }
