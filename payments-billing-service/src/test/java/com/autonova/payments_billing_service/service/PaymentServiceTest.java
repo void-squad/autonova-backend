@@ -1,5 +1,72 @@
 package com.autonova.payments_billing_service.service;
 
+import com.autonova.payments_billing_service.config.StripeProperties;
+import com.autonova.payments_billing_service.domain.InvoiceEntity;
+import com.autonova.payments_billing_service.domain.InvoiceStatus;
+import com.autonova.payments_billing_service.domain.PaymentEntity;
+import com.autonova.payments_billing_service.domain.PaymentProvider;
+import com.autonova.payments_billing_service.domain.PaymentStatus;
+import com.autonova.payments_billing_service.messaging.DomainEventPublisher;
+import com.autonova.payments_billing_service.repository.PaymentRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
+
+class PaymentServiceTest {
+
+    @Mock
+    PaymentRepository paymentRepository;
+
+    @Mock
+    DomainEventPublisher eventPublisher;
+
+    StripeProperties stripeProperties;
+
+    PaymentService paymentService;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        stripeProperties = new StripeProperties();
+        stripeProperties.setApiKey("sk_test_xxx");
+        stripeProperties.setPublishableKey("pk_test_xxx");
+
+        // invoiceService is not needed for the tested methods here; pass null where allowed
+        paymentService = new PaymentService(stripeProperties, paymentRepository, null, eventPublisher);
+    }
+
+    @Test
+    void findLatestSuccessfulPaymentProvider_returnsProvider_whenPresent() {
+        UUID invoiceId = UUID.randomUUID();
+        PaymentEntity entity = new PaymentEntity();
+        entity.setProvider(PaymentProvider.OFFLINE);
+        when(paymentRepository.findFirstByInvoice_IdAndStatusOrderByCreatedAtDesc(invoiceId, PaymentStatus.SUCCEEDED))
+            .thenReturn(Optional.of(entity));
+
+        Optional<PaymentProvider> opt = paymentService.findLatestSuccessfulPaymentProvider(invoiceId);
+
+        assertThat(opt).isPresent().contains(PaymentProvider.OFFLINE);
+    }
+
+    @Test
+    void recordOfflinePayment_throwsWhenInvoicePaid() {
+        InvoiceEntity invoice = new InvoiceEntity();
+        invoice.setId(UUID.randomUUID());
+        invoice.setStatus(InvoiceStatus.PAID);
+
+        assertThrows(IllegalStateException.class, () -> paymentService.recordOfflinePayment(invoice, null));
+    }
+}
+package com.autonova.payments_billing_service.service;
+
 import com.autonova.payments_billing_service.auth.AuthenticatedUser;
 import com.autonova.payments_billing_service.config.StripeProperties;
 import com.autonova.payments_billing_service.domain.*;
